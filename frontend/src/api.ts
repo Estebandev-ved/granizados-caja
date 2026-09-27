@@ -1,0 +1,157 @@
+import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
+import type {
+  CategoriaGasto, DatosProducto, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  PedidoSugerido, Producto, Reporte, RespuestaVenta, TipoMovimiento,
+} from './tipos'
+
+// Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
+const BASE = import.meta.env.VITE_API_URL ?? ''
+const CLAVE_TOKEN = 'gz_token'
+
+export class ApiError extends Error {
+  status: number
+
+  constructor(status: number, mensaje: string) {
+    super(mensaje)
+    this.status = status
+  }
+}
+
+/** 4xx = el dato está mal y reintentar no lo arregla. 401/408/429 sí se pueden reintentar. */
+export function esRechazo(e: unknown): boolean {
+  return e instanceof ApiError && e.status >= 400 && e.status < 500 && ![401, 408, 429].includes(e.status)
+}
+
+export const sesion = {
+  get token(): string | null {
+    try { return localStorage.getItem(CLAVE_TOKEN) } catch { return null }
+  },
+  guardar(token: string) {
+    try { localStorage.setItem(CLAVE_TOKEN, token) } catch { /* modo privado */ }
+  },
+  cerrar() {
+    try { localStorage.removeItem(CLAVE_TOKEN) } catch { /* modo privado */ }
+    window.dispatchEvent(new Event('gz:sesion'))
+  },
+}
+
+async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (cuerpo !== undefined) headers['Content-Type'] = 'application/json'
+  const token = sesion.token
+  if (token) headers.Authorization = 'Bearer ' + token
+
+  const control = new AbortController()
+  const limite = setTimeout(() => control.abort(), 20000)
+  let r: Response
+  try {
+    r = await fetch(BASE + ruta, {
+      method: metodo, headers, signal: control.signal,
+      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    })
+  } finally {
+    clearTimeout(limite)
+  }
+
+  if (r.status === 401 && ruta !== '/api/auth/login' && !ruta.startsWith('/api/passkey/login')) sesion.cerrar()
+  if (!r.ok) {
+    let mensaje = 'Error ' + r.status
+    try { mensaje = (await r.json()).error ?? mensaje } catch { /* sin cuerpo */ }
+    throw new ApiError(r.status, mensaje)
+  }
+  if (r.status === 204) return undefined as T
+  return r.json() as Promise<T>
+}
+
+/** Mismo token, pero el cuerpo es texto (el CSV de los reportes). */
+async function pedirTexto(ruta: string): Promise<string> {
+  const headers: Record<string, string> = {}
+  const token = sesion.token
+  if (token) headers.Authorization = 'Bearer ' + token
+
+  const r = await fetch(BASE + ruta, { headers })
+  if (r.status === 401) sesion.cerrar()
+  if (!r.ok) throw new ApiError(r.status, 'Error ' + r.status)
+  return r.text()
+}
+
+// Opciones de WebAuthn tal como las arma el servidor (van directo a @simplewebauthn/browser)
+type OpcionesFaceId<T> = { solicitud: string; opciones: { publicKey: T } }
+type RespuestaFaceId = { solicitud: string; credencial: string; nombre?: string }
+export interface PasskeyInfo { id: number; nombre: string; creadaEn: string; usadaEn: string | null }
+
+type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string }
+type EntradaApi = { clientUid: string; productoId: number; cantidad: number }
+/** Un movimiento de inventario: `cantidad` para ENTRADA/MERMA, `real` para CONTEO. */
+type MovimientoApi = {
+  clientUid: string
+  productoId: number
+  tipo: TipoMovimiento
+  cantidad?: number
+  real?: number
+  motivo?: MotivoMerma
+}
+type RespuestaMovimiento = { clientUid: string; estado: string; error: string | null }
+type GastoApi = { clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; creadoEn: string }
+type ArqueoApi = { clientUid: string; contado: number; nota: string | null; creadoEn: string }
+
+export const api = {
+  login: (pin: string) => pedir<{ token: string }>('POST', '/api/auth/login', { pin }),
+  estado: () => pedir<Estado>('GET', '/api/estado'),
+  venta: (v: VentaApi) => pedir<RespuestaVenta>('POST', '/api/ventas', v),
+  lote: (ventas: VentaApi[]) => pedir<RespuestaVenta[]>('POST', '/api/ventas/lote', { ventas }),
+  deshacer: (clientUid: string) => pedir<void>('DELETE', '/api/ventas/' + encodeURIComponent(clientUid)),
+  entrada: (e: EntradaApi) => pedir<{ estado: string }>('POST', '/api/inventario/entradas', e),
+  movimiento: (m: MovimientoApi) => pedir<RespuestaMovimiento>('POST', '/api/inventario/movimientos', m),
+  gasto: (g: GastoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/gastos', g),
+  arqueo: (a: ArqueoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/arqueo', a),
+  cierreHoy: () => pedir<ArqueoHoy | null>('GET', '/api/arqueo'),
+  pedido: () => pedir<PedidoSugerido>('GET', '/api/pedido/sugerido'),
+  crearPedido: (items: LineaPedido[]) => pedir<PedidoCreado>('POST', '/api/pedidos', { items }),
+  pedidos: (estado?: EstadoPedido) => pedir<Pedido[]>('GET', '/api/pedidos' + (estado ? '?estado=' + estado : '')),
+  recibirPedido: (pedidoId: number, clientUid: string, items: LineaPedido[]) =>
+    pedir<{ estado: string }>('POST', '/api/pedidos/' + pedidoId + '/recibido', { clientUid, items }),
+  cancelarPedido: (pedidoId: number) => pedir<{ estado: string }>('POST', '/api/pedidos/' + pedidoId + '/cancelar'),
+  productos: () => pedir<Producto[]>('GET', '/api/productos'),
+  reportes: (desde: string, hasta: string) => pedir<Reporte>('GET', `/api/reportes?desde=${desde}&hasta=${hasta}`),
+  /** El CSV del periodo. En el iPhone lo comparte (AirDrop, WhatsApp, Archivos); si no se puede, lo descarga. */
+  descargarReporte: async (desde: string, hasta: string) => {
+    const texto = await pedirTexto(`/api/reportes/ventas.csv?desde=${desde}&hasta=${hasta}`)
+    const nombre = `ventas-${desde}_${hasta}.csv`
+    const archivo = new File([texto], nombre, { type: 'text/csv;charset=utf-8' })
+
+    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [archivo] })) {
+      try {
+        await navigator.share({ files: [archivo], title: nombre })
+        return
+      } catch (e) {
+        // El usuario cerró la hoja o el navegador no lo dejó: seguimos con la descarga
+        if (e instanceof DOMException && e.name === 'AbortError') return
+      }
+    }
+
+    const url = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = nombre
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+  },
+  crearProducto: (d: DatosProducto) => pedir<Producto>('POST', '/api/productos', d),
+  editarProducto: (id: number, d: DatosProducto) => pedir<Producto>('PUT', '/api/productos/' + id, d),
+  config: () => pedir<Param[]>('GET', '/api/config'),
+  guardarConfig: (clave: string, valor: string) => pedir<Param>('PUT', '/api/config/' + clave, { valor }),
+  passkeyEntradaOpciones: () => pedir<OpcionesFaceId<PublicKeyCredentialRequestOptionsJSON>>('POST', '/api/passkey/login/opciones'),
+  passkeyEntrar: (r: RespuestaFaceId) => pedir<{ token: string }>('POST', '/api/passkey/login', r),
+  passkeyRegistroOpciones: () => pedir<OpcionesFaceId<PublicKeyCredentialCreationOptionsJSON>>('POST', '/api/passkey/registro/opciones'),
+  passkeyRegistrar: (r: RespuestaFaceId) => pedir<PasskeyInfo>('POST', '/api/passkey/registro', r),
+  passkeys: () => pedir<PasskeyInfo[]>('GET', '/api/passkey'),
+  borrarPasskey: (id: number) => pedir<void>('DELETE', '/api/passkey/' + id),
+}
+
+export type ApiSync = Pick<typeof api, 'lote' | 'venta' | 'entrada' | 'movimiento' | 'gasto' | 'arqueo' | 'recibirPedido'>
+
+/** El cierre de hoy (`GET /api/arqueo`): nulo si todavía no cerraste. */
+export interface ArqueoHoy { esperado: number; contado: number; diferencia: number; nota: string | null }

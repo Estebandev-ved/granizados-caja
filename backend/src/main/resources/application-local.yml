@@ -1,0 +1,8 @@
+# Desarrollo en tu PC: conexión a PostgreSQL local
+spring:
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5432/granizados
+    username: postgres
+    password: pola0912345
+    hikari:
+      maximum-pool-size: 5

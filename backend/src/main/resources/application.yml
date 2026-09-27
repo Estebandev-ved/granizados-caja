@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: granizados-pos
+  profiles:
+    default: local
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  compression:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+app:
+  zona: America/Bogota
+  pin: ${APP_PIN:1234}
+  jwt-secret: ${JWT_SECRET:solo-para-desarrollo-cambiar-en-produccion-32b}
+  token-dias: 30
+  telegram:
+    token: ${TELEGRAM_TOKEN:}
+    chat-id: ${TELEGRAM_CHAT_ID:}
+  webauthn:
+    # En Railway RAILWAY_PUBLIC_DOMAIN la pone Railway sola; en tu PC queda localhost
+    rp-id: ${WEBAUTHN_RP_ID:${RAILWAY_PUBLIC_DOMAIN:localhost}}
+    nombre: Dopamina Cocktails
+    origenes: http://localhost:5173,http://localhost:8080
+  tareas:
+    habilitadas: true
+    cierre-diario: "0 0 21 * * *"
+    pedido-semanal: "0 0 19 * * SUN"

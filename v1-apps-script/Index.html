@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  :root{
+    --bg:#0d0f1a; --card:#171a2b; --card2:#1f2338; --line:#2a2f4a; --txt:#f3f4fa; --mut:#8d93b3;
+    --ice:#5ee7ff; --nequi:#d6246e; --cash:#1fbf75; --warn:#ffb020; --bad:#ff4d5e;
+    --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--txt);font:16px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-user-select:none;user-select:none;overscroll-behavior:none}
+  header{position:sticky;top:0;z-index:5;background:linear-gradient(180deg,var(--bg) 80%,transparent);
+    padding:calc(var(--safe-t) + 12px) 16px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .hoy-mini{font-weight:700;font-size:22px;letter-spacing:-.5px}
+  .hoy-mini small{display:block;font-size:12px;font-weight:500;color:var(--mut);letter-spacing:0}
+  .sync{font-size:12px;color:var(--mut);display:flex;align-items:center;gap:6px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--cash)}
+  .dot.pend{background:var(--warn)} .dot.off{background:var(--bad)}
+  main{padding:0 12px calc(90px + var(--safe-b))}
+  .modo{font-size:13px;color:var(--mut);margin:4px 4px 10px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .prod{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 12px;min-height:96px;
+    display:flex;flex-direction:column;justify-content:space-between;text-align:left;color:var(--txt);font:inherit;
+    transition:transform .08s}
+  .prod:active{transform:scale(.96);background:var(--card2)}
+  .prod b{font-size:17px;line-height:1.15}
+  .prod .tipo{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--ice);margin-top:2px}
+  .prod .fila{display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px}
+  .precio{color:var(--mut);font-size:14px}
+  .stock{font-weight:700;font-size:15px;padding:3px 9px;border-radius:99px;background:#243052;color:#bfe9ff}
+  .stock.low{background:#4a3510;color:var(--warn)} .stock.out{background:#4a1520;color:var(--bad)}
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:#10121f;border-top:1px solid var(--line);
+    padding-bottom:var(--safe-b)}
+  nav button{flex:1;background:none;border:0;color:var(--mut);font-family:inherit;font-size:13px;font-weight:600;line-height:1;padding:14px 0 12px;display:flex;
+    flex-direction:column;align-items:center;gap:5px}
+  nav button.on{color:var(--ice)}
+  nav svg{width:24px;height:24px}
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10;display:none}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;background:var(--card);border-radius:24px 24px 0 0;
+    padding:18px 16px calc(18px + var(--safe-b));transform:translateY(105%);transition:transform .18s ease-out}
+  .sheet.on{transform:none} .sheet-bg.on{display:block}
+  .sheet:not(.on){pointer-events:none}
+  .pend-tag{color:var(--warn);font-size:12px;margin-left:4px}
+  .aviso{color:var(--warn)!important}
+  .sheet h2{font-size:22px;margin-bottom:2px} .sheet p{color:var(--mut);margin-bottom:16px}
+  .pay{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .big{border:0;border-radius:18px;padding:22px 10px;font-family:inherit;font-size:20px;font-weight:700;line-height:1;color:#fff}
+  .big:active{filter:brightness(.85)}
+  .nequi{background:var(--nequi)} .cash{background:var(--cash)} .ice{background:#1c8fb0}
+  .ghost{background:var(--card2);color:var(--txt);border:1px solid var(--line)}
+  .qty{display:flex;align-items:center;justify-content:center;gap:18px;margin:4px 0 16px}
+  .qty button{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:var(--card2);color:var(--txt);font-size:24px}
+  .qty span{font-size:34px;font-weight:800;min-width:60px;text-align:center}
+  .chips{display:flex;gap:8px;justify-content:center;margin-bottom:16px}
+  .chips button{border:1px solid var(--line);background:var(--card2);color:var(--txt);border-radius:99px;padding:10px 16px;font-family:inherit;font-size:15px;font-weight:600}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px}
+  .card.full{grid-column:1/-1}
+  .card .k{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px}
+  .card .v{font-size:26px;font-weight:800;margin-top:4px;letter-spacing:-.5px}
+  .card.full .v{font-size:34px}
+  .list{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:4px 14px;margin-bottom:14px}
+  .list h3{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;padding:10px 0 4px}
+  .row{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);font-size:15px}
+  .row:first-of-type{border-top:0}
+  .tag{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;margin-left:6px}
+  .tag.n{background:#4a1530;color:#ff8dbb} .tag.e{background:#12402c;color:#6fe3ac}
+  .acciones{display:grid;gap:10px}
+  .toast{position:fixed;left:50%;top:calc(var(--safe-t) + 10px);transform:translate(-50%,-150%);z-index:20;background:#fff;color:#111;
+    padding:10px 16px;border-radius:99px;font-weight:700;font-size:15px;transition:transform .2s;white-space:nowrap}
+  .toast.on{transform:translate(-50%,0)}
+  .vacio{color:var(--mut);text-align:center;padding:40px 10px}
+  .pedido-lista{max-height:40vh;overflow:auto;margin-bottom:14px}
+  a.big{display:block;text-align:center;text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hoy-mini" id="hdrTotal">$0<small id="hdrSub">hoy · 0 vendidos</small></div>
+  <div class="sync"><span class="dot" id="dot"></span><span id="syncTxt">al día</span></div>
+</header>
+
+<main>
+  <section id="v-vender">
+    <div class="modo">Toca un sabor para vender</div>
+    <div class="grid" id="gridVender"></div>
+  </section>
+  <section id="v-reponer" hidden>
+    <div class="modo">Llegó pedido: toca el sabor y suma unidades</div>
+    <div class="grid" id="gridReponer"></div>
+  </section>
+  <section id="v-hoy" hidden></section>
+</main>
+
+<nav>
+  <button class="on" data-v="vender"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h10l-1.5 18h-7z"/><path d="M6 8h12"/></svg>Vender</button>
+  <button data-v="reponer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Reponer</button>
+  <button data-v="hoy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Hoy</button>
+</nav>
+
+<div class="sheet-bg" id="bg"></div>
+<div class="sheet" id="sheet"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ───────── Estado ───────── */
+const HOY_VACIO = () => ({ total:0, nequi:0, efectivo:0, unidades:0, porSabor:[] });
+let S = { productos: [], hoy: HOY_VACIO(), ultimas: [], dia: '' };
+// Operaciones pendientes por subir: {op:'venta'|'reponer', uid, id, metodo?, cantidad}
+let cola = cargar('gz_cola', []).map(x => x.op ? x : Object.assign({ op:'venta' }, x));
+let ocupado = false, vista = 'vender';
+let gen = 0;            // sube con cada cambio local; un refresco viejo no pisa lo nuevo
+let espera = 0, tReintento = null;
+let sheetOn = false;    // evita que un doble toque en Nequi/Efectivo registre dos ventas
+
+const $ = id => document.getElementById(id);
+const pesos = n => '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const nombre = p => p.sabor + (p.tipo && p.tipo !== 'normal' ? ' ' + p.tipo : '');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function cargar(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function guardar(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function vibrar(){ try{ navigator.vibrate && navigator.vibrate(15); }catch(e){} }
+function hoyBogota(){ try{ return new Date().toLocaleDateString('en-CA', { timeZone:'America/Bogota' }); }catch(e){ return new Date().toISOString().slice(0,10); } }
+function guardarTodo(){ guardar('gz_cola', cola); guardar('gz_estado', S); }
+
+/** Si el estado guardado es de otro día (app abierta sin señal a medianoche), arranca "hoy" en cero. */
+function revisarDia(){
+  const d = hoyBogota();
+  if (S.dia && S.dia !== d){ S.hoy = HOY_VACIO(); S.ultimas = []; }
+  S.dia = d;
+}
+
+/* ───────── Render ───────── */
+function render(){
+  revisarDia();
+  $('hdrTotal').firstChild.nodeValue = pesos(S.hoy.total);
+  $('hdrSub').textContent = 'hoy · ' + S.hoy.unidades + ' vendido' + (S.hoy.unidades === 1 ? '' : 's');
+  const card = (p, modo) => {
+    const cls = p.stock <= 0 ? 'out' : (p.stock <= p.minimo ? 'low' : '');
+    return `<button class="prod" data-id="${esc(p.id)}" data-modo="${modo}">
+      <div><b>${esc(p.sabor)}</b>${p.tipo && p.tipo!=='normal' ? `<div class="tipo">${esc(p.tipo)}</div>` : ''}</div>
+      <div class="fila"><span class="precio">${pesos(p.precio)}</span><span class="stock ${cls}">${p.stock}</span></div></button>`;
+  };
+  // En Vender los agotados van al final, el resto en el orden de la hoja
+  const orden = [...S.productos].sort((a,b) => (a.stock<=0) - (b.stock<=0));
+  $('gridVender').innerHTML = orden.length ? orden.map(p => card(p,'vender')).join('') : '<div class="vacio">Cargando…</div>';
+  $('gridReponer').innerHTML = S.productos.map(p => card(p,'reponer')).join('');
+  renderHoy();
+  renderSync();
+}
+
+function renderHoy(){
+  const h = S.hoy;
+  const pendientes = new Set(cola.map(x => x.uid));
+  $('v-hoy').innerHTML = `
+    <div class="cards">
+      <div class="card full"><div class="k">Vendido hoy</div><div class="v">${pesos(h.total)}</div></div>
+      <div class="card"><div class="k">Nequi</div><div class="v">${pesos(h.nequi)}</div></div>
+      <div class="card"><div class="k">Efectivo (en caja)</div><div class="v">${pesos(h.efectivo)}</div></div>
+    </div>
+    ${h.porSabor.length ? `<div class="list"><h3>Por sabor</h3>${h.porSabor.map(s=>`<div class="row"><span>${esc(s.sabor)}</span><b>${s.unidades}</b></div>`).join('')}</div>` : ''}
+    ${S.ultimas.length ? `<div class="list"><h3>Últimas ventas</h3>${S.ultimas.map(u=>`<div class="row"><span>${esc(u.hora)} · ${esc(u.sabor)}${u.uid && pendientes.has(u.uid) ? '<span class="pend-tag">⏳</span>' : ''}</span><span>${pesos(u.total)}<span class="tag ${u.metodo==='efectivo'?'e':'n'}">${u.metodo==='efectivo'?'EF':'NQ'}</span></span></div>`).join('')}</div>` : '<div class="vacio">Aún no hay ventas hoy</div>'}
+    <div class="acciones">
+      <button class="big ice" id="btnPedido">Armar pedido al proveedor</button>
+      <button class="big ghost" id="btnDeshacer">Deshacer última venta</button>
+      <button class="big ghost" id="btnRecargar">Recargar datos</button>
+    </div>`;
+  $('btnPedido').onclick = abrirPedido;
+  $('btnDeshacer').onclick = deshacer;
+  $('btnRecargar').onclick = () => { toast('Recargando…'); refrescar(); subir(); };
+}
+
+function renderSync(){
+  const n = cola.length;
+  const off = navigator.onLine === false;
+  $('dot').className = 'dot' + (off ? ' off' : (n ? ' pend' : ''));
+  $('syncTxt').textContent = n ? n + ' pendiente' + (n>1?'s':'') : (off ? 'sin señal' : 'al día');
+}
+
+/* ───────── Vender ───────── */
+function abrirVenta(p){
+  let cant = 1;
+  const pintar = () => {
+    const quedan = p.stock - cant;
+    $('sheet').innerHTML = `
+      <h2>${esc(nombre(p))}</h2><p${quedan < 0 ? ' class="aviso"' : ''}>${pesos(p.precio * cant)} · ${p.stock <= 0 ? 'según el inventario no quedan' : 'quedan ' + p.stock}</p>
+      <div class="qty"><button id="menos">−</button><span>${cant}</span><button id="mas">+</button></div>
+      <div class="pay">
+        <button class="big nequi" id="pNequi">Nequi</button>
+        <button class="big cash" id="pCash">Efectivo</button>
+      </div>`;
+    $('menos').onclick = () => { if (cant>1){ cant--; pintar(); } };
+    $('mas').onclick = () => { if (cant<99){ cant++; pintar(); } };
+    $('pNequi').onclick = () => vender(p, 'nequi', cant);
+    $('pCash').onclick  = () => vender(p, 'efectivo', cant);
+  };
+  pintar(); abrirSheet();
+}
+
+/** Suma (signo 1) o resta (signo -1) una venta en el estado local. */
+function aplicarVentaLocal(p, metodo, cant, signo){
+  const total = p.precio * cant * signo;
+  p.stock -= cant * signo;
+  S.hoy.total += total; S.hoy.unidades += cant * signo; S.hoy[metodo] += total;
+  const k = nombre(p), fila = S.hoy.porSabor.find(s => s.sabor === k);
+  if (fila) fila.unidades += cant * signo; else if (signo > 0) S.hoy.porSabor.push({ sabor:k, unidades:cant });
+  S.hoy.porSabor = S.hoy.porSabor.filter(s => s.unidades > 0).sort((a,b)=>b.unidades-a.unidades);
+}
+
+function vender(p, metodo, cant){
+  if (!sheetOn) return;   // el sheet ya se cerró: es un segundo toque
+  vibrar(); cerrarSheet();
+  // Optimista: se ve al instante, se sube en segundo plano
+  revisarDia();
+  aplicarVentaLocal(p, metodo, cant, 1);
+  const op = { op:'venta', uid: uid(), id: p.id, metodo, cantidad: cant };
+  const hora = new Date().toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZone:'America/Bogota' });
+  S.ultimas.unshift({ hora, sabor: nombre(p), total: p.precio * cant, metodo, uid: op.uid });
+  S.ultimas = S.ultimas.slice(0,8);
+  cola.push(op); gen++; guardarTodo();
+  render();
+  toast('✓ ' + (cant > 1 ? cant + ' ' : '') + nombre(p) + ' · ' + (metodo === 'nequi' ? 'Nequi' : 'Efectivo'));
+  subir();
+}
+
+/* ───────── Sincronización ───────── */
+function subir(){
+  clearTimeout(tReintento);
+  if (ocupado || !cola.length) { renderSync(); return; }
+  ocupado = true; renderSync();
+  const item = cola[0];
+  const quitar = () => { cola = cola.filter(x => x !== item); guardar('gz_cola', cola); };
+  const run = google.script.run
+    .withSuccessHandler(estado => {
+      quitar(); ocupado = false; espera = 0;
+      if (!cola.length) aplicar(estado);   // el servidor manda la verdad cuando ya no hay pendientes
+      else renderSync();
+      subir();
+    })
+    .withFailureHandler(err => {
+      ocupado = false;
+      const msg = String(err && err.message || err || '');
+      if (msg.indexOf('NO_REINTENTAR') >= 0) {
+        // Reintentar no lo arregla (ej. borraste el sabor de la hoja): se saca para no trancar la cola
+        quitar(); toast('⚠️ Se descartó una ' + (item.op === 'reponer' ? 'reposición' : 'venta') + ': sabor no existe');
+        if (!cola.length) refrescar();
+        subir(); return;
+      }
+      espera = Math.min(espera ? espera * 2 : 3000, 30000);   // 3s, 6s, 12s… máximo 30s
+      renderSync(); tReintento = setTimeout(subir, espera);
+    });
+  if (item.op === 'reponer') run.reponer(item.id, item.cantidad, item.uid);
+  else run.registrarVenta({ uid: item.uid, id: item.id, metodo: item.metodo, cantidad: item.cantidad });
+}
+
+/* ───────── Reponer ───────── */
+function abrirReponer(p){
+  let cant = 0;
+  const pintar = () => {
+    $('sheet').innerHTML = `
+      <h2>${esc(nombre(p))}</h2><p>Stock actual ${p.stock} → queda en <b>${p.stock + cant}</b></p>
+      <div class="chips"><button data-n="1">+1</button><button data-n="5">+5</button><button data-n="10">+10</button><button data-n="0">0</button></div>
+      <div class="qty"><button id="menos">−</button><span>${cant}</span><button id="mas">+</button></div>
+      <button class="big ice" style="width:100%" id="ok" ${cant? '' : 'disabled'}>Sumar ${cant} unidad${cant === 1 ? '' : 'es'}</button>`;
+    document.querySelectorAll('.chips button').forEach(b => b.onclick = () => { const n=+b.dataset.n; cant = n ? cant+n : 0; pintar(); });
+    $('menos').onclick = () => { if (cant>0){ cant--; pintar(); } };
+    $('mas').onclick = () => { cant++; pintar(); };
+    $('ok').onclick = () => {
+      if (!cant || !sheetOn) return;
+      cerrarSheet(); vibrar();
+      p.stock += cant;
+      // Va por la misma cola que las ventas: si no hay señal, se sube después
+      cola.push({ op:'reponer', uid: uid(), id: p.id, cantidad: cant }); gen++; guardarTodo();
+      render(); toast('+' + cant + ' ' + nombre(p));
+      subir();
+    };
+  };
+  pintar(); abrirSheet();
+}
+
+/* ───────── Hoy: pedido y deshacer ───────── */
+function abrirPedido(){
+  $('sheet').innerHTML = '<h2>Pedido sugerido</h2><p>Calculando con tus ventas…</p>';
+  abrirSheet();
+  google.script.run.withSuccessHandler(r => {
+    if (!r.items.length){ $('sheet').innerHTML = '<h2>Pedido sugerido</h2><p>Tienes stock suficiente. No hace falta pedir 🙌</p>'; return; }
+    $('sheet').innerHTML = `
+      <h2>Pedido sugerido</h2><p>${r.total} unidades · según lo que vendes por día</p>
+      <div class="list pedido-lista">${r.items.map(i=>`<div class="row"><span>${esc(i.sabor)}<br><small style="color:var(--mut)">${i.promedioDia}/día</small></span><b>${i.pedir}</b></div>`).join('')}</div>
+      ${r.tieneProveedor
+        ? `<a class="big cash" href="${esc(r.link)}" target="_blank" rel="noopener">Abrir WhatsApp del proveedor</a>`
+        : `<p class="aviso">Pon el número del proveedor en la hoja Config (PROVEEDOR_WHATSAPP) para el botón directo.</p>`}`;
+  }).withFailureHandler(e => { $('sheet').innerHTML = '<h2>Sin conexión</h2><p>El pedido se calcula en el servidor. Intenta cuando tengas señal.</p>'; })
+    .armarPedido();
+}
+
+function deshacer(){
+  const i = cola.length - 1, ultima = cola[i];
+  // Si la última venta aún no ha subido (y no se está subiendo), se borra aquí mismo, sin internet
+  const local = ultima && ultima.op === 'venta' && !(ocupado && i === 0);
+  if (cola.length && !local){ toast('Espera a que suban las ventas'); return; }
+  const u = S.ultimas[0];
+  if (!u){ toast('No hay ventas para deshacer'); return; }
+  $('sheet').innerHTML = `<h2>¿Deshacer?</h2><p>${esc(u.sabor)} · ${pesos(u.total)} · ${esc(u.hora)}</p>
+    <div class="pay"><button class="big ghost" id="no">Cancelar</button><button class="big" style="background:var(--bad)" id="si">Deshacer</button></div>`;
+  abrirSheet();
+  $('no').onclick = cerrarSheet;
+  $('si').onclick = () => {
+    if (!sheetOn) return;
+    cerrarSheet();
+    if (local && cola[cola.length - 1] === ultima && !(ocupado && cola[0] === ultima)) {
+      cola.pop();
+      const p = S.productos.find(x => x.id === ultima.id);
+      if (p) aplicarVentaLocal(p, ultima.metodo, ultima.cantidad, -1);
+      S.ultimas = S.ultimas.filter(x => x.uid !== ultima.uid);
+      gen++; guardarTodo(); render(); toast('Venta borrada');
+      return;
+    }
+    if (cola.length){ toast('Espera a que suban las ventas'); return; }
+    toast('Deshaciendo…');
+    google.script.run.withSuccessHandler(e => { aplicar(e); toast('Venta borrada'); })
+      .withFailureHandler(() => toast('⚠️ No se pudo, revisa conexión')).deshacerUltimaVenta();
+  };
+}
+
+/* ───────── Infra UI ───────── */
+function aplicar(e){ if (!e || !e.productos) return; S = e; gen++; guardar('gz_estado', S); render(); }
+function refrescar(){
+  const g = gen;
+  google.script.run
+    .withSuccessHandler(e => { if (g === gen && !cola.length) aplicar(e); })
+    .withFailureHandler(renderSync).getEstado();
+}
+function abrirSheet(){ sheetOn = true; $('bg').classList.add('on'); requestAnimationFrame(()=> $('sheet').classList.add('on')); }
+function cerrarSheet(){ sheetOn = false; $('sheet').classList.remove('on'); $('bg').classList.remove('on'); }
+let tt; function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>el.classList.remove('on'),1400); }
+
+$('bg').onclick = cerrarSheet;
+document.addEventListener('click', e => {
+  const b = e.target.closest('.prod'); if (!b) return;
+  const p = S.productos.find(x => x.id === b.dataset.id); if (!p) return;
+  b.dataset.modo === 'vender' ? abrirVenta(p) : abrirReponer(p);
+});
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  vista = b.dataset.v;
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('on', x === b));
+  ['vender','reponer','hoy'].forEach(v => $('v-' + v).hidden = v !== vista);
+  window.scrollTo(0,0);
+});
+window.addEventListener('online', () => { espera = 0; subir(); });
+window.addEventListener('offline', renderSync);
+document.addEventListener('visibilitychange', () => { if (!document.hidden){ espera = 0; render(); subir(); refrescar(); } });
+
+/* ───────── Modo demo (solo si abres el HTML fuera de Apps Script) ───────── */
+if (typeof google === 'undefined') {
+  const prods = ['Smirnoff','Piña colada','Margarita','Tussi','Mojito','Sangría','Four Loko sandía','Chicle']
+    .map((s,i)=>({ id:'p'+i, sabor:s, tipo: i===1?'cremoso':'normal', precio: i===1?7000:6000, stock:[12,6,5,2,8,0,4,3][i], minimo:3 }));
+  const ventas = [], hechos = new Set();
+  const prod = id => { const p = prods.find(p=>p.id===id); if (!p) throw new Error('NO_REINTENTAR: producto no encontrado: ' + id); return p; };
+  const est = () => {
+    const hoy = HOY_VACIO(), map = {};
+    ventas.forEach(v => { hoy.total += v.total; hoy.unidades += v.cantidad; hoy[v.metodo] += v.total; map[v.sabor] = (map[v.sabor]||0) + v.cantidad; });
+    hoy.porSabor = Object.keys(map).map(k=>({ sabor:k, unidades:map[k] })).sort((a,b)=>b.unidades-a.unidades);
+    return JSON.parse(JSON.stringify({ productos: prods, hoy, ultimas: ventas.slice(-8).reverse(), dia: hoyBogota() }));
+  };
+  const api = {
+    getEstado: est,
+    registrarVenta: v => {
+      if (hechos.has(v.uid)) return est();
+      const p = prod(v.id); p.stock -= v.cantidad; hechos.add(v.uid);
+      ventas.push({ id:p.id, sabor:nombre(p), total:p.precio*v.cantidad, metodo:v.metodo, cantidad:v.cantidad,
+        hora:new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}) });
+      return est();
+    },
+    reponer: (id,c,u) => { if (!hechos.has(u)) { prod(id).stock += c; hechos.add(u); } return est(); },
+    deshacerUltimaVenta: () => { const v = ventas.pop(); if (v) prod(v.id).stock += v.cantidad; return est(); },
+    armarPedido: () => ({ items:[{sabor:'Smirnoff',pedir:14,promedioDia:5.2},{sabor:'Tussi',pedir:6,promedioDia:1.8}], total:20, tieneProveedor:true, link:'https://wa.me/' })
+  };
+  // window.demoOffline = true simula que se cayó la señal
+  window.google = { script: { get run(){ let ok=()=>{}, bad=()=>{}; const r = new Proxy({}, { get:(_,k)=> k==='withSuccessHandler' ? f=>{ok=f;return r} : k==='withFailureHandler' ? f=>{bad=f;return r} : (...a)=>setTimeout(()=>{
+    if (window.demoOffline) return bad(new Error('NetworkError'));
+    let res; try { res = api[k](...a); } catch(e) { return bad(e); } ok(res);
+  },300) }); return r; } } };
+}
+
+/* ───────── Arranque: pinta lo guardado al instante y luego sincroniza ───────── */
+const guardado = cargar('gz_estado', null);
+if (guardado && guardado.productos) { S = guardado; if (!S.dia) S.dia = hoyBogota(); }
+render();
+refrescar();
+subir();
+</script>
+</body>
+</html>

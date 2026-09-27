@@ -1,0 +1,15 @@
+# Railway: las variables PG* las pone el servicio de PostgreSQL (ver README).
+spring:
+  datasource:
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
+    hikari:
+      maximum-pool-size: 5
+
+app:
+  # En producción no hay valores por defecto: si faltan, la app no arranca.
+  pin: ${APP_PIN}
+  jwt-secret: ${JWT_SECRET}
+  webauthn:
+    origenes: https://${WEBAUTHN_RP_ID:${RAILWAY_PUBLIC_DOMAIN}}

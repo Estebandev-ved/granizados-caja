@@ -1,0 +1,8 @@
+{
+  "name": "dopamina-cocktails",
+  "private": true,
+  "description": "Caja rápida, inventario y pedido automático de Dopamina Cocktails",
+  "scripts": {
+    "dev": "node dev.mjs"
+  }
+}

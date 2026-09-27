@@ -1,0 +1,16 @@
+# Dependencias y compilados
+node_modules/
+frontend/dist/
+backend/target/
+# El frontend compilado se copia aquí solo al construir la imagen
+backend/src/main/resources/static/
+# Base H2 de desarrollo
+data/
+# Secretos
+.env
+*.local
+# Editores
+.idea/
+.vscode/
+*.iml
+.DS_Store

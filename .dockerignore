@@ -1,0 +1,9 @@
+**/node_modules
+**/target
+**/dist
+backend/data
+backend/src/main/resources/static
+v1-apps-script
+.git
+.claude
+*.md
