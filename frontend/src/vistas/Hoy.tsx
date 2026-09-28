@@ -1,6 +1,7 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { api, type ArqueoHoy } from '../api'
 import dopaGuino from '../assets/dopa-guino.png'
+import { Icono } from '../componentes/Icono'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
@@ -71,11 +72,11 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
 
       <div className="cards">
         <div className="card full">
-          <div className="k">Vendido hoy</div>
+          <div className="k"><Icono nombre="billete" /> Vendido hoy</div>
           <div className="v">{pesos(h.total)}</div>
         </div>
         <div className="card full ganancia">
-          <div className="k">Ganancia</div>
+          <div className="k"><Icono nombre="grafico" /> Ganancia</div>
           <div className="v">{pesos(h.ganancia)}</div>
           <div className="desglose">
             <span>producto {pesos(h.costo)}</span>
@@ -84,11 +85,11 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           </div>
         </div>
         <div className="card">
-          <div className="k">Granizados</div>
+          <div className="k"><Icono nombre="vaso" /> Granizados</div>
           <div className="v">{h.unidades}</div>
         </div>
         <div className="card">
-          <div className="k">Ticket promedio</div>
+          <div className="k"><Icono nombre="ticket" /> Ticket promedio</div>
           <div className="v">{pesos(h.unidades ? Math.round(h.total / h.unidades) : 0)}</div>
         </div>
       </div>
@@ -99,11 +100,11 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
 
       {h.total > 0 && (
         <div className="list">
-          <h3>Nequi vs efectivo</h3>
+          <h3><Icono nombre="billetera" /> Nequi vs efectivo</h3>
           <div className="canal">
             <div className="canal-barra"><span style={{ width: (h.total ? Math.round(h.nequi / h.total * 100) : 0) + '%' }} /></div>
             <div className="canal-leyenda">
-              <span>Nequi {pesos(h.nequi)}</span>
+              <span>{h.total ? Math.round(h.nequi / h.total * 100) : 0}% Nequi · {pesos(h.nequi)}</span>
               <span className="mut">Efectivo {pesos(h.efectivo)}</span>
             </div>
           </div>
@@ -112,36 +113,66 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
 
       {h.porSabor.length > 0 && (
         <div className="list">
-          <h3>Sabores más pedidos</h3>
-          {[...h.porSabor].sort((a, b) => b.unidades - a.unidades).map((s, i) => (
-            <div className="row" key={s.sabor}>
-              <span><b className="rank">{i + 1}</b> {s.sabor}</span>
-              <b>{s.unidades}</b>
-            </div>
-          ))}
+          <h3><Icono nombre="trofeo" /> Sabores más pedidos</h3>
+          {[...h.porSabor].sort((a, b) => b.unidades - a.unidades).map((s, i) => {
+            const pct = h.unidades ? Math.round(s.unidades / h.unidades * 100) : 0
+            return (
+              <div className="sabor-fila" key={s.sabor}>
+                <span className="rank">{i + 1}</span>
+                <div className="sabor-info">
+                  <div className="sabor-cabeza"><b>{s.sabor}</b><b>{s.unidades} u.</b></div>
+                  <div className="sabor-pie"><span className="mut">{pct}% del total</span></div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
       {estado.ultimas.length ? (
         <div className="list">
-          <h3>Últimas ventas</h3>
+          <h3><Icono nombre="reloj" /> Últimas ventas</h3>
           {estado.ultimas.map(u => (
-            <div className="row" key={u.clientUid}>
-              <span>{u.hora} · {u.sabor}{u.pendiente && <span className="pend-tag" title="Sin subir">⏳</span>}</span>
-              <span>{pesos(u.total)}<span className={'tag ' + (u.metodo === 'EFECTIVO' ? 'e' : 'n')}>{u.metodo === 'EFECTIVO' ? 'EF' : 'NQ'}</span></span>
+            <div className="pago-fila" key={u.clientUid}>
+              <span className={'pago-avatar ' + (u.metodo === 'EFECTIVO' ? 'e' : 'n')}>
+                <Icono nombre={u.metodo === 'EFECTIVO' ? 'billete' : 'celular'} />
+              </span>
+              <div className="pago-info">
+                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : 'Nequi'}</b>
+                <span className="mut">{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}</span>
+              </div>
+              <b>{pesos(u.total)}</b>
             </div>
           ))}
         </div>
       ) : <div className="vacio"><img src={dopaGuino} alt="" className="vacio-mascota" />Aún no hay ventas hoy</div>}
 
       <div className="acciones">
-        <button className="big primario" onClick={() => void abrirPedido()}>Armar pedido al proveedor</button>
-        <button className="big ghost" onClick={() => setPanel({ tipo: 'gasto', categoria: 'HIELO', monto: '', concepto: '' })}>
-          Registrar gasto
+        <button className="accion accion-pedido" onClick={() => void abrirPedido()}>
+          <span className="accion-icono"><Icono nombre="camion" /></span>
+          <span className="accion-texto">
+            <b>Armar pedido</b>
+            <small>Al proveedor, por WhatsApp</small>
+          </span>
         </button>
-        <button className="big ghost" onClick={abrirCierre}>Cerrar caja</button>
-        <button className="big ghost" onClick={pedirDeshacer}>Deshacer última venta</button>
-        <button className="big ghost" onClick={() => { avisar('Recargando…'); void onRecargar() }}>Recargar datos</button>
+        <div className="acciones-grid">
+          <button className="accion accion-gasto" onClick={() => setPanel({ tipo: 'gasto', categoria: 'HIELO', monto: '', concepto: '' })}>
+            <span className="accion-icono"><Icono nombre="moneda" /></span>
+            <b>Gasto</b>
+          </button>
+          <button className="accion accion-cierre" onClick={abrirCierre}>
+            <span className="accion-icono"><Icono nombre="candado" /></span>
+            <b>Cerrar caja</b>
+          </button>
+          <button className="accion accion-deshacer" onClick={pedirDeshacer}>
+            <span className="accion-icono"><Icono nombre="flecha" /></span>
+            <b>Deshacer venta</b>
+          </button>
+          <button className="accion accion-recargar" onClick={() => { avisar('Recargando…'); void onRecargar() }}>
+            <span className="accion-icono"><Icono nombre="refrescar" /></span>
+            <b>Recargar</b>
+          </button>
+        </div>
       </div>
 
       <Sheet abierto={!!panel} onCerrar={() => setPanel(null)}>

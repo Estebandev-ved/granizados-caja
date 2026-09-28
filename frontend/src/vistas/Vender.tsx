@@ -1,24 +1,44 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { pesos, vibrar } from '../formato'
-import type { Metodo, Producto } from '../tipos'
+import type { Metodo, Producto, Tipo } from '../tipos'
 
 interface Props {
   productos: Producto[]
   onVender: (p: Producto, metodo: Metodo, cantidad: number) => void
 }
 
+type Filtro = 'todos' | Tipo
+const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande' }
+
 export function Vender({ productos, onVender }: Props) {
   const [elegido, setElegido] = useState<Producto | null>(null)
+  const [filtro, setFiltro] = useState<Filtro>('todos')
+
+  const tiposPresentes = useMemo(
+    () => (Object.keys(ETIQUETA_TIPO) as Tipo[]).filter(t => productos.some(p => p.tipo === t)),
+    [productos])
+
   // Los agotados al final; el resto en el orden de Ajustes
-  const orden = [...productos].sort((a, b) => Number(a.stock <= 0) - Number(b.stock <= 0))
+  const orden = [...productos]
+    .filter(p => filtro === 'todos' || p.tipo === filtro)
+    .sort((a, b) => Number(a.stock <= 0) - Number(b.stock <= 0))
 
   return (
     <section>
       <div className="modo">Toca un sabor para vender</div>
+      {tiposPresentes.length > 1 && (
+        <div className="chips categorias">
+          <button className={filtro === 'todos' ? 'on' : ''} onClick={() => setFiltro('todos')}>Todos</button>
+          {tiposPresentes.map(t => (
+            <button key={t} className={filtro === t ? 'on' : ''} onClick={() => setFiltro(t)}>{ETIQUETA_TIPO[t]}</button>
+          ))}
+        </div>
+      )}
       <div className="grid">
         {orden.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} />)}
+        {!orden.length && <p className="mut" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0' }}>Nada por aquí</p>}
       </div>
       <Sheet abierto={!!elegido} onCerrar={() => setElegido(null)}>
         {elegido && (

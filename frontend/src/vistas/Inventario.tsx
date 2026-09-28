@@ -1,13 +1,15 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { Icono } from '../componentes/Icono'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { vibrar } from '../formato'
-import type { LineaPedido, MotivoMerma, Producto, PedidoEnCamino as PedidoEnCaminoDto } from '../tipos'
+import type { LineaPedido, MotivoMerma, Producto, Tipo, PedidoEnCamino as PedidoEnCaminoDto } from '../tipos'
 
 type Modo = 'sumar' | 'contar' | 'merma'
 
 const ETIQUETA: Record<Modo, string> = { sumar: 'Sumar', contar: 'Contar', merma: 'Merma' }
+const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande' }
 
 const MOTIVOS: { valor: MotivoMerma; texto: string }[] = [
   { valor: 'DANADO', texto: 'Dañado' },
@@ -34,6 +36,7 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
   avisar }: Props) {
   const [elegido, setElegido] = useState<Producto | null>(null)
   const [contando, setContando] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
 
   const listo = (r: Resultado) => {
     const p = elegido
@@ -44,13 +47,52 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
     else if (r.motivo) onMerma(p, r.cantidad, r.motivo)
   }
 
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase()
+    return q ? productos.filter(p => p.nombre.toLowerCase().includes(q)) : productos
+  }, [productos, busqueda])
+
+  const grupos = useMemo(() => {
+    const tipos: Tipo[] = ['NORMAL', 'CREMOSO', 'GRANDE']
+    return tipos
+      .map(t => ({ tipo: t, items: filtrados.filter(p => p.tipo === t) }))
+      .filter(g => g.items.length > 0)
+  }, [filtrados])
+
+  const critico = productos.filter(p => p.stock <= p.stockMinimo).length
+
   return (
     <section>
       {pedido && <PedidoEnCamino pedido={pedido} onLlego={onLlego} onCancelar={onCancelar} avisar={avisar} />}
-      <div className="modo">Toca un sabor para sumar, contar o anotar una merma</div>
-      <div className="grid">
-        {productos.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} />)}
+
+      {critico > 0 && (
+        <div className="aviso-stock">
+          <Icono nombre="alerta" />
+          <span>{critico} sabor{critico === 1 ? '' : 'es'} con poco stock</span>
+        </div>
+      )}
+
+      <div className="buscador">
+        <Icono nombre="buscar" />
+        <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar sabor…" />
       </div>
+
+      <div className="modo">Toca un sabor para sumar, contar o anotar una merma</div>
+
+      {grupos.length > 1 ? grupos.map(g => (
+        <div key={g.tipo} className="seccion-grupo">
+          <div className="grupo-titulo"><Icono nombre="vaso" /> {ETIQUETA_TIPO[g.tipo]}<span className="mut">{g.items.length}</span></div>
+          <div className="grid">
+            {g.items.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} />)}
+          </div>
+        </div>
+      )) : (
+        <div className="grid">
+          {filtrados.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} />)}
+        </div>
+      )}
+      {!filtrados.length && <p className="mut" style={{ textAlign: 'center', padding: '20px 0' }}>Nada con ese nombre</p>}
+
       <div className="acciones" style={{ marginTop: 12 }}>
         <button className="big ghost" onClick={() => setContando(true)}>Contar todo</button>
       </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, sesion, type PasskeyInfo } from '../api'
+import { api, sesion, type ImportarResultado, type PasskeyInfo } from '../api'
+import { Icono } from '../componentes/Icono'
 import { IconoFaceId, type ModoFaceId } from '../componentes/IconoFaceId'
 import { Sheet } from '../componentes/Sheet'
 import { activarFaceId, esCancelacion, faceIdActivado, olvidarFaceId, soportaFaceId } from '../faceid'
@@ -7,6 +8,11 @@ import { pesos } from '../formato'
 import type { DatosProducto, Param, Producto, Tipo } from '../tipos'
 
 const PRECIO_POR_TIPO: Record<Tipo, number> = { NORMAL: 6000, CREMOSO: 7000, GRANDE: 10000 }
+
+const ICONO_PARAM: Record<string, string> = {
+  DIAS_COBERTURA: 'caja', DIAS_HISTORIAL: 'reloj', META_DIARIA: 'trofeo',
+  NOMBRE: 'cara', PROVEEDOR_WHATSAPP: 'celular',
+}
 
 interface Props {
   avisar: (m: string) => void
@@ -58,11 +64,14 @@ export function Ajustes({ avisar, onCambio }: Props) {
   return (
     <section>
       <div className="list">
-        <h3>Sabores</h3>
+        <h3><Icono nombre="vaso" /> Sabores</h3>
         {productos.map(p => (
-          <div className={'row clic' + (p.activo ? '' : ' inactivo')} key={p.id} onClick={() => setPanel({ tipo: 'producto', producto: p })}>
-            <span>{p.nombre}<br /><small className="mut">mínimo {p.stockMinimo} · costo {pesos(p.costo)}{p.activo ? '' : ' · oculto'}</small></span>
-            <span>{pesos(p.precio)}</span>
+          <div className={'sabor-fila clic' + (p.activo ? '' : ' inactivo')} key={p.id} onClick={() => setPanel({ tipo: 'producto', producto: p })}>
+            <span className="pago-avatar"><Icono nombre="vaso" /></span>
+            <div className="sabor-info">
+              <div className="sabor-cabeza"><b>{p.nombre}</b><b>{pesos(p.precio)}</b></div>
+              <div className="sabor-pie"><span className="mut">mínimo {p.stockMinimo} · costo {pesos(p.costo)}{p.activo ? '' : ' · oculto'}</span></div>
+            </div>
           </div>
         ))}
       </div>
@@ -71,19 +80,25 @@ export function Ajustes({ avisar, onCambio }: Props) {
       </div>
 
       <div className="list">
-        <h3>Configuración</h3>
+        <h3><Icono nombre="sliders" /> Configuración</h3>
         {params.map(c => (
-          <div className="row clic" key={c.clave} onClick={() => setPanel({ tipo: 'param', param: c })}>
-            <span>{c.clave.replace(/_/g, ' ').toLowerCase()}</span>
-            <span className="mut">{c.valor || '—'}</span>
+          <div className="config-fila clic" key={c.clave} onClick={() => setPanel({ tipo: 'param', param: c })}>
+            <span className="config-icono"><Icono nombre={ICONO_PARAM[c.clave] ?? 'sliders'} /></span>
+            <div className="sabor-info">
+              <b>{c.clave.replace(/_/g, ' ').toLowerCase()}</b>
+              {c.nota && <div className="sabor-pie"><span className="mut">{c.nota}</span></div>}
+            </div>
+            <span className="config-valor">{c.valor || '—'}</span>
           </div>
         ))}
       </div>
 
       <SeccionFaceId avisar={avisar} />
 
+      <SeccionImportar avisar={avisar} />
+
       <div className="acciones">
-        <button className="big ghost" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
+        <button className="big peligro" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
       </div>
 
       <Sheet abierto={!!panel} onCerrar={() => setPanel(null)}>
@@ -197,7 +212,7 @@ function SeccionFaceId({ avisar }: { avisar: (m: string) => void }) {
   return (
     <>
       <div className="list">
-        <h3>Face ID</h3>
+        <h3><Icono nombre="cara" /> Face ID</h3>
         {llaves.length === 0 && <div className="row"><span className="mut">Todavía no está activado</span></div>}
         {llaves.map(l => (
           <div className="row" key={l.id}>
@@ -216,6 +231,55 @@ function SeccionFaceId({ avisar }: { avisar: (m: string) => void }) {
         </div>
       )}
     </>
+  )
+}
+
+/** Sube un CSV de ventas de otro sistema. No toca el stock; el mismo archivo se puede resubir sin duplicar. */
+function SeccionImportar({ avisar }: { avisar: (m: string) => void }) {
+  const [cargando, setCargando] = useState(false)
+  const [resultado, setResultado] = useState<ImportarResultado | null>(null)
+
+  const subir = async (archivo: File) => {
+    setCargando(true)
+    setResultado(null)
+    try {
+      const texto = await archivo.text()
+      const r = await api.importarVentas(texto)
+      setResultado(r)
+      avisar(r.importadas ? `✓ ${r.importadas} venta${r.importadas === 1 ? '' : 's'} importada${r.importadas === 1 ? '' : 's'}` : 'Nada nuevo para importar')
+    } catch (e) {
+      avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo importar'))
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  return (
+    <div className="list">
+      <h3><Icono nombre="calendario" /> Importar ventas históricas</h3>
+      <p className="mut" style={{ padding: '0 4px 10px' }}>
+        Un CSV con columnas <b>fecha;sabor;cantidad;precioUnitario</b> (fecha AAAA-MM-DD). No toca el stock y puedes
+        resubir el mismo archivo sin que se dupliquen las ventas.
+      </p>
+      <label className="big ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: cargando ? 'default' : 'pointer' }}>
+        {cargando ? 'Importando…' : 'Elegir archivo CSV'}
+        <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} disabled={cargando}
+          onChange={e => { const archivo = e.target.files?.[0]; e.target.value = ''; if (archivo) void subir(archivo) }} />
+      </label>
+      {resultado && (
+        <div className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
+          <span>✓ {resultado.importadas} importada{resultado.importadas === 1 ? '' : 's'}
+            {resultado.repetidas > 0 ? ` · ${resultado.repetidas} ya estaba${resultado.repetidas === 1 ? '' : 'n'}` : ''}
+          </span>
+          {resultado.errores.length > 0 && (
+            <span className="aviso">
+              {resultado.errores.length} fila{resultado.errores.length === 1 ? '' : 's'} con problema:
+              {resultado.errores.slice(0, 8).map(e => <small key={e.fila} style={{ display: 'block' }}>fila {e.fila}: {e.motivo}</small>)}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 

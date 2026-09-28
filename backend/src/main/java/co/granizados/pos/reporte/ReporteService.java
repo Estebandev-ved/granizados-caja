@@ -2,6 +2,7 @@ package co.granizados.pos.reporte;
 
 import co.granizados.pos.caja.ArqueoService;
 import co.granizados.pos.comun.AppProperties;
+import co.granizados.pos.gasto.CategoriaGasto;
 import co.granizados.pos.gasto.Gasto;
 import co.granizados.pos.gasto.GastoRepository;
 import co.granizados.pos.inventario.EntradaInventarioRepository;
@@ -15,11 +16,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,10 +54,18 @@ public class ReporteService {
     public record CierreCaja(LocalDate dia, long esperado, long contado, long diferencia, String nota) {
     }
 
+    public record PorCategoriaGasto(CategoriaGasto categoria, long monto) {
+    }
+
+    /** Mismos totales del periodo inmediatamente anterior, de igual duración, para comparar. */
+    public record Comparacion(long ventas, int unidades, long ganancia) {
+    }
+
     public record Reporte(String desde, String hasta, Totales totales, List<PorDia> porDia,
                           List<PorEtiqueta> porHora, List<PorEtiqueta> porDiaSemana,
                           List<PorSabor> porSabor, List<PedidoService.PedidoDto> pedidos,
-                          List<CierreCaja> arqueos) {
+                          List<CierreCaja> arqueos, List<PorCategoriaGasto> porCategoriaGasto,
+                          Comparacion anterior) {
     }
 
     private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE;
@@ -96,7 +108,9 @@ public class ReporteService {
                 porDiaSemana(lista),
                 porSabor(lista),
                 pedidos.listarEntre(inicio, fin),
-                cierres(desde, hasta));
+                cierres(desde, hasta),
+                porCategoriaGasto(gastosLista),
+                comparacionAnterior(desde, hasta));
     }
 
     /** CSV de las ventas del periodo: punto y coma y BOM para que Excel en Colombia lo abra bien. */
@@ -190,6 +204,30 @@ public class ReporteService {
                         e.getValue().total - e.getValue().costo))
                 .sorted(Comparator.comparingInt(PorSabor::unidades).reversed())
                 .toList();
+    }
+
+    private List<PorCategoriaGasto> porCategoriaGasto(List<Gasto> lista) {
+        Map<CategoriaGasto, Long> mapa = new EnumMap<>(CategoriaGasto.class);
+        for (Gasto g : lista) mapa.merge(g.getCategoria(), g.getMonto(), Long::sum);
+        return mapa.entrySet().stream()
+                .map(e -> new PorCategoriaGasto(e.getKey(), e.getValue()))
+                .sorted(Comparator.comparingLong(PorCategoriaGasto::monto).reversed())
+                .toList();
+    }
+
+    /** Ventas, unidades y ganancia del periodo inmediatamente anterior, de igual duración que [desde, hasta]. */
+    private Comparacion comparacionAnterior(LocalDate desde, LocalDate hasta) {
+        long dias = ChronoUnit.DAYS.between(desde, hasta) + 1;
+        LocalDate desdeAnt = desde.minusDays(dias);
+        LocalDate hastaAnt = desde.minusDays(1);
+        Instant inicio = desdeAnt.atStartOfDay(zona).toInstant();
+        Instant fin = hastaAnt.plusDays(1).atStartOfDay(zona).toInstant();
+
+        List<Venta> lista = ventas.entre(inicio, fin);
+        long gastosAnt = Optional.ofNullable(gastos.montoEntre(inicio, fin)).orElse(0L);
+        long mermasAnt = suma(mermasPorDia(inicio, fin));
+        Totales t = totales(lista, gastosAnt, mermasAnt);
+        return new Comparacion(t.ventas(), t.unidades(), t.ganancia());
     }
 
     // ------------------------------------------------------------------ utilidades

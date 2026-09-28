@@ -75,6 +75,22 @@ async function pedirTexto(ruta: string): Promise<string> {
   return r.text()
 }
 
+/** Sube texto plano (un CSV) y espera JSON de vuelta (el resultado de importar). */
+async function pedirEnviandoTexto<T>(ruta: string, texto: string): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'text/plain;charset=utf-8' }
+  const token = sesion.token
+  if (token) headers.Authorization = 'Bearer ' + token
+
+  const r = await fetch(BASE + ruta, { method: 'POST', headers, body: texto })
+  if (r.status === 401) sesion.cerrar()
+  if (!r.ok) {
+    let mensaje = 'Error ' + r.status
+    try { mensaje = (await r.json()).error ?? mensaje } catch { /* sin cuerpo */ }
+    throw new ApiError(r.status, mensaje)
+  }
+  return r.json() as Promise<T>
+}
+
 // Opciones de WebAuthn tal como las arma el servidor (van directo a @simplewebauthn/browser)
 type OpcionesFaceId<T> = { solicitud: string; opciones: { publicKey: T } }
 type RespuestaFaceId = { solicitud: string; credencial: string; nombre?: string }
@@ -149,6 +165,14 @@ export const api = {
   passkeyRegistrar: (r: RespuestaFaceId) => pedir<PasskeyInfo>('POST', '/api/passkey/registro', r),
   passkeys: () => pedir<PasskeyInfo[]>('GET', '/api/passkey'),
   borrarPasskey: (id: number) => pedir<void>('DELETE', '/api/passkey/' + id),
+  /** Ventas históricas de otro sistema. CSV: fecha;sabor;cantidad;precioUnitario[;metodo]. No toca el stock. */
+  importarVentas: (csv: string) => pedirEnviandoTexto<ImportarResultado>('/api/ventas/importar', csv),
+}
+
+export interface ImportarResultado {
+  importadas: number
+  repetidas: number
+  errores: { fila: number; motivo: string }[]
 }
 
 export type ApiSync = Pick<typeof api, 'lote' | 'venta' | 'entrada' | 'movimiento' | 'gasto' | 'arqueo' | 'recibirPedido'>

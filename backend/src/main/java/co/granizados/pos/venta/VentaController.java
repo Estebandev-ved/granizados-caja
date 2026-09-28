@@ -59,6 +59,12 @@ public class VentaController {
         servicio.deshacer(clientUid);
     }
 
+    /** Ventas históricas de otro sistema, en CSV (fecha;sabor;cantidad;precioUnitario[;metodo]). No toca el stock. */
+    @PostMapping("/importar")
+    public VentaService.ImportarResultado importar(@RequestBody String csv) {
+        return servicio.importarCsv(csv);
+    }
+
     /** Si dos reintentos de la misma venta llegan al tiempo, el UNIQUE de la base frena al segundo. */
     private VentaService.Resultado registrarSeguro(VentaService.NuevaVenta v) {
         try {

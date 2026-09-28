@@ -47,11 +47,17 @@ public class Venta {
     }
 
     public Venta(String clientUid, Producto producto, int cantidad, MetodoPago metodo, Instant creadaEn) {
+        this(clientUid, producto, cantidad, producto.getPrecio(), producto.getCosto(), metodo, creadaEn);
+    }
+
+    /** Para ventas históricas importadas: el precio y costo no son los actuales del catálogo, sino los del momento. */
+    public Venta(String clientUid, Producto producto, int cantidad, long precioUnitario, long costoUnitario,
+                 MetodoPago metodo, Instant creadaEn) {
         this.clientUid = clientUid;
         this.producto = producto;
         this.cantidad = cantidad;
-        this.precioUnitario = producto.getPrecio();
-        this.costoUnitario = producto.getCosto();
+        this.precioUnitario = precioUnitario;
+        this.costoUnitario = costoUnitario;
         this.total = precioUnitario * cantidad;
         this.metodo = metodo;
         this.creadaEn = creadaEn;

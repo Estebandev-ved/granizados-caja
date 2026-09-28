@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
+import { Icono } from '../componentes/Icono'
 import { diaBogota } from '../estadoLocal'
 import { pesos } from '../formato'
 import { PERIODOS, restarDias, rangoDe, type Periodo } from '../reportes'
@@ -81,61 +82,73 @@ export function Reportes({ avisar }: Props) {
         <div className="vacio">No pasó nada en {PERIODOS[periodo].toLowerCase()}. Vende algo y vuelve</div>
       )}
 
-      {!cargando && !error && datos && t && !vacio && (
+      {!cargando && !error && datos && t && !vacio && (() => {
+        const vVentas = variacion(t.ventas, datos.anterior.ventas)
+        const vGanancia = variacion(t.ganancia, datos.anterior.ganancia)
+        return (
         <>
           <div className="cards">
             <div className="card full">
-              <div className="k">Vendido</div>
+              <div className="k"><Icono nombre="billete" /> Vendido</div>
               <div className="v">{pesos(t.ventas)}</div>
               <div className="desglose">
                 <span>nequi {pesos(t.nequi)}</span>
                 <span>efectivo {pesos(t.efectivo)}</span>
+                {vVentas && <span className={vVentas.clase}>{vVentas.texto}</span>}
               </div>
             </div>
             <div className="card full ganancia">
-              <div className="k">Ganancia</div>
+              <div className="k"><Icono nombre="grafico" /> Ganancia</div>
               <div className="v">{pesos(t.ganancia)}</div>
               <div className="desglose">
                 <span>producto {pesos(t.costo)}</span>
                 {t.gastos > 0 && <span>gastos {pesos(t.gastos)}</span>}
                 {t.mermas > 0 && <span>mermas {pesos(t.mermas)}</span>}
+                {vGanancia && <span className={vGanancia.clase}>{vGanancia.texto}</span>}
               </div>
             </div>
             <div className="card">
-              <div className="k">Granizados</div>
+              <div className="k"><Icono nombre="vaso" /> Granizados</div>
               <div className="v">{t.unidades}</div>
             </div>
             <div className="card">
-              <div className="k">Pedidos</div>
+              <div className="k"><Icono nombre="caja" /> Pedidos</div>
               <div className="v">{datos.pedidos.length}</div>
             </div>
           </div>
 
+          {datos.porCategoriaGasto.length > 0 && (
+            <section className="bloque">
+              <h2><Icono nombre="moneda" /> Gastos por categoría</h2>
+              <GastosPorCategoria datos={datos.porCategoriaGasto} />
+            </section>
+          )}
+
           <section className="bloque">
-            <h2>Por día</h2>
+            <h2><Icono nombre="calendario" /> Por día</h2>
             {datos.porDia.length > 1
               ? <PorDias datos={datos.porDia} />
               : <p className="mut">{datos.porDia.length ? 'Un solo día en este periodo.' : 'Sin ventas en este periodo.'}</p>}
           </section>
 
           <section className="bloque">
-            <h2>Horas pico</h2>
-            <Barras datos={datos.porHora} salto={3} eje={h => h + 'h'} />
+            <h2><Icono nombre="reloj" /> Horas pico</h2>
+            <Barras datos={datos.porHora} salto={3} eje={h => h.clave + 'h'} />
             <p className="mut">{textoPico(datos.porHora, 'de', 'hora')}</p>
           </section>
 
           <section className="bloque">
-            <h2>Días de la semana</h2>
-            <Barras datos={datos.porDiaSemana} salto={1} eje={d => d.nombre.slice(0, 3)} />
+            <h2><Icono nombre="semana" /> Días de la semana</h2>
+            <Barras datos={datos.porDiaSemana} salto={1} eje={d => d.nombre.slice(0, 3)} finde={d => d.clave === 5 || d.clave === 6} />
             <p className="mut">{textoPico(datos.porDiaSemana, 'de', 'día')}</p>
           </section>
 
           <section className="bloque">
-            <h2>Lo que mejor se va</h2>
+            <h2><Icono nombre="trofeo" /> Lo que mejor se va</h2>
             <ol className="ranking">
-              {datos.porSabor.map(s => (
+              {datos.porSabor.map((s, i) => (
                 <li key={s.sabor}>
-                  <span className="sabor">{s.sabor}</span>
+                  <span className="sabor"><b className="rank">{i + 1}</b>{s.sabor}</span>
                   <span className="n">{s.unidades} · {pesos(s.ingresos)}</span>
                 </li>
               ))}
@@ -144,7 +157,7 @@ export function Reportes({ avisar }: Props) {
 
           {datos.arqueos.length > 0 && (
             <section className="bloque">
-              <h2>Cierre de caja</h2>
+              <h2><Icono nombre="candado" /> Cierre de caja</h2>
               <ul className="ranking">
                 {datos.arqueos.map(a => (
                   <li key={a.dia}>
@@ -163,8 +176,36 @@ export function Reportes({ avisar }: Props) {
 
           <button className="big ghost" onClick={exportar}>Descargar CSV</button>
         </>
-      )}
+        )
+      })()}
     </section>
+  )
+}
+
+const CATEGORIA_TEXTO: Record<string, string> = { HIELO: 'Hielo', TRANSPORTE: 'Transporte', EMPAQUE: 'Empaque', OTRO: 'Otro' }
+
+/** Variación porcentual contra el periodo anterior. Nulo si no hay base para comparar o no cambió. */
+function variacion(actual: number, anterior: number): { texto: string; clase: string } | null {
+  if (anterior <= 0) return null
+  const pct = Math.round((actual - anterior) / anterior * 100)
+  if (pct === 0) return null
+  return { texto: (pct > 0 ? '▲ ' : '▼ ') + Math.abs(pct) + '% vs anterior', clase: pct > 0 ? 'delta-up' : 'delta-down' }
+}
+
+function GastosPorCategoria({ datos }: { datos: Reporte['porCategoriaGasto'] }) {
+  const total = datos.reduce((a, d) => a + d.monto, 0) || 1
+  return (
+    <div className="dias">
+      {datos.map(d => (
+        <div className="dia-fila" key={d.categoria}>
+          <span className="dia-nombre">{CATEGORIA_TEXTO[d.categoria] ?? d.categoria}</span>
+          <div className="dia-pista">
+            <div className="dia-barra" style={{ width: Math.round(d.monto / total * 100) + '%' }} />
+          </div>
+          <span className="dia-valor">{pesos(d.monto)}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -179,38 +220,59 @@ function PorDias({ datos }: { datos: Reporte['porDia'] }) {
   const max = Math.max(...datos.map(d => d.total), 1)
   return (
     <div className="dias">
-      {datos.map(d => (
-        <div className="dia-fila" key={d.dia}>
-          <span className="dia-nombre">{fechaCorta(d.dia)}</span>
-          <div className="dia-pista">
-            <div className="dia-barra" style={{ width: Math.round(d.total / max * 100) + '%' }} />
+      {datos.map((d, i) => {
+        const anterior = datos[i - 1]
+        const delta = anterior && anterior.total > 0 ? Math.round((d.total - anterior.total) / anterior.total * 100) : null
+        return (
+          <div className={'dia-fila' + (esFinDeSemana(d.dia) ? ' finde' : '')} key={d.dia}>
+            <span className="dia-nombre">{fechaCorta(d.dia)}</span>
+            <div className="dia-pista">
+              <div className="dia-barra" style={{ width: Math.round(d.total / max * 100) + '%' }} />
+            </div>
+            <span className="dia-valor">
+              {pesos(d.total)}
+              {delta !== null && delta !== 0 && (
+                <span className={delta > 0 ? 'delta-up' : 'delta-down'}>{delta > 0 ? '▲' : '▼'} {Math.abs(delta)}%</span>
+              )}
+            </span>
           </div>
-          <span className="dia-valor">{pesos(d.total)}</span>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
 
-/** Barras verticales de 0 a 100% del pico, con el eje abajo. */
-function Barras({ datos, salto, eje }: {
+/** Barras verticales de 0 a 100% del pico, con el eje abajo. Resalta el pico y, si aplica, el fin de semana. */
+function Barras({ datos, salto, eje, finde }: {
   datos: ReporteBarra[]
   salto: number
   eje: (d: ReporteBarra) => string
+  finde?: (d: ReporteBarra) => boolean
 }) {
   const max = Math.max(...datos.map(d => d.unidades), 1)
+  const pico = datos.reduce((a, b) => (b.unidades > a.unidades ? b : a), datos[0])
   return (
     <div className="barras">
-      {datos.map(d => (
-        <div className="barras-col" key={d.clave}>
-          <div className="barras-pista">
-            <div className="barras-barra" style={{ height: Math.round(d.unidades / max * 100) + '%' }} />
+      {datos.map(d => {
+        const esPico = d.unidades > 0 && d === pico
+        return (
+          <div className={'barras-col' + (esPico ? ' pico' : '') + (finde?.(d) ? ' finde' : '')} key={d.clave}>
+            <span className="barras-valor">{esPico ? d.unidades : ''}</span>
+            <div className="barras-pista">
+              <div className="barras-barra" style={{ height: Math.round(d.unidades / max * 100) + '%' }} />
+            </div>
+            <span className="barras-eje">{d.clave % salto === 0 ? eje(d) : ''}</span>
           </div>
-          <span className="barras-eje">{d.clave % salto === 0 ? eje(d) : ''}</span>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
+}
+
+function esFinDeSemana(dia: string): boolean {
+  const [a, m, d] = dia.split('-').map(Number)
+  const dow = new Date(Date.UTC(a, m - 1, d)).getUTCDay()
+  return dow === 0 || dow === 6
 }
 
 function fechaCorta(dia: string): string {

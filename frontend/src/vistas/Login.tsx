@@ -94,8 +94,8 @@ export function Login({ onEntrar }: { onEntrar: () => void }) {
 
       {paso === 'faceid' && (
         <>
-          <button className="faceid-boton" onClick={() => void conFaceId()} disabled={modo === 'escaneando' || modo === 'ok'}
-                  aria-label="Entrar con Face ID">
+          <button className={'faceid-boton' + (modo === 'quieto' ? ' espera' : '')} onClick={() => void conFaceId()}
+                  disabled={modo === 'escaneando' || modo === 'ok'} aria-label="Entrar con Face ID">
             <IconoFaceId modo={modo} />
           </button>
           <p className="login-msj">{mensaje || 'Toca para entrar con Face ID'}</p>

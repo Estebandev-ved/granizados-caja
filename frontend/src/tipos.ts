@@ -167,6 +167,18 @@ export interface ReporteSabor {
   ganancia: number
 }
 
+export interface ReporteCategoriaGasto {
+  categoria: CategoriaGasto
+  monto: number
+}
+
+/** Ventas, unidades y ganancia del periodo inmediatamente anterior, de igual duración. */
+export interface ReporteComparacion {
+  ventas: number
+  unidades: number
+  ganancia: number
+}
+
 /** Lo que responde `GET /api/reportes`. */
 export interface Reporte {
   desde: string
@@ -178,6 +190,8 @@ export interface Reporte {
   porSabor: ReporteSabor[]
   pedidos: Pedido[]
   arqueos: CierreCaja[]
+  porCategoriaGasto: ReporteCategoriaGasto[]
+  anterior: ReporteComparacion
 }
 
 /** Un cierre de caja: `diferencia` negativa = faltó plata. */

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { vibrar } from '../formato'
 import type { LineaPedido, PedidoEnCamino as PedidoEnCaminoDto } from '../tipos'
+import { Icono } from './Icono'
 import { Sheet } from './Sheet'
 
 interface Props {
@@ -31,7 +32,7 @@ export function PedidoEnCamino({ pedido, onLlego, onCancelar, avisar }: Props) {
   return (
     <div className="banner-pedido">
       <div className="txt">
-        <b>Pedido en camino</b>
+        <b><Icono nombre="caja" /> Pedido en camino</b>
         <small>{pedido.totalUnidades} unidades · todavía no ha llegado</small>
       </div>
       <div className="botones">
