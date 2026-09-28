@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -64,7 +65,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain filtros(HttpSecurity http, CorsConfigurationSource cors) throws Exception {
+    SecurityFilterChain filtros(HttpSecurity http, @Qualifier("corsConfigurationSource") CorsConfigurationSource cors) throws Exception {
         http
                 .csrf(c -> c.disable())
                 .cors(c -> c.configurationSource(cors))
