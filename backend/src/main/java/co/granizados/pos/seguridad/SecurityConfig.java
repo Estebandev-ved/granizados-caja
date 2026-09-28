@@ -3,6 +3,7 @@ package co.granizados.pos.seguridad;
 import co.granizados.pos.comun.AppProperties;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +17,9 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Un solo usuario (el dueño) que entra con PIN y recibe un JWT de 30 días.
@@ -43,10 +47,27 @@ public class SecurityConfig {
         return NimbusJwtDecoder.withSecretKey(clave).macAlgorithm(MacAlgorithm.HS256).build();
     }
 
+    /**
+     * El frontend puede vivir en otro dominio (ej: Vercel) mientras el backend queda en Railway.
+     * Reusa los mismos orígenes de Face ID: si un dominio puede hacer la ceremonia de passkey,
+     * también debe poder llamar a la API desde ahí.
+     */
     @Bean
-    SecurityFilterChain filtros(HttpSecurity http) throws Exception {
+    CorsConfigurationSource corsConfigurationSource(AppProperties props) {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(props.webauthn().origenes());
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/api/**", config);
+        return source;
+    }
+
+    @Bean
+    SecurityFilterChain filtros(HttpSecurity http, CorsConfigurationSource cors) throws Exception {
         http
                 .csrf(c -> c.disable())
+                .cors(c -> c.configurationSource(cors))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers("/api/auth/login", "/api/passkey/login", "/api/passkey/login/opciones", "/actuator/health").permitAll()

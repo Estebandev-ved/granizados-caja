@@ -12,4 +12,5 @@ app:
   pin: ${APP_PIN}
   jwt-secret: ${JWT_SECRET}
   webauthn:
-    origenes: https://${WEBAUTHN_RP_ID:${RAILWAY_PUBLIC_DOMAIN}}
+    # Lista separada por comas si el frontend vive en otro dominio (ej: Vercel) que el backend (Railway).
+    origenes: ${WEBAUTHN_ORIGENES:https://${WEBAUTHN_RP_ID:${RAILWAY_PUBLIC_DOMAIN}}}
