@@ -1,8 +1,10 @@
-# Desarrollo en tu PC: conexión a PostgreSQL local
+# Desarrollo en tu PC: conexión a PostgreSQL local.
+# Exporta DB_LOCAL_PASSWORD (y DB_LOCAL_USER si no usas "postgres") en tu shell;
+# ver .env.example. No hay valor por defecto para la contraseña a propósito.
 spring:
   datasource:
     url: jdbc:postgresql://127.0.0.1:5432/granizados
-    username: postgres
-    password: pola0912345
+    username: ${DB_LOCAL_USER:postgres}
+    password: ${DB_LOCAL_PASSWORD}
     hikari:
       maximum-pool-size: 5
