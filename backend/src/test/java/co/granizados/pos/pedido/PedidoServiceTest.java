@@ -50,6 +50,66 @@ class PedidoServiceTest extends PruebaIntegracion {
     }
 
     @Test
+    void conPocaPlataReparteLoQueAlcanzaYDejaReserva() {
+        ventasHistoricas("Smirnoff", 20, reloj.instant().minus(Duration.ofDays(2)));
+        ponerStock("Smirnoff", 5);
+        ponerStock("Tussi", 1);
+
+        jdbc.update("update producto set costo = 2200");
+        // Ideal: 35 Smirnoff + 2 Tussi = 37 × $2.200. Con $50.000 solo se gasta el 80% = $40.000 → 18 unidades
+        var p = pedidos.sugerido(50_000L);
+
+        assertThat(p.disponible()).isEqualTo(40_000L);
+        assertThat(p.recortado()).isTrue();
+        assertThat(p.costoTotal()).isLessThanOrEqualTo(40_000L);
+        // Con poca plata gana lo que más se vende; el que casi no sale (Tussi) espera
+        assertThat(p.items()).extracting(PedidoService.Item::sabor, PedidoService.Item::pedir)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("Smirnoff", 18), org.assertj.core.groups.Tuple.tuple("Tussi", 0));
+        assertThat(p.items().getFirst().ideal()).isEqualTo(35);
+    }
+
+    @Test
+    void conPocaPlataElMasVendidoNoQuedaBajoLosQueCasiNoSalen() {
+        jdbc.update("update producto set costo = 2200");
+        // Smirnoff vende 2/día con 4 en mano; Chicle casi no vende y está agotado; Mojito casi no vende y tiene 2
+        ventasHistoricas("Smirnoff", 4, reloj.instant().minus(Duration.ofDays(2)));
+        ventasHistoricas("Chicle", 1, reloj.instant().minus(Duration.ofDays(2)));
+        ponerStock("Smirnoff", 4);
+        ponerStock("Chicle", 0);
+        ponerStock("Mojito", 2);
+
+        // $6.000 → gasta $4.800 → 2 unidades: una al agotado y la otra a Smirnoff, no a Mojito
+        var p = pedidos.sugerido(6_000L);
+
+        var por = p.items().stream().collect(java.util.stream.Collectors.toMap(PedidoService.Item::sabor, PedidoService.Item::pedir));
+        assertThat(por.get("Chicle")).isEqualTo(1);
+        assertThat(por.get("Smirnoff")).isEqualTo(1);
+        assertThat(por.get("Mojito")).isZero();
+    }
+
+    @Test
+    void conPlataDeSobraPideLoIdeal() {
+        ventasHistoricas("Smirnoff", 20, reloj.instant().minus(Duration.ofDays(2)));
+        ponerStock("Smirnoff", 5);
+
+        var p = pedidos.sugerido(1_000_000L);
+
+        assertThat(p.recortado()).isFalse();
+        assertThat(p.items().getFirst().pedir()).isEqualTo(35);
+    }
+
+    @Test
+    void sinPlataNoPideNadaPeroDejaLosSaboresParaSubirlosAMano() {
+        jdbc.update("update producto set costo = 2200");
+        ponerStock("Chicle", 0);
+
+        var p = pedidos.sugerido(0L);
+
+        assertThat(p.total()).isZero();
+        assertThat(p.items()).extracting(PedidoService.Item::sabor).contains("Chicle");
+    }
+
+    @Test
     void redondeaHaciaArribaSinErroresDeDecimales() {
         // 7 en 3 días × cobertura 3 = exactamente 7. Con doubles daba 7.000000001 → 8
         jdbc.update("update config set valor = '3' where clave = 'DIAS_COBERTURA'");

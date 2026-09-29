@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { Icono } from '../componentes/Icono'
 import { diaBogota } from '../estadoLocal'
-import { pesos } from '../formato'
-import { PERIODOS, restarDias, rangoDe, type Periodo } from '../reportes'
+import { pesos, vibrar } from '../formato'
+import { fechaCorta, PERIODOS, restarDias, rangoDe, variacion, type Periodo } from '../reportes'
 import type { Reporte, ReporteBarra } from '../tipos'
+import { MisGastos } from './MisGastos'
 
 interface Props {
   avisar: (m: string) => void
@@ -20,6 +21,7 @@ export function Reportes({ avisar }: Props) {
   const [error, setError] = useState(false)
   // Lo que ya cargamos: así "cargando" se deriva del estado y no hay que apagarlo en el efecto
   const [cargado, setCargado] = useState<string | null>(null)
+  const [misGastos, setMisGastos] = useState(false)
 
   const { desde, hasta } = rangoDe(periodo, diaBogota(), propios)
   const clave = desde + '/' + hasta
@@ -50,8 +52,22 @@ export function Reportes({ avisar }: Props) {
       .catch(e => avisar(e instanceof ApiError ? e.message : 'No se pudo descargar'))
   }
 
+  const borrarGasto = (clientUid: string) => {
+    vibrar()
+    api.borrarGasto(clientUid)
+      .then(() => {
+        avisar('✓ Gasto borrado')
+        return api.reportes(desde, hasta).then(setDatos)
+      })
+      .catch(e => avisar(e instanceof ApiError ? e.message : 'No se pudo borrar, revisa la señal'))
+  }
+
   const t = datos ? datos.totales : null
   const vacio = !!t && t.ventas === 0 && t.gastos === 0 && t.mermas === 0
+
+  if (misGastos && datos) {
+    return <MisGastos periodo={PERIODOS[periodo]} datos={datos} onBorrar={borrarGasto} onVolver={() => setMisGastos(false)} />
+  }
 
   return (
     <section>
@@ -117,11 +133,14 @@ export function Reportes({ avisar }: Props) {
             </div>
           </div>
 
-          {datos.porCategoriaGasto.length > 0 && (
-            <section className="bloque">
-              <h2><Icono nombre="moneda" /> Gastos por categoría</h2>
-              <GastosPorCategoria datos={datos.porCategoriaGasto} />
-            </section>
+          {datos.gastosDetalle.length > 0 && (
+            <button className="accion" style={{ marginBottom: 14 }} onClick={() => setMisGastos(true)}>
+              <span className="accion-icono"><Icono nombre="moneda" /></span>
+              <span className="accion-texto">
+                <b>Mis gastos</b>
+                <small>{datos.gastosDetalle.length} · {pesos(t.gastos)}</small>
+              </span>
+            </button>
           )}
 
           <section className="bloque">
@@ -179,33 +198,6 @@ export function Reportes({ avisar }: Props) {
         )
       })()}
     </section>
-  )
-}
-
-const CATEGORIA_TEXTO: Record<string, string> = { HIELO: 'Hielo', TRANSPORTE: 'Transporte', EMPAQUE: 'Empaque', OTRO: 'Otro' }
-
-/** Variación porcentual contra el periodo anterior. Nulo si no hay base para comparar o no cambió. */
-function variacion(actual: number, anterior: number): { texto: string; clase: string } | null {
-  if (anterior <= 0) return null
-  const pct = Math.round((actual - anterior) / anterior * 100)
-  if (pct === 0) return null
-  return { texto: (pct > 0 ? '▲ ' : '▼ ') + Math.abs(pct) + '% vs anterior', clase: pct > 0 ? 'delta-up' : 'delta-down' }
-}
-
-function GastosPorCategoria({ datos }: { datos: Reporte['porCategoriaGasto'] }) {
-  const total = datos.reduce((a, d) => a + d.monto, 0) || 1
-  return (
-    <div className="dias">
-      {datos.map(d => (
-        <div className="dia-fila" key={d.categoria}>
-          <span className="dia-nombre">{CATEGORIA_TEXTO[d.categoria] ?? d.categoria}</span>
-          <div className="dia-pista">
-            <div className="dia-barra" style={{ width: Math.round(d.monto / total * 100) + '%' }} />
-          </div>
-          <span className="dia-valor">{pesos(d.monto)}</span>
-        </div>
-      ))}
-    </div>
   )
 }
 
@@ -273,10 +265,4 @@ function esFinDeSemana(dia: string): boolean {
   const [a, m, d] = dia.split('-').map(Number)
   const dow = new Date(Date.UTC(a, m - 1, d)).getUTCDay()
   return dow === 0 || dow === 6
-}
-
-function fechaCorta(dia: string): string {
-  const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-  const [a, m, d] = dia.split('-')
-  return `${Number(d)} ${meses[Number(m) - 1]} ${a.slice(2)}`
 }

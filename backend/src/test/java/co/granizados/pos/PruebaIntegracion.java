@@ -36,6 +36,9 @@ public abstract class PruebaIntegracion {
         jdbc.update("delete from pedido_proveedor");
         jdbc.update("delete from gasto");
         jdbc.update("delete from arqueo");
+        jdbc.update("delete from ingreso");
+        jdbc.update("delete from conteo_plata");
+        jdbc.update("delete from pago_proveedor");
         jdbc.update("delete from passkey");
         jdbc.update("delete from producto where orden > 11");
         jdbc.update("update producto set stock = 10, stock_minimo = 3, activo = true, precio = 6000, costo = 0");

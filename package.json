@@ -3,6 +3,7 @@
   "private": true,
   "description": "Caja rápida, inventario y pedido automático de Dopamina Cocktails",
   "scripts": {
-    "dev": "node dev.mjs"
+    "dev": "node dev.mjs",
+    "migrar": "node scripts/migrar-a-produccion.mjs"
   }
 }

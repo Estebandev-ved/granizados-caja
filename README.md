@@ -28,7 +28,7 @@ granizados-caja/
 ```
 
 - **Base de datos:** PostgreSQL en Railway. En tu PC se usa H2 guardado en un archivo, así que no hay que instalar nada.
-- **Un solo servicio:** en producción Spring Boot entrega la app de React y la API en la misma URL. No hay que configurar CORS y es un solo servicio que pagar. Si algún día crece, el frontend se puede separar sin cambiar código: tiene `VITE_API_URL`.
+- **Deploy:** por defecto Spring Boot entrega la app de React y la API en la misma URL (un solo servicio en Railway, sin CORS que configurar). También se puede separar: frontend en Vercel (con `VITE_API_URL` apuntando al backend) y backend en Railway — así está corriendo hoy, en `dopaminaeventos.shop`. Con el frontend en otro dominio hay que configurar `WEBAUTHN_RP_ID` y `WEBAUTHN_ORIGENES` (ver [Face ID](#face-id) y [Subir a Railway](#subir-a-railway)), porque si no Face ID y el login dejan de funcionar por CORS o por el dominio de las passkeys.
 - **El backend está organizado por módulo de negocio** (`producto`, `venta`, `inventario`, `pedido`, `resumen`, `gasto`, `reporte`, `caja`, `ajustes`, `notificacion`, `seguridad`). Cada funcionalidad nueva va en su propia carpeta.
 
 ### Cómo funciona la venta offline
@@ -93,6 +93,15 @@ cd frontend && npm test
 
    Las variables `${{Postgres.…}}` se escriben tal cual: Railway las conecta con la base sola. Tienes el mismo listado en [.env.example](.env.example).
 
+   **Si el frontend va a vivir en otro dominio** (Vercel, o un dominio propio distinto al de Railway), agrega además:
+
+   | Variable | Valor |
+   |---|---|
+   | `WEBAUTHN_RP_ID` | El dominio **exacto** desde el que se abre la app en el celular, o un dominio padre de ese. Ej: si abres desde `dopaminaeventos.shop` o `www.dopaminaeventos.shop`, pon `dopaminaeventos.shop` (la raíz cubre los dos) |
+   | `WEBAUTHN_ORIGENES` | Todos los orígenes completos con `https://`, separados por coma, desde donde se puede abrir la app (Vercel, dominio propio, `www.`, etc.) — se usa para CORS y para validar Face ID |
+
+   Sin esto, por defecto `WEBAUTHN_RP_ID` toma el dominio que Railway te da solo (`RAILWAY_PUBLIC_DOMAIN`) y `WEBAUTHN_ORIGENES` solo permite ese mismo dominio — funciona bien mientras el frontend se sirva desde el propio Railway (opción de un solo servicio).
+
 5. **Genera la URL.** En **Settings → Networking → Generate Domain**. Te queda algo como `granizados-production.up.railway.app`.
 6. **Espera el primer deploy (unos 4 minutos).** Las migraciones crean las tablas y los sabores iniciales solas. Cuando `/actuator/health` responde, Railway marca el deploy como listo.
 7. **Instala la app en el iPhone.** Abre la URL en **Safari → Compartir → Agregar a inicio**.
@@ -113,7 +122,7 @@ Detalles:
 - Funciona con **passkeys** (WebAuthn), que el iPhone X soporta desde iOS 16. La llave privada nunca sale del iPhone: el servidor solo guarda la pública.
 - Hay que tener **Llavero de iCloud** activado (Ajustes → tu nombre → iCloud → Contraseñas y Llavero).
 - **Solo funciona en HTTPS**, o sea en la URL de Railway. En tu PC (`localhost`) funciona si tu computador tiene Windows Hello o Touch ID. Desde el iPhone apuntando a tu PC por WiFi no funciona, porque no es HTTPS.
-- La llave queda amarrada al dominio. Railway pone su dominio solo (`RAILWAY_PUBLIC_DOMAIN`). Si después usas un dominio propio, pon `WEBAUTHN_RP_ID=tudominio.com` y activa Face ID de nuevo.
+- La llave queda amarrada al dominio (`WEBAUTHN_RP_ID`). Railway pone el suyo solo (`RAILWAY_PUBLIC_DOMAIN`) si no pones nada. Si usas un dominio propio o el frontend vive en otro lado (Vercel), pon `WEBAUTHN_RP_ID=tudominio.com` (la raíz, sin `www`) — tiene que ser exactamente el dominio desde el que abres la app, o un dominio **padre** de ese, nunca un subdominio distinto (`www.tudominio.com` como rpId **no** sirve si abres desde `tudominio.com` a secas, ni al revés). Si lo cambias, activa Face ID de nuevo.
 - En **Ajustes → Face ID** ves los celulares activados y puedes quitarlos.
 
 ### Telegram (recomendado)

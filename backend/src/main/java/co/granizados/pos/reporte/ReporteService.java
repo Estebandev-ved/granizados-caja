@@ -57,15 +57,24 @@ public class ReporteService {
     public record PorCategoriaGasto(CategoriaGasto categoria, long monto) {
     }
 
+    /** Un gasto individual del periodo, para la lista de "Mis gastos". */
+    public record GastoDetalle(String clientUid, String dia, String hora, CategoriaGasto categoria, String concepto, long monto) {
+    }
+
+    /** Lo gastado en un día del periodo, para la gráfica de "Mis gastos". */
+    public record PorDiaGasto(String dia, long monto) {
+    }
+
     /** Mismos totales del periodo inmediatamente anterior, de igual duración, para comparar. */
-    public record Comparacion(long ventas, int unidades, long ganancia) {
+    public record Comparacion(long ventas, int unidades, long ganancia, long gastos) {
     }
 
     public record Reporte(String desde, String hasta, Totales totales, List<PorDia> porDia,
                           List<PorEtiqueta> porHora, List<PorEtiqueta> porDiaSemana,
                           List<PorSabor> porSabor, List<PedidoService.PedidoDto> pedidos,
                           List<CierreCaja> arqueos, List<PorCategoriaGasto> porCategoriaGasto,
-                          Comparacion anterior) {
+                          List<PorCategoriaGasto> porCategoriaGastoAnterior,
+                          List<GastoDetalle> gastosDetalle, List<PorDiaGasto> gastosPorDia, Comparacion anterior) {
     }
 
     private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE;
@@ -110,6 +119,9 @@ public class ReporteService {
                 pedidos.listarEntre(inicio, fin),
                 cierres(desde, hasta),
                 porCategoriaGasto(gastosLista),
+                porCategoriaGasto(gastosAnteriores(desde, hasta)),
+                gastosDetalle(gastosLista),
+                gastosPorDia(gastosLista),
                 comparacionAnterior(desde, hasta));
     }
 
@@ -124,7 +136,9 @@ public class ReporteService {
         List<Venta> lista = new ArrayList<>(ventas.entre(inicio, fin));
         lista.sort(Comparator.comparing(Venta::getCreadaEn).thenComparing(Venta::getId));
 
-        StringBuilder sb = new StringBuilder("fecha;hora;sabor;cantidad;precio;total;costo;metodo\n");
+        // "sep=;" en la primera línea: sin esto, Excel usa el separador de listas de Windows
+        // (coma en inglés) y mete todo en una sola columna aunque el archivo use ";".
+        StringBuilder sb = new StringBuilder("sep=;\nfecha;hora;sabor;cantidad;precio;total;costo;metodo\n");
         for (Venta v : lista) {
             var cuando = v.getCreadaEn().atZone(zona);
             sb.append(ISO.format(cuando.toLocalDate())).append(';')
@@ -215,19 +229,45 @@ public class ReporteService {
                 .toList();
     }
 
-    /** Ventas, unidades y ganancia del periodo inmediatamente anterior, de igual duración que [desde, hasta]. */
-    private Comparacion comparacionAnterior(LocalDate desde, LocalDate hasta) {
+    /** Cada gasto tal cual quedó, más reciente primero, para la lista "Mis gastos". */
+    private List<GastoDetalle> gastosDetalle(List<Gasto> lista) {
+        return lista.stream()
+                .map(g -> {
+                    var cuando = g.getCreadoEn().atZone(zona);
+                    return new GastoDetalle(g.getClientUid(), ISO.format(cuando.toLocalDate()),
+                            HORA.format(cuando.toLocalTime()), g.getCategoria(), g.getConcepto(), g.getMonto());
+                })
+                .toList();
+    }
+
+    /** Lo gastado día a día del periodo, para la gráfica de "Mis gastos". */
+    private List<PorDiaGasto> gastosPorDia(List<Gasto> lista) {
+        Map<String, Long> mapa = new TreeMap<>();
+        for (Gasto g : lista) mapa.merge(dia(g.getCreadoEn()), g.getMonto(), Long::sum);
+        return mapa.entrySet().stream().map(e -> new PorDiaGasto(e.getKey(), e.getValue())).toList();
+    }
+
+    /** [desde, hasta] tiene el mismo número de días que el periodo inmediatamente anterior. */
+    private Instant[] rangoAnterior(LocalDate desde, LocalDate hasta) {
         long dias = ChronoUnit.DAYS.between(desde, hasta) + 1;
         LocalDate desdeAnt = desde.minusDays(dias);
         LocalDate hastaAnt = desde.minusDays(1);
-        Instant inicio = desdeAnt.atStartOfDay(zona).toInstant();
-        Instant fin = hastaAnt.plusDays(1).atStartOfDay(zona).toInstant();
+        return new Instant[] { desdeAnt.atStartOfDay(zona).toInstant(), hastaAnt.plusDays(1).atStartOfDay(zona).toInstant() };
+    }
 
-        List<Venta> lista = ventas.entre(inicio, fin);
-        long gastosAnt = Optional.ofNullable(gastos.montoEntre(inicio, fin)).orElse(0L);
-        long mermasAnt = suma(mermasPorDia(inicio, fin));
+    private List<Gasto> gastosAnteriores(LocalDate desde, LocalDate hasta) {
+        Instant[] r = rangoAnterior(desde, hasta);
+        return gastos.findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(r[0], r[1]);
+    }
+
+    /** Ventas, gastos, unidades y ganancia del periodo inmediatamente anterior, de igual duración que [desde, hasta]. */
+    private Comparacion comparacionAnterior(LocalDate desde, LocalDate hasta) {
+        Instant[] r = rangoAnterior(desde, hasta);
+        List<Venta> lista = ventas.entre(r[0], r[1]);
+        long gastosAnt = Optional.ofNullable(gastos.montoEntre(r[0], r[1])).orElse(0L);
+        long mermasAnt = suma(mermasPorDia(r[0], r[1]));
         Totales t = totales(lista, gastosAnt, mermasAnt);
-        return new Comparacion(t.ventas(), t.unidades(), t.ganancia());
+        return new Comparacion(t.ventas(), t.unidades(), t.ganancia(), t.gastos());
     }
 
     // ------------------------------------------------------------------ utilidades

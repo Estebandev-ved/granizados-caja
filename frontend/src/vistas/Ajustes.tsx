@@ -3,8 +3,9 @@ import { api, sesion, type ImportarResultado, type PasskeyInfo } from '../api'
 import { Icono } from '../componentes/Icono'
 import { IconoFaceId, type ModoFaceId } from '../componentes/IconoFaceId'
 import { Sheet } from '../componentes/Sheet'
-import { activarFaceId, esCancelacion, faceIdActivado, olvidarFaceId, soportaFaceId } from '../faceid'
+import { activarFaceId, esCancelacion, esErrorDeDominio, faceIdActivado, olvidarFaceId, soportaFaceId } from '../faceid'
 import { pesos } from '../formato'
+import { useInstalarPWA } from '../instalarPwa'
 import type { DatosProducto, Param, Producto, Tipo } from '../tipos'
 
 const PRECIO_POR_TIPO: Record<Tipo, number> = { NORMAL: 6000, CREMOSO: 7000, GRANDE: 10000 }
@@ -93,6 +94,8 @@ export function Ajustes({ avisar, onCambio }: Props) {
         ))}
       </div>
 
+      <SeccionInstalar />
+
       <SeccionFaceId avisar={avisar} />
 
       <SeccionImportar avisar={avisar} />
@@ -169,6 +172,35 @@ function FormProducto({ producto, onGuardar }: { producto: Producto | null; onGu
   )
 }
 
+/** Instalar la app en la pantalla de inicio. En Chrome/Android sale un prompt; en iPhone hay que explicarlo a mano. */
+function SeccionInstalar() {
+  const { modo, instalar } = useInstalarPWA()
+  const [ayuda, setAyuda] = useState(false)
+
+  if (modo === 'instalada' || modo === 'no-disponible') return null
+
+  return (
+    <>
+      <div className="acciones" style={{ marginBottom: 14 }}>
+        <button className="big ghost" style={{ justifyContent: 'center' }}
+          onClick={() => modo === 'ios' ? setAyuda(true) : void instalar()}>
+          <Icono nombre="instalar" /> Instalar en la pantalla de inicio
+        </button>
+      </div>
+
+      <Sheet abierto={ayuda} onCerrar={() => setAyuda(false)}>
+        <h2><Icono nombre="instalar" /> Instalar en el iPhone</h2>
+        <p>Safari no deja abrir esto solo, pero son dos toques:</p>
+        <div className="list">
+          <div className="row"><span><Icono nombre="compartir" /> 1. Toca <b>Compartir</b> abajo en Safari</span></div>
+          <div className="row"><span><Icono nombre="cuadrado" /> 2. Elige <b>Agregar a inicio</b></span></div>
+        </div>
+        <button className="big primario" onClick={() => setAyuda(false)}>Listo</button>
+      </Sheet>
+    </>
+  )
+}
+
 /** Activar o quitar el Face ID. Cada celular registra su propia llave. */
 function SeccionFaceId({ avisar }: { avisar: (m: string) => void }) {
   const [llaves, setLlaves] = useState<PasskeyInfo[]>([])
@@ -191,7 +223,8 @@ function SeccionFaceId({ avisar }: { avisar: (m: string) => void }) {
       await cargar()
     } catch (e) {
       setModo('quieto')
-      if (!esCancelacion(e)) avisar('⚠️ No se pudo activar Face ID')
+      if (esErrorDeDominio(e)) avisar('⚠️ Este dominio no está habilitado para Face ID (revisa WEBAUTHN_RP_ID)')
+      else if (!esCancelacion(e)) avisar('⚠️ No se pudo activar Face ID')
     } finally {
       setTimeout(() => setModo('quieto'), 1200)
     }

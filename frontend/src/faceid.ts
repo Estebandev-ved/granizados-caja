@@ -58,3 +58,9 @@ export function esCancelacion(e: unknown): boolean {
   const nombres = [(e as Error)?.name, ((e as { cause?: Error })?.cause)?.name]
   return nombres.includes('NotAllowedError') || nombres.includes('AbortError')
 }
+
+/** El rpId del backend (WEBAUTHN_RP_ID) no coincide con el dominio desde el que se abrió la página. */
+export function esErrorDeDominio(e: unknown): boolean {
+  const nombres = [(e as Error)?.name, ((e as { cause?: Error })?.cause)?.name]
+  return nombres.includes('SecurityError')
+}

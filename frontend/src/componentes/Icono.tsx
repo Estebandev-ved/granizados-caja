@@ -19,6 +19,9 @@ const TRAZOS: Record<string, string> = {
   moneda: 'M12 4a8 8 0 1 0 .1 0z M9 9.5h4 M9 14.5h4 M12 7v10',
   flecha: 'M9 14l-5-5 5-5 M4 9h11a5 5 0 0 1 5 5v1',
   refrescar: 'M4 12a8 8 0 0 1 13.66-5.66 M18 4v4h-4 M20 12a8 8 0 0 1-13.66 5.66 M6 20v-4h4',
+  instalar: 'M12 3v12 M7 10l5 5 5-5 M5 21h14',
+  compartir: 'M12 16V4 M8 8l4-4 4 4 M6 12v7a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-7',
+  cuadrado: 'M8 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
 }
 
 /** Set chico de íconos lineales para tarjetas y encabezados, mismo estilo del nav de abajo. */

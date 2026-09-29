@@ -2,6 +2,7 @@ import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { api, type ArqueoHoy } from '../api'
 import dopaGuino from '../assets/dopa-guino.png'
 import { Icono } from '../componentes/Icono'
+import { MiPlata } from '../componentes/MiPlata'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
@@ -19,7 +20,7 @@ interface Props {
 }
 
 type Panel =
-  | { tipo: 'pedido'; sugerido: PedidoSugerido | null; error?: boolean; cantidades: Record<number, number>; enviando: boolean; aviso?: string }
+  | { tipo: 'pedido'; sugerido: PedidoSugerido | null; error?: boolean; cantidades: Record<number, number>; enviando: boolean; aviso?: string; presupuesto: string; dias?: number }
   | { tipo: 'deshacer'; venta: VentaReciente }
   | { tipo: 'gasto'; categoria: CategoriaGasto; monto: string; concepto: string }
   | { tipo: 'cierre'; contado: string; nota: string; cargando: boolean; guardado: ArqueoHoy | null; sinSenal: boolean }
@@ -36,10 +37,20 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
   const h = estado.hoy
   const faltaCosto = estado.productos.some(p => p.costo === 0)
 
-  const abrirPedido = async () => {
-    setPanel({ tipo: 'pedido', sugerido: null, cantidades: {}, enviando: false })
+  /** Sin plata: lo ideal según ventas. Con plata: solo lo que alcanza, dejando reserva. */
+  const abrirPedido = async (presupuesto?: number, dias?: number) => {
+    if (presupuesto === undefined && dias === undefined) {
+      setPanel({ tipo: 'pedido', sugerido: null, cantidades: {}, enviando: false, presupuesto: plataGuardada() })
+      // Si ya contaste tu plata, el campo llega con el total (y lo puedes cambiar)
+      api.plata().then(s => {
+        if (!s.contadoEn || s.total <= 0) return
+        setPanel(p => (p?.tipo === 'pedido' && p.presupuesto === plataGuardada() ? { ...p, presupuesto: String(s.total) } : p))
+      }).catch(() => { /* sin señal: queda lo que había */ })
+    } else {
+      setPanel(p => (p?.tipo === 'pedido' ? { ...p, sugerido: null, error: false } : p))
+    }
     try {
-      const sugerido = await api.pedido()
+      const sugerido = await api.pedido(presupuesto, dias)
       setPanel(p => (p?.tipo === 'pedido'
         ? { ...p, sugerido, cantidades: Object.fromEntries(sugerido.items.map(i => [i.productoId, i.pedir])) }
         : p))
@@ -147,6 +158,8 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
         </div>
       ) : <div className="vacio"><img src={dopaGuino} alt="" className="vacio-mascota" />Aún no hay ventas hoy</div>}
 
+      <MiPlata avisar={avisar} />
+
       <div className="acciones">
         <button className="accion accion-pedido" onClick={() => void abrirPedido()}>
           <span className="accion-icono"><Icono nombre="camion" /></span>
@@ -183,6 +196,18 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
             aviso={panel.aviso}
             cantidades={panel.cantidades}
             enviando={panel.enviando}
+            presupuesto={panel.presupuesto}
+            onPresupuesto={v => setPanel(p => (p?.tipo === 'pedido' ? { ...p, presupuesto: v } : p))}
+            onAjustar={() => {
+              const n = Number(panel.presupuesto)
+              if (!n) return
+              try { localStorage.setItem(CLAVE_PLATA, String(n)) } catch { /* sin storage no pasa nada */ }
+              abrirPedido(n, panel.dias)
+            }}
+            onDias={d => {
+              setPanel(p => (p?.tipo === 'pedido' ? { ...p, dias: d } : p))
+              abrirPedido(Number(panel.presupuesto) || undefined, d)
+            }}
             onCantidad={(id, n) => setPanel(p => (p?.tipo === 'pedido' ? { ...p, cantidades: { ...p.cantidades, [id]: n } } : p))}
             onEnviar={() => {
               if (panel.enviando) return
@@ -255,18 +280,42 @@ async function enviar(
   }
 }
 
-function PanelPedido({ sugerido, error, aviso, cantidades, enviando, onCantidad, onEnviar }: {
+const CLAVE_PLATA = 'gz_plata_pedido'
+const DIAS = [4, 7, 10, 14]
+
+function plataGuardada(): string {
+  try { return localStorage.getItem(CLAVE_PLATA) ?? '' } catch { return '' }
+}
+
+function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto, onPresupuesto, onAjustar, onDias, onCantidad, onEnviar }: {
   sugerido: PedidoSugerido | null
   error?: boolean
   aviso?: string
   cantidades: Record<number, number>
   enviando: boolean
+  presupuesto: string
+  onPresupuesto: (v: string) => void
+  onAjustar: () => void
+  onDias: (dias: number) => void
   onCantidad: (productoId: number, cantidad: number) => void
   onEnviar: () => void
 }) {
   if (error) return <><h2>Sin conexión</h2><p>El pedido se calcula en el servidor. Intenta cuando tengas señal.</p></>
   if (!sugerido) return <><h2>Pedido sugerido</h2><p>Calculando con tus ventas…</p></>
-  if (!sugerido.items.length) return <><h2>Pedido sugerido</h2><p>Tienes stock suficiente. No hace falta pedir 🙌</p></>
+  if (!sugerido.items.length) {
+    return (
+      <>
+        <h2>Pedido sugerido</h2>
+        <p>Con {sugerido.dias} días de venta tienes stock suficiente. No hace falta pedir 🙌</p>
+        <p className="mut">¿Quieres inventario para más días?</p>
+        <div className="chips">
+          {DIAS.filter(d => d > sugerido.dias).map(d => (
+            <button type="button" key={d} onClick={() => onDias(d)}>{d} días</button>
+          ))}
+        </div>
+      </>
+    )
+  }
 
   const total = sugerido.items.reduce((a, i) => a + (cantidades[i.productoId] ?? 0), 0)
   const costo = sugerido.items.reduce((a, i) => a + (cantidades[i.productoId] ?? 0) * i.costo, 0)
@@ -274,10 +323,28 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, onCantidad,
     <>
       <h2>Armar pedido</h2>
       <p>Edita lo que quieres pedir. Se arma en el servidor y abre WhatsApp.</p>
+      <form className="campo" onSubmit={e => { e.preventDefault(); onAjustar() }}>
+        <label htmlFor="pedido-plata">¿Cuánta plata tienes para el pedido?</label>
+        <input id="pedido-plata" inputMode="numeric" placeholder="Ej: 150000" value={presupuesto}
+          onChange={e => onPresupuesto(e.target.value.replace(/\D/g, ''))} />
+        <button type="submit" className="big" disabled={!Number(presupuesto)}>Ajustar a mi plata</button>
+      </form>
+      <p className="mut">¿Para cuántos días quieres inventario?</p>
+      <div className="chips">
+        {DIAS.map(d => (
+          <button type="button" key={d} className={sugerido.dias === d ? 'on' : ''} onClick={() => onDias(d)}>{d} días</button>
+        ))}
+      </div>
+      {sugerido.disponible !== null && (
+        <p className={sugerido.recortado ? 'aviso' : 'mut'}>
+          Gasto hasta {pesos(sugerido.disponible)} y dejo {pesos((sugerido.presupuesto ?? 0) - sugerido.disponible)} de reserva.
+          {sugerido.recortado ? ' No alcanza para todo, repartí por lo que más se vende.' : ' Te alcanza para todo lo sugerido 🙌'}
+        </p>
+      )}
       <div className="list pedido-lista">
         {sugerido.items.map(i => (
           <div className="row" key={i.productoId}>
-            <span>{i.sabor}<br /><small className="mut">{i.promedioDia}/día · sugiere {i.pedir}</small></span>
+            <span>{i.sabor}<br /><small className="mut">{i.promedioDia}/día · sugiere {i.pedir}{i.ideal !== i.pedir ? ` (ideal ${i.ideal})` : ''}</small></span>
             <span className="mini">
               <button aria-label={'Menos ' + i.sabor} onClick={() => onCantidad(i.productoId, Math.max(0, (cantidades[i.productoId] ?? 0) - 1))}>−</button>
               <b className={(cantidades[i.productoId] ?? 0) !== i.pedir ? 'aviso' : ''}>{cantidades[i.productoId] ?? 0}</b>

@@ -1,7 +1,7 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
   CategoriaGasto, DatosProducto, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
-  PedidoSugerido, Producto, Reporte, RespuestaVenta, TipoMovimiento,
+  LugarPlata, PedidoSugerido, Producto, Reporte, RespuestaVenta, SaldoPlata, TipoMovimiento,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -120,9 +120,21 @@ export const api = {
   entrada: (e: EntradaApi) => pedir<{ estado: string }>('POST', '/api/inventario/entradas', e),
   movimiento: (m: MovimientoApi) => pedir<RespuestaMovimiento>('POST', '/api/inventario/movimientos', m),
   gasto: (g: GastoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/gastos', g),
+  borrarGasto: (clientUid: string) => pedir<void>('DELETE', '/api/gastos/' + encodeURIComponent(clientUid)),
   arqueo: (a: ArqueoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/arqueo', a),
   cierreHoy: () => pedir<ArqueoHoy | null>('GET', '/api/arqueo'),
-  pedido: () => pedir<PedidoSugerido>('GET', '/api/pedido/sugerido'),
+  plata: () => pedir<SaldoPlata>('GET', '/api/plata'),
+  contarPlata: (c: { clientUid: string; caja: number; casa: number; nequi: number }) =>
+    pedir<{ estado: string }>('POST', '/api/plata/conteo', c),
+  ingreso: (i: { clientUid: string; concepto: string; monto: number; lugar: LugarPlata }) =>
+    pedir<{ estado: string }>('POST', '/api/ingresos', i),
+  borrarIngreso: (clientUid: string) => pedir<void>('DELETE', '/api/ingresos/' + encodeURIComponent(clientUid)),
+  pedido: (presupuesto?: number, dias?: number) => {
+    const q = new URLSearchParams()
+    if (presupuesto !== undefined) q.set('presupuesto', String(presupuesto))
+    if (dias !== undefined) q.set('dias', String(dias))
+    return pedir<PedidoSugerido>('GET', '/api/pedido/sugerido' + (q.size ? '?' + q : ''))
+  },
   crearPedido: (items: LineaPedido[]) => pedir<PedidoCreado>('POST', '/api/pedidos', { items }),
   pedidos: (estado?: EstadoPedido) => pedir<Pedido[]>('GET', '/api/pedidos' + (estado ? '?estado=' + estado : '')),
   recibirPedido: (pedidoId: number, clientUid: string, items: LineaPedido[]) =>

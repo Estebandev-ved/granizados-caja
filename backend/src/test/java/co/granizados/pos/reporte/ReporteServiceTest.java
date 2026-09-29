@@ -106,10 +106,11 @@ class ReporteServiceTest extends PruebaIntegracion {
         String csv = reportes.csv("2026-09-24", "2026-09-25");
         String[] lineas = csv.split("\n");
 
-        assertThat(lineas[0]).isEqualTo("fecha;hora;sabor;cantidad;precio;total;costo;metodo");
-        assertThat(lineas).hasSize(2);
-        assertThat(lineas[1]).isEqualTo("2026-09-24;10:00;Smirnoff;2;6000;12000;6000;Efectivo");
-        assertThat(reportes.csv("2026-09-26", "2026-09-26").split("\n")).hasSize(1);
+        assertThat(lineas[0]).isEqualTo("sep=;");
+        assertThat(lineas[1]).isEqualTo("fecha;hora;sabor;cantidad;precio;total;costo;metodo");
+        assertThat(lineas).hasSize(3);
+        assertThat(lineas[2]).isEqualTo("2026-09-24;10:00;Smirnoff;2;6000;12000;6000;Efectivo");
+        assertThat(reportes.csv("2026-09-26", "2026-09-26").split("\n")).hasSize(2);
     }
 
     @Test

@@ -230,7 +230,7 @@ class ApiTest extends PruebaIntegracion {
         mvc.perform(conToken(get("/api/reportes/ventas.csv")
                         .param("desde", "2026-09-25").param("hasta", "2026-09-25")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(startsWith("﻿fecha;hora;sabor;")));
+                .andExpect(content().string(startsWith("﻿sep=;\nfecha;hora;sabor;")));
 
         // Fechas al revés: 400, para que el celular descarte y no reintente para siempre
         mvc.perform(conToken(get("/api/reportes").param("desde", "2026-09-25").param("hasta", "2026-09-24")))

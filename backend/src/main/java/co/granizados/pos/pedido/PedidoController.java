@@ -25,8 +25,9 @@ public class PedidoController {
     }
 
     @GetMapping("/api/pedido/sugerido")
-    public PedidoService.PedidoSugerido sugerido() {
-        return servicio.sugerido();
+    public PedidoService.PedidoSugerido sugerido(@RequestParam(required = false) Long presupuesto,
+                                                 @RequestParam(required = false) Integer dias) {
+        return servicio.sugerido(presupuesto, dias);
     }
 
     /** Crea el pedido con las cantidades editadas y devuelve el link de WhatsApp listo para abrir. */

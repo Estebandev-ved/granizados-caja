@@ -98,6 +98,8 @@ export interface ItemPedido {
   promedioDia: number
   /** Cuánto cuesta cada unidad: sirve para ver cuánto vas a pagar por lo que edites. */
   costo: number
+  /** Lo que pediría si no hubiera límite de plata. */
+  ideal: number
 }
 
 export interface PedidoSugerido {
@@ -107,6 +109,12 @@ export interface PedidoSugerido {
   mensaje: string
   link: string
   tieneProveedor: boolean
+  /** Plata que dijiste que tienes, lo que de verdad se puede gastar (sin la reserva) y si tocó recortar. */
+  presupuesto: number | null
+  disponible: number | null
+  recortado: boolean
+  /** Para cuántos días de venta se calculó el pedido. */
+  dias: number
 }
 
 /** Lo que responde `POST /api/pedidos` cuando se arma el pedido. */
@@ -172,11 +180,28 @@ export interface ReporteCategoriaGasto {
   monto: number
 }
 
-/** Ventas, unidades y ganancia del periodo inmediatamente anterior, de igual duración. */
+/** Un gasto tal cual quedó registrado, para la lista de "Mis gastos" en Reportes. */
+export interface ReporteGasto {
+  clientUid: string
+  dia: string
+  hora: string
+  categoria: CategoriaGasto
+  concepto: string
+  monto: number
+}
+
+/** Lo gastado en un día del periodo, para la gráfica de "Mis gastos". */
+export interface ReporteDiaGasto {
+  dia: string
+  monto: number
+}
+
+/** Ventas, gastos, unidades y ganancia del periodo inmediatamente anterior, de igual duración. */
 export interface ReporteComparacion {
   ventas: number
   unidades: number
   ganancia: number
+  gastos: number
 }
 
 /** Lo que responde `GET /api/reportes`. */
@@ -191,6 +216,9 @@ export interface Reporte {
   pedidos: Pedido[]
   arqueos: CierreCaja[]
   porCategoriaGasto: ReporteCategoriaGasto[]
+  porCategoriaGastoAnterior: ReporteCategoriaGasto[]
+  gastosDetalle: ReporteGasto[]
+  gastosPorDia: ReporteDiaGasto[]
   anterior: ReporteComparacion
 }
 
@@ -236,4 +264,25 @@ export interface RespuestaVenta {
   clientUid: string
   estado: 'REGISTRADA' | 'REPETIDA' | 'RECHAZADA'
   error: string | null
+}
+
+/** Dónde está la plata: efectivo en la caja, efectivo en la casa, o en Nequi. */
+export type LugarPlata = 'CAJA' | 'CASA' | 'NEQUI'
+
+export interface IngresoPlata {
+  clientUid: string
+  concepto: string
+  monto: number
+  lugar: LugarPlata
+  creadoEn: string
+}
+
+/** `GET /api/plata`. Si `contadoEn` es null todavía no has contado y los montos no significan nada. */
+export interface SaldoPlata {
+  caja: number
+  casa: number
+  nequi: number
+  total: number
+  contadoEn: string | null
+  ingresos: IngresoPlata[]
 }

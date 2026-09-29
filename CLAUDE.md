@@ -25,8 +25,9 @@ Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el ne
   - CSS propio en `src/estilos.css`, sin librería de UI.
   - Tema **morado y negro "dopamina"**: variables `--morado`, `--fucsia` y `--grad`. Nequi conserva su color de marca.
   - Face ID en el cliente: `src/faceid.ts` (con `@simplewebauthn/browser`) y el ícono animado `componentes/IconoFaceId.tsx`.
-- **Deploy:** Railway, con un solo servicio desde el `Dockerfile` de la raíz.
-  - La imagen compila el frontend, lo copia a `static/` del backend y corre el jar.
+- **Deploy:** backend en Railway (`Dockerfile` de la raíz), frontend en Vercel — dominios separados (`dopaminaeventos.shop` en Vercel, backend en Railway).
+  - El `Dockerfile` puede seguir sirviendo todo desde un solo servicio (imagen compila el frontend, lo copia a `static/` del backend), pero hoy en producción no se usa así: el frontend se despliega aparte en Vercel con `VITE_API_URL` apuntando al backend.
+  - Con dominios separados, `WEBAUTHN_RP_ID` y `WEBAUTHN_ORIGENES` (backend) tienen que apuntar al dominio del frontend (Vercel/dominio propio), no al de Railway — si no, Face ID y el CORS se rompen. `WEBAUTHN_RP_ID` debe ser el dominio exacto desde el que se abre la app o un dominio padre de ese (nunca un subdominio distinto, ej. `www.` no sirve como rpId si se abre desde la raíz).
   - Healthcheck en `/actuator/health`.
 - **`v1-apps-script/`:** la versión anterior en Google Apps Script. Es solo de referencia, no se despliega.
 
@@ -72,6 +73,9 @@ Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el ne
 - No guardar datos de clientes. Los sabores con licor se venden solo a mayores de edad, así que no proponer autoservicio sin control.
 - Secretos solo por variables de entorno (`.env.example`). En `prod` no hay valores por defecto para `APP_PIN` y `JWT_SECRET`.
 - Los cambios de esquema van en una migración Flyway nueva (`V3__…sql`). **Nunca** editar una migración que ya corrió en producción. El SQL tiene que funcionar en PostgreSQL y en H2 (modo PostgreSQL).
+
+## Trabajo día a día
+`.claude/DAILY_LOG.md` lleva la bitácora de qué se hizo y qué sigue. Al final de cada sesión: marcar lo hecho de "Hoy", mover lo que quedó pendiente al "Hoy" de la próxima sesión, sacar tareas nuevas del backlog si hacen falta, y agregar una entrada en "Cambios" con lo entregado.
 
 ## Roadmap (en orden)
 1. Pedido al proveedor por **WhatsApp Cloud API**, reutilizando el módulo de WhatsApp de Antigravity (la plataforma propia de Esteban).

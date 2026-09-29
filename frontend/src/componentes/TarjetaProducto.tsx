@@ -1,22 +1,21 @@
 import { pesos } from '../formato'
 import type { Producto } from '../tipos'
 
-// Paleta de degradados "dopamina": todos en la misma familia morado/fucsia/neón,
-// para que cada sabor se distinga sin salirse del tema.
-const PALETA: [string, string][] = [
-  ['#9d4dff', '#ff3db8'], // morado -> fucsia (grad por defecto)
-  ['#ff3db8', '#ff6a4d'], // fucsia -> naranja neón
-  ['#4d7bff', '#9d4dff'], // azul -> morado
-  ['#22c55e', '#4dffb8'], // verde -> menta
-  ['#ffb020', '#ff3db8'], // ámbar -> fucsia
-  ['#4dd6ff', '#9d4dff'], // cian -> morado
+// Un color plano por sabor (sin degradado) para que cada tarjeta se distinga
+// por identidad propia, no por decoración compartida.
+const PALETA: string[] = [
+  '#7c5cff', // morado (por defecto)
+  '#ff3db8', // fucsia
+  '#4d7bff', // azul
+  '#22c55e', // verde
+  '#ffb020', // ámbar
+  '#00b8c4', // cian
 ]
 
 function colorSabor(sabor: string): string {
   let h = 0
   for (let i = 0; i < sabor.length; i++) h = (h * 31 + sabor.charCodeAt(i)) >>> 0
-  const [a, b] = PALETA[h % PALETA.length]
-  return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`
+  return PALETA[h % PALETA.length]
 }
 
 export function TarjetaProducto({ p, onClick }: { p: Producto; onClick: () => void }) {
