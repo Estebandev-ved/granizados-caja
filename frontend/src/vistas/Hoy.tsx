@@ -2,7 +2,6 @@ import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { api, type ArqueoHoy } from '../api'
 import dopaGuino from '../assets/dopa-guino.png'
 import { Icono } from '../componentes/Icono'
-import { MiPlata } from '../componentes/MiPlata'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
@@ -172,8 +171,6 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
         </div>
       ) : <div className="vacio"><img src={dopaGuino} alt="" className="vacio-mascota" />Aún no hay ventas hoy</div>}
 
-      <MiPlata avisar={avisar} />
-
       <div className="acciones">
         <button className="accion accion-pedido" onClick={() => void abrirPedido()}>
           <span className="accion-icono"><Icono nombre="camion" /></span>
@@ -239,14 +236,14 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           }} />
         )}
         {panel?.tipo === 'cierre' && (
-          <PanelCierre esperado={estado.hoy.efectivo} contado={panel.contado} nota={panel.nota} saldo={panel.saldo}
+          <PanelCierre esperado={esperadoCierre(panel.saldo, estado.hoy.efectivo)} contado={panel.contado} nota={panel.nota} saldo={panel.saldo}
             cargando={panel.cargando} guardado={panel.guardado} sinSenal={panel.sinSenal}
             onCambio={cambio => setPanel(p => (p?.tipo === 'cierre' ? { ...p, ...cambio } : p))}
             onGuardar={(contado, nota) => {
               setPanel(null)
               vibrar()
               onCerrarCaja(contado, nota)
-              avisar('✓ Caja cerrada · ' + resumenCierre(estado.hoy.efectivo, contado))
+              avisar('✓ Caja cerrada · ' + resumenCierre(esperadoCierre(panel.saldo, estado.hoy.efectivo), contado))
             }} />
         )}
         {panel?.tipo === 'deshacer' && (
@@ -389,6 +386,11 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
   )
 }
 
+/** Con la plata contada en Mi plata, lo esperado es lo que debería haber en la caja; si no, solo el efectivo de hoy. */
+function esperadoCierre(saldo: SaldoPlata | null, efectivoHoy: number): number {
+  return saldo?.contadoEn ? Math.max(0, saldo.caja) : efectivoHoy
+}
+
 /** Qué queda después de contar: cuadró, o cuánto faltó o sobró. */
 function resumenCierre(esperado: number, contado: number): string {
   const d = contado - esperado
@@ -415,7 +417,10 @@ function PanelCierre({ esperado, contado, nota, saldo, cargando, guardado, sinSe
   return (
     <form onSubmit={e => { e.preventDefault(); if (!sinContar && !cargando) onGuardar(n, nota.trim()) }}>
       <h2>Cerrar caja</h2>
-      <p>Según la app, en el cajón debe haber <b>{pesos(esperado)}</b> de efectivo.</p>
+      <p>
+        Según la app, en la caja debe haber <b>{pesos(esperado)}</b> de efectivo
+        {saldo?.contadoEn ? ' (lo que había más lo de hoy, menos gastos).' : ' (lo vendido hoy en efectivo).'}
+      </p>
 
       {cargando && <p className="mut">Mirando si ya cerraste hoy…</p>}
 

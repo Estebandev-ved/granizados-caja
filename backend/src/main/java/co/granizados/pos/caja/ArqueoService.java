@@ -1,6 +1,7 @@
 package co.granizados.pos.caja;
 
 import co.granizados.pos.comun.AppProperties;
+import co.granizados.pos.plata.PlataService;
 import co.granizados.pos.resumen.EstadoService;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -17,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Cerrar la caja: cuánto decía la app en efectivo y cuánto había de verdad.
+ * Si ya contaste tu plata en Mi plata, "lo esperado" es la plata que debería haber en la caja (lo que había
+ * antes más lo de hoy, menos gastos y traslados); si no, es solo el efectivo vendido hoy.
+ * Al cerrar, lo contado pasa a ser el nuevo punto de partida de la caja en Mi plata.
  * Queda un solo cierre por día; repetirlo con el mismo `clientUid` no escribe otra vez.
  */
 @Service
@@ -37,12 +41,15 @@ public class ArqueoService {
 
     private final ArqueoRepository arqueos;
     private final EstadoService estado;
+    private final PlataService plata;
     private final Clock clock;
     private final ZoneId zona;
 
-    public ArqueoService(ArqueoRepository arqueos, EstadoService estado, Clock clock, AppProperties props) {
+    public ArqueoService(ArqueoRepository arqueos, EstadoService estado, PlataService plata, Clock clock,
+                         AppProperties props) {
         this.arqueos = arqueos;
         this.estado = estado;
+        this.plata = plata;
         this.clock = clock;
         this.zona = props.zoneId();
     }
@@ -56,7 +63,9 @@ public class ArqueoService {
         LocalDate dia = hoy();
         if (arqueos.findByClientUid(n.clientUid()).isPresent()) return Resultado.REPETIDA;
 
-        long esperado = estado.resumenDe(dia).efectivo();
+        PlataService.Saldo saldo = plata.saldo();
+        boolean plataContada = saldo.contadoEn() != null;
+        long esperado = plataContada ? Math.max(0, saldo.caja()) : estado.resumenDe(dia).efectivo();
         Instant cuando = n.creadoEn() == null ? clock.instant() : n.creadoEn();
         Arqueo a = arqueos.findByDia(dia).orElse(null);
         if (a == null) {
@@ -64,6 +73,12 @@ public class ArqueoService {
         } else {
             a.actualizar(n.clientUid(), esperado, n.contado(), limpiar(n.nota()), cuando);
             arqueos.save(a);
+        }
+        if (plataContada) {
+            // Lo que contaste en el cajón es la verdad: la caja de Mi plata parte de ahí; casa y Nequi siguen igual
+            String uid = ("ar-" + n.clientUid());
+            plata.contar(new PlataService.NuevoConteo(uid.substring(0, Math.min(64, uid.length())), n.contado(),
+                    Math.max(0, saldo.casa()), Math.max(0, saldo.nequi())));
         }
         return Resultado.REGISTRADA;
     }

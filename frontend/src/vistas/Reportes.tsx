@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { Icono } from '../componentes/Icono'
+import { MiPlata } from '../componentes/MiPlata'
 import { diaBogota } from '../estadoLocal'
 import { pesos, vibrar } from '../formato'
 import { fechaCorta, PERIODOS, restarDias, rangoDe, variacion, type Periodo } from '../reportes'
@@ -71,6 +72,8 @@ export function Reportes({ avisar }: Props) {
 
   return (
     <section>
+      <MiPlata avisar={avisar} />
+
       <div className="chips">
         {(Object.keys(PERIODOS) as Periodo[]).map(p => (
           <button key={p} className={periodo === p ? 'on' : ''} onClick={() => setPeriodo(p)}>{PERIODOS[p]}</button>

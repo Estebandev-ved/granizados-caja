@@ -40,6 +40,11 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-10-01
+- **Mi plata pasó de Hoy a Reportes** (arriba, antes de los periodos): Hoy queda solo con lo del día.
+- **Cerrar caja compara contra la caja real**: si ya contaste tu plata, "lo esperado" es lo que debe haber en la caja (lo de antes + hoy − gastos − traslados), no solo el efectivo del día. Al cerrar, lo contado pasa a ser el nuevo conteo de la caja en Mi plata (casa y Nequi no cambian). Sin conteo previo funciona como antes. `ArqueoService` usa `PlataService`.
+- 86 pruebas de backend y 35 de vitest en verde.
+
 ### 2026-09-30
 - **Borrar cualquier venta** (Hoy): la lista "Ventas de hoy" se toca para borrar cualquiera (hasta 40 del día, "Ver todas"), no solo la última.
 - **Mi plata completo** (`V11`): "Pasé plata" (traslados caja/casa/Nequi), **metas o sobres** (apartar/sacar plata, con progreso; lo apartado no cuenta como libre), "Ver movimientos" (historial día por día), y ingresos marcables como ganancia o aporte. La ganancia de Hoy y de Reportes suma los ingresos de ganancia (`ResumenDia.ingresos`, `Totales.ingresos`).
