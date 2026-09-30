@@ -413,14 +413,40 @@ function PanelCierre({ esperado, contado, nota, saldo, cargando, guardado, sinSe
   const n = Number(contado) || 0
   const diferencia = n - esperado
   const sinContar = contado === ''
+  // La plata de todo el negocio: la caja se cambia por lo que cuentas; la casa y Nequi siguen igual
+  const cajaFinal = sinContar ? Math.max(0, saldo?.caja ?? 0) : n
+  const totalNegocio = saldo ? saldo.total - saldo.caja + cajaFinal : 0
 
   return (
     <form onSubmit={e => { e.preventDefault(); if (!sinContar && !cargando) onGuardar(n, nota.trim()) }}>
       <h2>Cerrar caja</h2>
-      <p>
-        Según la app, en la caja debe haber <b>{pesos(esperado)}</b> de efectivo
-        {saldo?.contadoEn ? ' (lo que había más lo de hoy, menos gastos).' : ' (lo vendido hoy en efectivo).'}
-      </p>
+      {saldo?.contadoEn && (
+        <div className="list">
+          <h3>{sinContar ? 'Plata total del negocio' : 'Plata total con lo que contaste'}</h3>
+          <div className="pago-fila">
+            <b style={{ fontSize: 28 }}>{pesos(totalNegocio)}</b>
+          </div>
+          <div className="pago-fila"><span className="mut">Efectivo en la caja{sinContar ? ' (según la app)' : ''}</span>
+            <span style={{ marginLeft: 'auto' }}>{pesos(cajaFinal)}</span></div>
+          <div className="pago-fila"><span className="mut">Efectivo en la casa</span>
+            <span style={{ marginLeft: 'auto' }}>{pesos(saldo.casa)}</span></div>
+          <div className="pago-fila"><span className="mut">En Nequi</span>
+            <span style={{ marginLeft: 'auto' }}>{pesos(saldo.nequi)}</span></div>
+          {saldo.apartado > 0 && (
+            <>
+              <div className="pago-fila"><span className="mut">Apartado en metas</span>
+                <span style={{ marginLeft: 'auto' }}>{pesos(saldo.apartado)}</span></div>
+              <div className="pago-fila"><b>Libre para gastar</b>
+                <b style={{ marginLeft: 'auto' }}>{pesos(totalNegocio - saldo.apartado)}</b></div>
+            </>
+          )}
+        </div>
+      )}
+      {saldo?.contadoEn ? (
+        <p>Según la app, en la caja debe haber <b>{pesos(esperado)}</b> (lo que había más lo de hoy, menos gastos). Cuenta el efectivo del cajón:</p>
+      ) : (
+        <p>Según la app, en la caja debe haber <b>{pesos(esperado)}</b> de efectivo (lo vendido hoy en efectivo).</p>
+      )}
 
       {cargando && <p className="mut">Mirando si ya cerraste hoy…</p>}
 
@@ -436,7 +462,7 @@ function PanelCierre({ esperado, contado, nota, saldo, cargando, guardado, sinSe
       )}
 
       <div className="campo">
-        <label htmlFor="cierre-contado">Lo que hay de verdad</label>
+        <label htmlFor="cierre-contado">Efectivo que hay de verdad en la caja</label>
         <input id="cierre-contado" inputMode="numeric" placeholder="0" value={contado} disabled={cargando}
           onChange={e => onCambio({ contado: e.target.value.replace(/\D/g, '') })} />
       </div>
@@ -447,22 +473,8 @@ function PanelCierre({ esperado, contado, nota, saldo, cargando, guardado, sinSe
             : (diferencia < 0 ? 'Faltan ' : 'Sobran ') + pesos(Math.abs(diferencia))}
         </p>
       )}
-      {saldo?.contadoEn && !sinContar && (
-        <div className="list">
-          <h3>Cómo termina el día</h3>
-          <div className="pago-fila"><span>Total con lo que contaste</span>
-            <b style={{ marginLeft: 'auto' }}>{pesos(saldo.total - saldo.caja + n)}</b></div>
-          {saldo.apartado > 0 && (
-            <div className="pago-fila"><span className="mut">Libre (sin lo apartado en metas)</span>
-              <span style={{ marginLeft: 'auto' }}>{pesos(saldo.total - saldo.caja + n - saldo.apartado)}</span></div>
-          )}
-          <div className="pago-fila"><span className="mut">En la caja</span><span style={{ marginLeft: 'auto' }}>{pesos(n)}</span></div>
-          <div className="pago-fila"><span className="mut">En la casa</span><span style={{ marginLeft: 'auto' }}>{pesos(saldo.casa)}</span></div>
-          <div className="pago-fila"><span className="mut">En Nequi</span><span style={{ marginLeft: 'auto' }}>{pesos(saldo.nequi)}</span></div>
-        </div>
-      )}
       {!saldo?.contadoEn && !cargando && (
-        <p className="mut">Cuenta tu plata en Mi plata y aquí verás con cuánta plata terminas el día.</p>
+        <p className="mut">Cuenta tu plata en Mi plata (en Reportes) y aquí verás cuánta plata hay en total en el negocio.</p>
       )}
       <div className="campo">
         <label htmlFor="cierre-nota">Nota (opcional)</label>

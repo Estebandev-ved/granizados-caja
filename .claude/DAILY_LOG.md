@@ -40,6 +40,9 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-10-01 (2)
+- **Cerrar caja muestra la plata total del negocio** arriba (caja + casa + Nequi, con apartado y libre) y se actualiza al contar el efectivo del cajón. Antes solo hablaba del efectivo.
+
 ### 2026-10-01
 - **Mi plata pasó de Hoy a Reportes** (arriba, antes de los periodos): Hoy queda solo con lo del día.
 - **Cerrar caja compara contra la caja real**: si ya contaste tu plata, "lo esperado" es lo que debe haber en la caja (lo de antes + hoy − gastos − traslados), no solo el efectivo del día. Al cerrar, lo contado pasa a ser el nuevo conteo de la caja en Mi plata (casa y Nequi no cambian). Sin conteo previo funciona como antes. `ArqueoService` usa `PlataService`.
