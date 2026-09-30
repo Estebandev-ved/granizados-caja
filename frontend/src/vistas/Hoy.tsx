@@ -14,7 +14,7 @@ interface Props {
   onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => void
   onCancelar: (pedidoId: number) => Promise<boolean>
   onGasto: (categoria: CategoriaGasto, concepto: string, monto: number) => void
-  onCerrarCaja: (contado: number, nota: string) => void
+  onCerrarCaja: (contado: number, nota: string, casa?: number, nequi?: number) => void
   avisar: (m: string) => void
 }
 
@@ -22,7 +22,7 @@ type Panel =
   | { tipo: 'pedido'; sugerido: PedidoSugerido | null; error?: boolean; cantidades: Record<number, number>; enviando: boolean; aviso?: string; presupuesto: string; dias?: number; rec?: RecomendacionCompra }
   | { tipo: 'deshacer'; venta: VentaReciente }
   | { tipo: 'gasto'; categoria: CategoriaGasto; monto: string; concepto: string }
-  | { tipo: 'cierre'; contado: string; nota: string; cargando: boolean; guardado: ArqueoHoy | null; sinSenal: boolean; saldo: SaldoPlata | null }
+  | { tipo: 'cierre'; contado: string; casa: string; nequi: string; nota: string; cargando: boolean; guardado: ArqueoHoy | null; sinSenal: boolean; saldo: SaldoPlata | null }
 
 const CATEGORIAS: { valor: CategoriaGasto; texto: string }[] = [
   { valor: 'HIELO', texto: 'Hielo' },
@@ -70,9 +70,12 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
 
   /** Antes de contar mira si la caja ya se cerró hoy, para corregirla en vez de duplicarla. */
   const abrirCierre = () => {
-    setPanel({ tipo: 'cierre', contado: '', nota: '', cargando: true, guardado: null, sinSenal: false, saldo: null })
+    setPanel({ tipo: 'cierre', contado: '', casa: '', nequi: '', nota: '', cargando: true, guardado: null, sinSenal: false, saldo: null })
     api.plata()
-      .then(saldo => setPanel(p => (p?.tipo === 'cierre' ? { ...p, saldo } : p)))
+      // Si ya contaste tu plata, casa y Nequi llegan con lo que dice la app (los puedes corregir)
+      .then(saldo => setPanel(p => (p?.tipo === 'cierre'
+        ? { ...p, saldo, casa: saldo.contadoEn ? String(Math.max(0, saldo.casa)) : p.casa, nequi: saldo.contadoEn ? String(Math.max(0, saldo.nequi)) : p.nequi }
+        : p)))
       .catch(() => { /* sin saldo el cierre igual funciona */ })
     api.cierreHoy()
       .then(g => setPanel(p => (p?.tipo === 'cierre'
@@ -236,13 +239,14 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           }} />
         )}
         {panel?.tipo === 'cierre' && (
-          <PanelCierre esperado={esperadoCierre(panel.saldo, estado.hoy.efectivo)} contado={panel.contado} nota={panel.nota} saldo={panel.saldo}
+          <PanelCierre hoy={estado.hoy} esperado={esperadoCierre(panel.saldo, estado.hoy.efectivo)} contado={panel.contado}
+            casa={panel.casa} nequi={panel.nequi} nota={panel.nota} saldo={panel.saldo}
             cargando={panel.cargando} guardado={panel.guardado} sinSenal={panel.sinSenal}
             onCambio={cambio => setPanel(p => (p?.tipo === 'cierre' ? { ...p, ...cambio } : p))}
-            onGuardar={(contado, nota) => {
+            onGuardar={(contado, nota, casa, nequi) => {
               setPanel(null)
               vibrar()
-              onCerrarCaja(contado, nota)
+              onCerrarCaja(contado, nota, casa, nequi)
               avisar('✓ Caja cerrada · ' + resumenCierre(esperadoCierre(panel.saldo, estado.hoy.efectivo), contado))
             }} />
         )}
@@ -399,53 +403,68 @@ function resumenCierre(esperado: number, contado: number): string {
 }
 
 /** El cierre de caja: cuánto dice la app y cuánto había de verdad. Va a la cola. */
-function PanelCierre({ esperado, contado, nota, saldo, cargando, guardado, sinSenal, onCambio, onGuardar }: {
+function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargando, guardado, sinSenal, onCambio, onGuardar }: {
+  hoy: Estado['hoy']
   saldo: SaldoPlata | null
   esperado: number
   contado: string
+  casa: string
+  nequi: string
   nota: string
   cargando: boolean
   guardado: ArqueoHoy | null
   sinSenal: boolean
-  onCambio: (cambio: { contado?: string; nota?: string }) => void
-  onGuardar: (contado: number, nota: string) => void
+  onCambio: (cambio: { contado?: string; casa?: string; nequi?: string; nota?: string }) => void
+  onGuardar: (contado: number, nota: string, casa?: number, nequi?: number) => void
 }) {
+  const soloNumeros = (v: string) => v.replace(/\D/g, '')
   const n = Number(contado) || 0
   const diferencia = n - esperado
   const sinContar = contado === ''
-  // La plata de todo el negocio: la caja se cambia por lo que cuentas; la casa y Nequi siguen igual
-  const cajaFinal = sinContar ? Math.max(0, saldo?.caja ?? 0) : n
-  const totalNegocio = saldo ? saldo.total - saldo.caja + cajaFinal : 0
+  const contada = !!saldo?.contadoEn
+  // La plata de todo el negocio: lo que cuentas en cada lugar; lo que no cuentas se queda como la app lo tiene
+  const cajaFinal = sinContar ? (contada ? Math.max(0, saldo!.caja) : 0) : n
+  const casaFinal = casa !== '' ? Number(casa) : contada ? Math.max(0, saldo!.casa) : 0
+  const nequiFinal = nequi !== '' ? Number(nequi) : contada ? Math.max(0, saldo!.nequi) : 0
+  const totalNegocio = cajaFinal + casaFinal + nequiFinal
+  const hayTotal = contada || casa !== '' || nequi !== ''
+  const apartado = saldo?.apartado ?? 0
+
+  const fila = (etiqueta: string, valor: string, fuerte = false) => (
+    <div className="pago-fila">
+      <span className={fuerte ? '' : 'mut'}>{fuerte ? <b>{etiqueta}</b> : etiqueta}</span>
+      <span style={{ marginLeft: 'auto' }}>{fuerte ? <b>{valor}</b> : valor}</span>
+    </div>
+  )
 
   return (
-    <form onSubmit={e => { e.preventDefault(); if (!sinContar && !cargando) onGuardar(n, nota.trim()) }}>
+    <form onSubmit={e => {
+      e.preventDefault()
+      if (sinContar || cargando) return
+      onGuardar(n, nota.trim(), casa !== '' ? Number(casa) : undefined, nequi !== '' ? Number(nequi) : undefined)
+    }}>
       <h2>Cerrar caja</h2>
-      {saldo?.contadoEn && (
+
+      <div className="list">
+        <h3>Lo de hoy</h3>
+        {fila('Vendido hoy', pesos(hoy.total), true)}
+        {fila('En efectivo', pesos(hoy.efectivo))}
+        {fila('Por Nequi', pesos(hoy.nequi))}
+        {fila('Ganancia de hoy', pesos(hoy.ganancia))}
+      </div>
+
+      {hayTotal ? (
         <div className="list">
-          <h3>{sinContar ? 'Plata total del negocio' : 'Plata total con lo que contaste'}</h3>
-          <div className="pago-fila">
-            <b style={{ fontSize: 28 }}>{pesos(totalNegocio)}</b>
-          </div>
-          <div className="pago-fila"><span className="mut">Efectivo en la caja{sinContar ? ' (según la app)' : ''}</span>
-            <span style={{ marginLeft: 'auto' }}>{pesos(cajaFinal)}</span></div>
-          <div className="pago-fila"><span className="mut">Efectivo en la casa</span>
-            <span style={{ marginLeft: 'auto' }}>{pesos(saldo.casa)}</span></div>
-          <div className="pago-fila"><span className="mut">En Nequi</span>
-            <span style={{ marginLeft: 'auto' }}>{pesos(saldo.nequi)}</span></div>
-          {saldo.apartado > 0 && (
-            <>
-              <div className="pago-fila"><span className="mut">Apartado en metas</span>
-                <span style={{ marginLeft: 'auto' }}>{pesos(saldo.apartado)}</span></div>
-              <div className="pago-fila"><b>Libre para gastar</b>
-                <b style={{ marginLeft: 'auto' }}>{pesos(totalNegocio - saldo.apartado)}</b></div>
-            </>
-          )}
+          <h3>Plata total del negocio</h3>
+          <div className="pago-fila"><b style={{ fontSize: 28 }}>{pesos(totalNegocio)}</b></div>
+          {fila('Efectivo en la caja', pesos(cajaFinal))}
+          {fila('Efectivo en la casa', pesos(casaFinal))}
+          {fila('En Nequi', pesos(nequiFinal))}
+          {apartado > 0 && fila('Apartado en metas', pesos(apartado))}
+          {apartado > 0 && fila('Libre para gastar', pesos(totalNegocio - apartado), true)}
         </div>
-      )}
-      {saldo?.contadoEn ? (
-        <p>Según la app, en la caja debe haber <b>{pesos(esperado)}</b> (lo que había más lo de hoy, menos gastos). Cuenta el efectivo del cajón:</p>
       ) : (
-        <p>Según la app, en la caja debe haber <b>{pesos(esperado)}</b> de efectivo (lo vendido hoy en efectivo).</p>
+        !cargando && <p className="mut">Cuenta abajo cuánto tienes en la caja, en la casa y en Nequi, y la app te dice la plata total del negocio.</p>
       )}
 
       {cargando && <p className="mut">Mirando si ya cerraste hoy…</p>}
@@ -461,21 +480,33 @@ function PanelCierre({ esperado, contado, nota, saldo, cargando, guardado, sinSe
         <p className="aviso">Sin señal no pude ver si ya cerraste. Cuenta y guarda igual: lo que diga la caja.</p>
       )}
 
+      <p>
+        Según la app, en la caja debe haber <b>{pesos(esperado)}</b>
+        {contada ? ' (lo que había más lo de hoy, menos gastos).' : ' (solo lo vendido hoy en efectivo: aún no has contado tu plata).'}
+      </p>
       <div className="campo">
         <label htmlFor="cierre-contado">Efectivo que hay de verdad en la caja</label>
         <input id="cierre-contado" inputMode="numeric" placeholder="0" value={contado} disabled={cargando}
-          onChange={e => onCambio({ contado: e.target.value.replace(/\D/g, '') })} />
+          onChange={e => onCambio({ contado: soloNumeros(e.target.value) })} />
       </div>
-      {!sinContar && (
+      {/* Sin la plata contada solo se conoce el efectivo de hoy: comparar contra eso confundiría */}
+      {!sinContar && contada && (
         <p className={diferencia === 0 ? 'ok-dinero' : diferencia < 0 ? 'aviso' : 'mut'}>
           {diferencia === 0
             ? '✓ Cuadró perfecto'
             : (diferencia < 0 ? 'Faltan ' : 'Sobran ') + pesos(Math.abs(diferencia))}
         </p>
       )}
-      {!saldo?.contadoEn && !cargando && (
-        <p className="mut">Cuenta tu plata en Mi plata (en Reportes) y aquí verás cuánta plata hay en total en el negocio.</p>
-      )}
+      <div className="campo">
+        <label htmlFor="cierre-casa">Efectivo en la casa</label>
+        <input id="cierre-casa" inputMode="numeric" placeholder="0" value={casa} disabled={cargando}
+          onChange={e => onCambio({ casa: soloNumeros(e.target.value) })} />
+      </div>
+      <div className="campo">
+        <label htmlFor="cierre-nequi">En Nequi</label>
+        <input id="cierre-nequi" inputMode="numeric" placeholder="0" value={nequi} disabled={cargando}
+          onChange={e => onCambio({ nequi: soloNumeros(e.target.value) })} />
+      </div>
       <div className="campo">
         <label htmlFor="cierre-nota">Nota (opcional)</label>
         <input id="cierre-nota" maxLength={120} value={nota} disabled={cargando}

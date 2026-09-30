@@ -260,7 +260,7 @@ export type Operacion =
   | { tipo: 'merma'; clientUid: string; productoId: number; cantidad: number; motivo: MotivoMerma; creadaEn: number }
   | { tipo: 'gasto'; clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; creadaEn: number }
   | { tipo: 'recepcion'; clientUid: string; pedidoId: number; items: LineaPedido[]; pagoLugar?: LugarPlata; creadaEn: number }
-  | { tipo: 'arqueo'; clientUid: string; contado: number; nota: string; creadaEn: number }
+  | { tipo: 'arqueo'; clientUid: string; contado: number; nota: string; casa?: number; nequi?: number; creadaEn: number }
 
 export interface RespuestaVenta {
   clientUid: string

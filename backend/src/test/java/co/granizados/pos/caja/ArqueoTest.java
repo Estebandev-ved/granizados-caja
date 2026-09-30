@@ -103,4 +103,21 @@ class ArqueoTest extends PruebaIntegracion {
         assertThat(arqueos.cierreDeHoy().esperado()).isEqualTo(12_000);
         assertThat(contar("conteo_plata")).isZero();
     }
+
+    @Test
+    void elPrimerCierreConCasaYNequiTambienDejaLaPlataContada() {
+        ventas.registrar(new NuevaVenta("v1", idDe("Smirnoff"), MetodoPago.EFECTIVO, 2));
+        assertThat(plata.saldo().contadoEn()).isNull();
+        reloj.avanzar(Duration.ofMinutes(1));
+
+        // Cuenta el cajón, lo de la casa y Nequi en el mismo cierre
+        arqueos.registrar(new ArqueoService.NuevoArqueo("a1", 60_000, null, null, 300_000L, 80_000L));
+
+        var s = plata.saldo();
+        assertThat(s.contadoEn()).isNotNull();
+        assertThat(s.caja()).isEqualTo(60_000);
+        assertThat(s.casa()).isEqualTo(300_000);
+        assertThat(s.nequi()).isEqualTo(80_000);
+        assertThat(s.total()).isEqualTo(440_000);
+    }
 }

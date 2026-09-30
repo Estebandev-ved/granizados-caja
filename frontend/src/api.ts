@@ -112,7 +112,7 @@ type MovimientoApi = {
 }
 type RespuestaMovimiento = { clientUid: string; estado: string; error: string | null }
 type GastoApi = { clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; creadoEn: string }
-type ArqueoApi = { clientUid: string; contado: number; nota: string | null; creadoEn: string }
+type ArqueoApi = { clientUid: string; contado: number; nota: string | null; creadoEn: string; casa?: number; nequi?: number }
 
 export const api = {
   login: (pin: string) => pedir<{ token: string }>('POST', '/api/auth/login', { pin }),

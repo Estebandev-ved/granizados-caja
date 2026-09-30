@@ -40,6 +40,10 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-10-02
+- **Cerrar caja cuenta toda la plata**: arriba "Lo de hoy" (vendido, efectivo, Nequi, ganancia) y "Plata total del negocio" (caja + casa + Nequi, con apartado y libre); campos para el efectivo del cajón, la casa y Nequi. `NuevoArqueo` recibe `casa` y `nequi` opcionales: con ellos (o si ya había conteo) el cierre deja el conteo de Mi plata armado, así el primer cierre ya deja el saldo listo. Sin plata contada no se muestra "Faltan/Sobran" (solo se conocería el efectivo de hoy).
+- 87 pruebas de backend y 35 de vitest en verde.
+
 ### 2026-10-01 (2)
 - **Cerrar caja muestra la plata total del negocio** arriba (caja + casa + Nequi, con apartado y libre) y se actualiza al contar el efectivo del cajón. Antes solo hablaba del efectivo.
 

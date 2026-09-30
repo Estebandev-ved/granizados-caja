@@ -55,7 +55,7 @@ const SUBIR: { [K in Operacion['tipo']]: (op: Carga<K>, api: ApiSync) => Promise
     creadoEn: new Date(op.creadaEn).toISOString(),
   }),
   arqueo: (op, api) => api.arqueo({
-    clientUid: op.clientUid, contado: op.contado, nota: op.nota,
+    clientUid: op.clientUid, contado: op.contado, nota: op.nota, casa: op.casa, nequi: op.nequi,
     creadoEn: new Date(op.creadaEn).toISOString(),
   }),
 }

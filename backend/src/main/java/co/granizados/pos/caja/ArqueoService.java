@@ -20,7 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Cerrar la caja: cuánto decía la app en efectivo y cuánto había de verdad.
  * Si ya contaste tu plata en Mi plata, "lo esperado" es la plata que debería haber en la caja (lo que había
  * antes más lo de hoy, menos gastos y traslados); si no, es solo el efectivo vendido hoy.
- * Al cerrar, lo contado pasa a ser el nuevo punto de partida de la caja en Mi plata.
+ * Al cerrar, lo contado pasa a ser el nuevo punto de partida de la caja en Mi plata. Si además se dice cuánto hay
+ * en la casa y en Nequi, el cierre también cuenta toda la plata (así el primer cierre ya deja el saldo armado).
  * Queda un solo cierre por día; repetirlo con el mismo `clientUid` no escribe otra vez.
  */
 @Service
@@ -30,7 +31,14 @@ public class ArqueoService {
             @NotBlank @Size(max = 64) String clientUid,
             @Min(0) long contado,
             @Size(max = 120) String nota,
-            Instant creadoEn) {
+            Instant creadoEn,
+            @Min(0) Long casa,
+            @Min(0) Long nequi) {
+
+        /** Cierre solo con el cajón: casa y Nequi quedan como estaban. */
+        public NuevoArqueo(String clientUid, long contado, String nota, Instant creadoEn) {
+            this(clientUid, contado, nota, creadoEn, null, null);
+        }
     }
 
     /** Lo que la app dice que debe haber en el cajón. */
@@ -74,11 +82,13 @@ public class ArqueoService {
             a.actualizar(n.clientUid(), esperado, n.contado(), limpiar(n.nota()), cuando);
             arqueos.save(a);
         }
-        if (plataContada) {
-            // Lo que contaste en el cajón es la verdad: la caja de Mi plata parte de ahí; casa y Nequi siguen igual
+        if (plataContada || n.casa() != null || n.nequi() != null) {
+            // Lo que contaste en el cajón es la verdad: la caja de Mi plata parte de ahí. Casa y Nequi se toman de
+            // lo que dijiste; lo que no dijiste sigue como estaba
+            long casa = n.casa() != null ? n.casa() : Math.max(0, saldo.casa());
+            long nequi = n.nequi() != null ? n.nequi() : Math.max(0, saldo.nequi());
             String uid = ("ar-" + n.clientUid());
-            plata.contar(new PlataService.NuevoConteo(uid.substring(0, Math.min(64, uid.length())), n.contado(),
-                    Math.max(0, saldo.casa()), Math.max(0, saldo.nequi())));
+            plata.contar(new PlataService.NuevoConteo(uid.substring(0, Math.min(64, uid.length())), n.contado(), casa, nequi));
         }
         return Resultado.REGISTRADA;
     }

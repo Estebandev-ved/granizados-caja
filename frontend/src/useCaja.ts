@@ -180,8 +180,8 @@ export function useCaja(avisar: (mensaje: string) => void) {
   }, [setCola, sincronizar])
 
   /** Cerrar la caja: anota lo que habia en el cajon y sube cuando haya senal. */
-  const cerrarCaja = useCallback((contado: number, nota: string) => {
-    const op: Operacion = { tipo: 'arqueo', clientUid: nuevoUid(), contado, nota, creadaEn: Date.now() }
+  const cerrarCaja = useCallback((contado: number, nota: string, casa?: number, nequi?: number) => {
+    const op: Operacion = { tipo: 'arqueo', clientUid: nuevoUid(), contado, nota, casa, nequi, creadaEn: Date.now() }
     setCola(c => [...c, op])
     void sincronizar()
   }, [setCola, sincronizar])
