@@ -6,13 +6,13 @@ import { MiPlata } from '../componentes/MiPlata'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
-import type { CategoriaGasto, Estado, LineaPedido, PedidoSugerido, VentaReciente } from '../tipos'
+import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, PedidoSugerido, RecomendacionCompra, SaldoPlata, VentaReciente } from '../tipos'
 
 interface Props {
   estado: Estado
   onDeshacer: (v: VentaReciente) => Promise<void>
   onRecargar: () => Promise<void>
-  onLlego: (pedidoId: number, items: LineaPedido[]) => void
+  onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => void
   onCancelar: (pedidoId: number) => Promise<boolean>
   onGasto: (categoria: CategoriaGasto, concepto: string, monto: number) => void
   onCerrarCaja: (contado: number, nota: string) => void
@@ -20,10 +20,10 @@ interface Props {
 }
 
 type Panel =
-  | { tipo: 'pedido'; sugerido: PedidoSugerido | null; error?: boolean; cantidades: Record<number, number>; enviando: boolean; aviso?: string; presupuesto: string; dias?: number }
+  | { tipo: 'pedido'; sugerido: PedidoSugerido | null; error?: boolean; cantidades: Record<number, number>; enviando: boolean; aviso?: string; presupuesto: string; dias?: number; rec?: RecomendacionCompra }
   | { tipo: 'deshacer'; venta: VentaReciente }
   | { tipo: 'gasto'; categoria: CategoriaGasto; monto: string; concepto: string }
-  | { tipo: 'cierre'; contado: string; nota: string; cargando: boolean; guardado: ArqueoHoy | null; sinSenal: boolean }
+  | { tipo: 'cierre'; contado: string; nota: string; cargando: boolean; guardado: ArqueoHoy | null; sinSenal: boolean; saldo: SaldoPlata | null }
 
 const CATEGORIAS: { valor: CategoriaGasto; texto: string }[] = [
   { valor: 'HIELO', texto: 'Hielo' },
@@ -34,6 +34,7 @@ const CATEGORIAS: { valor: CategoriaGasto; texto: string }[] = [
 
 export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGasto, onCerrarCaja, avisar }: Props) {
   const [panel, setPanel] = useState<Panel | null>(null)
+  const [verTodas, setVerTodas] = useState(false)
   const h = estado.hoy
   const faltaCosto = estado.productos.some(p => p.costo === 0)
 
@@ -43,9 +44,12 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
       setPanel({ tipo: 'pedido', sugerido: null, cantidades: {}, enviando: false, presupuesto: plataGuardada() })
       // Si ya contaste tu plata, el campo llega con el total (y lo puedes cambiar)
       api.plata().then(s => {
-        if (!s.contadoEn || s.total <= 0) return
-        setPanel(p => (p?.tipo === 'pedido' && p.presupuesto === plataGuardada() ? { ...p, presupuesto: String(s.total) } : p))
+        if (!s.contadoEn || s.libre <= 0) return
+        setPanel(p => (p?.tipo === 'pedido' && p.presupuesto === plataGuardada() ? { ...p, presupuesto: String(s.libre) } : p))
       }).catch(() => { /* sin señal: queda lo que había */ })
+      api.recomendacion()
+        .then(rec => setPanel(p => (p?.tipo === 'pedido' ? { ...p, rec } : p)))
+        .catch(() => { /* sin recomendación el pedido igual funciona */ })
     } else {
       setPanel(p => (p?.tipo === 'pedido' ? { ...p, sugerido: null, error: false } : p))
     }
@@ -67,7 +71,10 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
 
   /** Antes de contar mira si la caja ya se cerró hoy, para corregirla en vez de duplicarla. */
   const abrirCierre = () => {
-    setPanel({ tipo: 'cierre', contado: '', nota: '', cargando: true, guardado: null, sinSenal: false })
+    setPanel({ tipo: 'cierre', contado: '', nota: '', cargando: true, guardado: null, sinSenal: false, saldo: null })
+    api.plata()
+      .then(saldo => setPanel(p => (p?.tipo === 'cierre' ? { ...p, saldo } : p)))
+      .catch(() => { /* sin saldo el cierre igual funciona */ })
     api.cierreHoy()
       .then(g => setPanel(p => (p?.tipo === 'cierre'
         ? { ...p, cargando: false, guardado: g, contado: g ? String(g.contado) : '', nota: g?.nota ?? '' }
@@ -142,9 +149,11 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
 
       {estado.ultimas.length ? (
         <div className="list">
-          <h3><Icono nombre="reloj" /> Últimas ventas</h3>
-          {estado.ultimas.map(u => (
-            <div className="pago-fila" key={u.clientUid}>
+          <h3><Icono nombre="reloj" /> Ventas de hoy</h3>
+          <p className="mut" style={{ margin: '0 0 6px' }}>Toca una venta para borrarla si te equivocaste.</p>
+          {(verTodas ? estado.ultimas : estado.ultimas.slice(0, 8)).map(u => (
+            <button type="button" className="pago-fila" key={u.clientUid}
+              onClick={() => setPanel({ tipo: 'deshacer', venta: u })}>
               <span className={'pago-avatar ' + (u.metodo === 'EFECTIVO' ? 'e' : 'n')}>
                 <Icono nombre={u.metodo === 'EFECTIVO' ? 'billete' : 'celular'} />
               </span>
@@ -153,8 +162,13 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
                 <span className="mut">{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}</span>
               </div>
               <b>{pesos(u.total)}</b>
-            </div>
+            </button>
           ))}
+          {estado.ultimas.length > 8 && (
+            <button type="button" className="chip-link" onClick={() => setVerTodas(v => !v)}>
+              {verTodas ? 'Ver menos' : 'Ver todas (' + estado.ultimas.length + ')'}
+            </button>
+          )}
         </div>
       ) : <div className="vacio"><img src={dopaGuino} alt="" className="vacio-mascota" />Aún no hay ventas hoy</div>}
 
@@ -197,6 +211,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
             cantidades={panel.cantidades}
             enviando={panel.enviando}
             presupuesto={panel.presupuesto}
+            rec={panel.rec}
             onPresupuesto={v => setPanel(p => (p?.tipo === 'pedido' ? { ...p, presupuesto: v } : p))}
             onAjustar={() => {
               const n = Number(panel.presupuesto)
@@ -224,7 +239,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           }} />
         )}
         {panel?.tipo === 'cierre' && (
-          <PanelCierre esperado={estado.hoy.efectivo} contado={panel.contado} nota={panel.nota}
+          <PanelCierre esperado={estado.hoy.efectivo} contado={panel.contado} nota={panel.nota} saldo={panel.saldo}
             cargando={panel.cargando} guardado={panel.guardado} sinSenal={panel.sinSenal}
             onCambio={cambio => setPanel(p => (p?.tipo === 'cierre' ? { ...p, ...cambio } : p))}
             onGuardar={(contado, nota) => {
@@ -236,11 +251,12 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
         )}
         {panel?.tipo === 'deshacer' && (
           <>
-            <h2>¿Deshacer?</h2>
+            <h2>¿Borrar esta venta?</h2>
             <p>{panel.venta.sabor} · {pesos(panel.venta.total)} · {panel.venta.hora}</p>
+            <p className="mut">El sabor vuelve al inventario y la plata sale del día.</p>
             <div className="pay">
               <button className="big ghost" onClick={() => setPanel(null)}>Cancelar</button>
-              <button className="big rojo" onClick={() => { setPanel(null); void onDeshacer(panel.venta) }}>Deshacer</button>
+              <button className="big rojo" onClick={() => { setPanel(null); void onDeshacer(panel.venta) }}>Borrar venta</button>
             </div>
           </>
         )}
@@ -287,7 +303,8 @@ function plataGuardada(): string {
   try { return localStorage.getItem(CLAVE_PLATA) ?? '' } catch { return '' }
 }
 
-function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto, onPresupuesto, onAjustar, onDias, onCantidad, onEnviar }: {
+function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto, rec, onPresupuesto, onAjustar, onDias, onCantidad, onEnviar }: {
+  rec?: RecomendacionCompra
   sugerido: PedidoSugerido | null
   error?: boolean
   aviso?: string
@@ -307,6 +324,7 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
       <>
         <h2>Pedido sugerido</h2>
         <p>Con {sugerido.dias} días de venta tienes stock suficiente. No hace falta pedir 🙌</p>
+        {rec && <p className="mut">{rec.motivo}</p>}
         <p className="mut">¿Quieres inventario para más días?</p>
         <div className="chips">
           {DIAS.filter(d => d > sugerido.dias).map(d => (
@@ -331,10 +349,16 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
       </form>
       <p className="mut">¿Para cuántos días quieres inventario?</p>
       <div className="chips">
-        {DIAS.map(d => (
-          <button type="button" key={d} className={sugerido.dias === d ? 'on' : ''} onClick={() => onDias(d)}>{d} días</button>
-        ))}
+        {DIAS.map(d => {
+          const op = rec?.opciones.find(o => o.dias === d)
+          return (
+            <button type="button" key={d} className={sugerido.dias === d ? 'on' : ''} onClick={() => onDias(d)}>
+              {rec?.recomendado === d ? '⭐ ' : ''}{d} días{op ? ' · ' + pesos(op.costo) : ''}
+            </button>
+          )
+        })}
       </div>
+      {rec && <p className="mut">{rec.motivo}</p>}
       {sugerido.disponible !== null && (
         <p className={sugerido.recortado ? 'aviso' : 'mut'}>
           Gasto hasta {pesos(sugerido.disponible)} y dejo {pesos((sugerido.presupuesto ?? 0) - sugerido.disponible)} de reserva.
@@ -373,7 +397,8 @@ function resumenCierre(esperado: number, contado: number): string {
 }
 
 /** El cierre de caja: cuánto dice la app y cuánto había de verdad. Va a la cola. */
-function PanelCierre({ esperado, contado, nota, cargando, guardado, sinSenal, onCambio, onGuardar }: {
+function PanelCierre({ esperado, contado, nota, saldo, cargando, guardado, sinSenal, onCambio, onGuardar }: {
+  saldo: SaldoPlata | null
   esperado: number
   contado: string
   nota: string
@@ -416,6 +441,23 @@ function PanelCierre({ esperado, contado, nota, cargando, guardado, sinSenal, on
             ? '✓ Cuadró perfecto'
             : (diferencia < 0 ? 'Faltan ' : 'Sobran ') + pesos(Math.abs(diferencia))}
         </p>
+      )}
+      {saldo?.contadoEn && !sinContar && (
+        <div className="list">
+          <h3>Cómo termina el día</h3>
+          <div className="pago-fila"><span>Total con lo que contaste</span>
+            <b style={{ marginLeft: 'auto' }}>{pesos(saldo.total - saldo.caja + n)}</b></div>
+          {saldo.apartado > 0 && (
+            <div className="pago-fila"><span className="mut">Libre (sin lo apartado en metas)</span>
+              <span style={{ marginLeft: 'auto' }}>{pesos(saldo.total - saldo.caja + n - saldo.apartado)}</span></div>
+          )}
+          <div className="pago-fila"><span className="mut">En la caja</span><span style={{ marginLeft: 'auto' }}>{pesos(n)}</span></div>
+          <div className="pago-fila"><span className="mut">En la casa</span><span style={{ marginLeft: 'auto' }}>{pesos(saldo.casa)}</span></div>
+          <div className="pago-fila"><span className="mut">En Nequi</span><span style={{ marginLeft: 'auto' }}>{pesos(saldo.nequi)}</span></div>
+        </div>
+      )}
+      {!saldo?.contadoEn && !cargando && (
+        <p className="mut">Cuenta tu plata en Mi plata y aquí verás con cuánta plata terminas el día.</p>
       )}
       <div className="campo">
         <label htmlFor="cierre-nota">Nota (opcional)</label>

@@ -4,7 +4,7 @@ import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { vibrar } from '../formato'
-import type { LineaPedido, MotivoMerma, Producto, Tipo, PedidoEnCamino as PedidoEnCaminoDto } from '../tipos'
+import type { LineaPedido, LugarPlata, MotivoMerma, Producto, Tipo, PedidoEnCamino as PedidoEnCaminoDto } from '../tipos'
 
 type Modo = 'sumar' | 'contar' | 'merma'
 
@@ -26,7 +26,7 @@ interface Props {
   onContar: (p: Producto, real: number) => void
   onContarTodo: (productos: Producto[], reales: Readonly<Record<number, number>>) => void
   onMerma: (p: Producto, cantidad: number, motivo: MotivoMerma) => void
-  onLlego: (pedidoId: number, items: LineaPedido[]) => void
+  onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => void
   onCancelar: (pedidoId: number) => Promise<boolean>
   avisar: (m: string) => void
 }

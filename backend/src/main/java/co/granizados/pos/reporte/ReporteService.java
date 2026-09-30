@@ -8,6 +8,8 @@ import co.granizados.pos.gasto.GastoRepository;
 import co.granizados.pos.inventario.EntradaInventarioRepository;
 import co.granizados.pos.inventario.TipoMovimiento;
 import co.granizados.pos.pedido.PedidoService;
+import co.granizados.pos.plata.Ingreso;
+import co.granizados.pos.plata.IngresoRepository;
 import co.granizados.pos.venta.MetodoPago;
 import co.granizados.pos.venta.Venta;
 import co.granizados.pos.venta.VentaRepository;
@@ -37,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReporteService {
 
     public record Totales(long ventas, int unidades, long nequi, long efectivo, long costo,
-                          long gastos, long mermas, long ganancia) {
+                          long gastos, long mermas, long ganancia, long ingresos) {
     }
 
     public record PorDia(String dia, int unidades, long total, long ganancia) {
@@ -84,16 +86,18 @@ public class ReporteService {
     private final VentaRepository ventas;
     private final GastoRepository gastos;
     private final EntradaInventarioRepository movimientos;
+    private final IngresoRepository ingresosExtra;
     private final PedidoService pedidos;
     private final ArqueoService arqueos;
     private final ZoneId zona;
 
     public ReporteService(VentaRepository ventas, GastoRepository gastos,
-                          EntradaInventarioRepository movimientos, PedidoService pedidos,
+                          EntradaInventarioRepository movimientos, IngresoRepository ingresosExtra, PedidoService pedidos,
                           ArqueoService arqueos, Clock clock, AppProperties props) {
         this.ventas = ventas;
         this.gastos = gastos;
         this.movimientos = movimientos;
+        this.ingresosExtra = ingresosExtra;
         this.pedidos = pedidos;
         this.arqueos = arqueos;
         this.zona = props.zoneId();
@@ -109,10 +113,11 @@ public class ReporteService {
         List<Venta> lista = ventas.entre(inicio, fin);
         List<Gasto> gastosLista = gastos.findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(inicio, fin);
         Map<String, Long> mermasPorDia = mermasPorDia(inicio, fin);
+        List<Ingreso> ingresosLista = ingresosExtra.deGananciaEntre(inicio, fin);
 
         return new Reporte(desdeTexto, hastaTexto,
-                totales(lista, montoGastos(gastosLista), suma(mermasPorDia)),
-                porDia(lista, gastosLista, mermasPorDia),
+                totales(lista, montoGastos(gastosLista), suma(mermasPorDia), montoIngresos(ingresosLista)),
+                porDia(lista, gastosLista, mermasPorDia, ingresosLista),
                 porHora(lista),
                 porDiaSemana(lista),
                 porSabor(lista),
@@ -155,7 +160,11 @@ public class ReporteService {
 
     // ------------------------------------------------------------------ cortes
 
-    private Totales totales(List<Venta> lista, long gastosTotal, long mermasTotal) {
+    private static long montoIngresos(List<Ingreso> lista) {
+        return lista.stream().mapToLong(Ingreso::getMonto).sum();
+    }
+
+    private Totales totales(List<Venta> lista, long gastosTotal, long mermasTotal, long ingresosTotal) {
         long ventasTotal = 0, nequi = 0, efectivo = 0, costo = 0;
         int unidades = 0;
         for (Venta v : lista) {
@@ -166,10 +175,11 @@ public class ReporteService {
             else nequi += v.getTotal();
         }
         return new Totales(ventasTotal, unidades, nequi, efectivo, costo, gastosTotal, mermasTotal,
-                ventasTotal - costo - gastosTotal - mermasTotal);
+                ventasTotal - costo - gastosTotal - mermasTotal + ingresosTotal, ingresosTotal);
     }
 
-    private List<PorDia> porDia(List<Venta> lista, List<Gasto> gastosLista, Map<String, Long> mermasPorDia) {
+    private List<PorDia> porDia(List<Venta> lista, List<Gasto> gastosLista, Map<String, Long> mermasPorDia,
+                                List<Ingreso> ingresosLista) {
         Map<String, Corte> mapa = new TreeMap<>();
         for (Venta v : lista) {
             Corte c = mapa.computeIfAbsent(dia(v.getCreadaEn()), Corte::nuevo);
@@ -183,9 +193,13 @@ public class ReporteService {
         for (Map.Entry<String, Long> e : mermasPorDia.entrySet()) {
             mapa.computeIfAbsent(e.getKey(), Corte::nuevo).mermas += e.getValue();
         }
+        for (Ingreso i : ingresosLista) {
+            mapa.computeIfAbsent(dia(i.getCreadoEn()), Corte::nuevo).ingresos += i.getMonto();
+        }
         return mapa.entrySet().stream()
                 .map(e -> new PorDia(e.getKey(), e.getValue().unidades, e.getValue().total,
-                        e.getValue().total - e.getValue().costo - e.getValue().gastos - e.getValue().mermas))
+                        e.getValue().total - e.getValue().costo - e.getValue().gastos - e.getValue().mermas
+                                + e.getValue().ingresos))
                 .toList();
     }
 
@@ -266,7 +280,8 @@ public class ReporteService {
         List<Venta> lista = ventas.entre(r[0], r[1]);
         long gastosAnt = Optional.ofNullable(gastos.montoEntre(r[0], r[1])).orElse(0L);
         long mermasAnt = suma(mermasPorDia(r[0], r[1]));
-        Totales t = totales(lista, gastosAnt, mermasAnt);
+        long ingresosAnt = Optional.ofNullable(ingresosExtra.gananciaEntre(r[0], r[1])).orElse(0L);
+        Totales t = totales(lista, gastosAnt, mermasAnt, ingresosAnt);
         return new Comparacion(t.ventas(), t.unidades(), t.ganancia(), t.gastos());
     }
 
@@ -316,6 +331,7 @@ public class ReporteService {
         long costo;
         long gastos;
         long mermas;
+        long ingresos;
 
         static Corte nuevo(String k) {
             return new Corte();

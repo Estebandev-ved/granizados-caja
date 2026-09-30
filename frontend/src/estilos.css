@@ -139,6 +139,8 @@ a.big { display: block; text-align: center; text-decoration: none }
 .sabor-info { flex: 1; min-width: 0 }
 .sabor-cabeza { display: flex; justify-content: space-between; gap: 8px; font-size: 15px }
 .sabor-pie { font-size: 12px; margin-top: 2px }
+button.pago-fila { width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; color: inherit; font: inherit; text-align: left; cursor: pointer }
+button.pago-fila:active { background: var(--card2) }
 .pago-fila { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line) }
 .list h3 + .pago-fila { border-top: 0 }
 .pago-avatar { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -327,3 +329,5 @@ a.big { display: block; text-align: center; text-decoration: none }
 .link { background: none; border: 0; color: var(--morado-claro); font-size: 13px; text-decoration: underline;
   padding: 7px 0 }
 .ranking .n.falta { color: var(--bad) }
+
+.chip-link { display: block; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); color: var(--morado); font-weight: 600; padding: 12px 0; cursor: pointer }

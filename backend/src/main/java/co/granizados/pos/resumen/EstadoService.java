@@ -6,6 +6,7 @@ import co.granizados.pos.gasto.GastoRepository;
 import co.granizados.pos.inventario.EntradaInventarioRepository;
 import co.granizados.pos.inventario.TipoMovimiento;
 import co.granizados.pos.pedido.PedidoService;
+import co.granizados.pos.plata.IngresoRepository;
 import co.granizados.pos.producto.ProductoDto;
 import co.granizados.pos.producto.ProductoRepository;
 import co.granizados.pos.venta.MetodoPago;
@@ -35,10 +36,11 @@ public class EstadoService {
 
     /**
      * Todo en pesos enteros. La ganancia es lo que queda después de pagar el producto,
-     * los gastos del día y lo que se perdió en mermas.
+     * los gastos del día y lo que se perdió en mermas, más los ingresos extra marcados como ganancia
+     * (por ejemplo el cobro de una venta vieja).
      */
     public record ResumenDia(long total, long nequi, long efectivo, int unidades, List<PorSabor> porSabor,
-                             long costo, long gastos, long mermas, long ganancia) {
+                             long costo, long gastos, long mermas, long ganancia, long ingresos) {
     }
 
     public record VentaReciente(String clientUid, String hora, String sabor, long total, MetodoPago metodo) {
@@ -54,6 +56,9 @@ public class EstadoService {
 
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("h:mm a", Locale.US);
 
+    /** Cuántas ventas del día se mandan al celular para poder borrar cualquiera, no solo la última. */
+    static final int MAX_ULTIMAS = 40;
+
     /** Cuántos días hacia atrás mira la racha (incluyendo hoy). */
     static final int DIAS_RACHA = 90;
 
@@ -62,18 +67,20 @@ public class EstadoService {
     private final PedidoService pedidos;
     private final GastoRepository gastos;
     private final EntradaInventarioRepository movimientos;
+    private final IngresoRepository ingresosExtra;
     private final AjustesService ajustes;
     private final Clock clock;
     private final ZoneId zona;
 
     public EstadoService(ProductoRepository productos, VentaRepository ventas, PedidoService pedidos,
                          GastoRepository gastos, EntradaInventarioRepository movimientos,
-                         AjustesService ajustes, Clock clock, AppProperties props) {
+                         IngresoRepository ingresosExtra, AjustesService ajustes, Clock clock, AppProperties props) {
         this.productos = productos;
         this.ventas = ventas;
         this.pedidos = pedidos;
         this.gastos = gastos;
         this.movimientos = movimientos;
+        this.ingresosExtra = ingresosExtra;
         this.ajustes = ajustes;
         this.clock = clock;
         this.zona = props.zoneId();
@@ -88,7 +95,7 @@ public class EstadoService {
     public Estado estado() {
         LocalDate dia = hoy();
         List<Venta> delDia = ventasDe(dia);
-        List<VentaReciente> ultimas = delDia.stream().limit(8)
+        List<VentaReciente> ultimas = delDia.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
                         v.getProducto().nombre(), v.getTotal(), v.getMetodo()))
                 .toList();
@@ -144,14 +151,15 @@ public class EstadoService {
         long mermasDia = movimientos.entre(TipoMovimiento.MERMA, desde, hasta).stream()
                 .mapToLong(e -> (long) -e.getCantidad() * e.getProducto().getCosto())
                 .sum();
-        return resumir(delDia, gastosDia, mermasDia);
+        long ingresosDia = Optional.ofNullable(ingresosExtra.gananciaEntre(desde, hasta)).orElse(0L);
+        return resumir(delDia, gastosDia, mermasDia, ingresosDia);
     }
 
     private List<Venta> ventasDe(LocalDate dia) {
         return ventas.entre(dia.atStartOfDay(zona).toInstant(), dia.plusDays(1).atStartOfDay(zona).toInstant());
     }
 
-    private static ResumenDia resumir(List<Venta> lista, long gastos, long mermas) {
+    private static ResumenDia resumir(List<Venta> lista, long gastos, long mermas, long ingresos) {
         long total = 0, nequi = 0, efectivo = 0, costo = 0;
         int unidades = 0;
         Map<String, Integer> porSabor = new LinkedHashMap<>();
@@ -168,6 +176,6 @@ public class EstadoService {
                 .sorted(Comparator.comparingInt(PorSabor::unidades).reversed())
                 .toList();
         return new ResumenDia(total, nequi, efectivo, unidades, ranking, costo, gastos, mermas,
-                total - costo - gastos - mermas);
+                total - costo - gastos - mermas + ingresos, ingresos);
     }
 }

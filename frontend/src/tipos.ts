@@ -37,6 +37,8 @@ export interface ResumenDia {
   gastos: number
   mermas: number
   ganancia: number
+  /** Ingresos extra que cuentan como ganancia (ya están sumados en `ganancia`). */
+  ingresos?: number
 }
 
 export interface VentaReciente {
@@ -257,7 +259,7 @@ export type Operacion =
   | { tipo: 'ajuste'; clientUid: string; productoId: number; real: number; creadaEn: number }
   | { tipo: 'merma'; clientUid: string; productoId: number; cantidad: number; motivo: MotivoMerma; creadaEn: number }
   | { tipo: 'gasto'; clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; creadaEn: number }
-  | { tipo: 'recepcion'; clientUid: string; pedidoId: number; items: LineaPedido[]; creadaEn: number }
+  | { tipo: 'recepcion'; clientUid: string; pedidoId: number; items: LineaPedido[]; pagoLugar?: LugarPlata; creadaEn: number }
   | { tipo: 'arqueo'; clientUid: string; contado: number; nota: string; creadaEn: number }
 
 export interface RespuestaVenta {
@@ -275,6 +277,42 @@ export interface IngresoPlata {
   monto: number
   lugar: LugarPlata
   creadoEn: string
+  cuentaGanancia: boolean
+}
+
+/** Una meta o "sobre": plata apartada para algo. `objetivo` 0 = sin tope. */
+export interface MetaPlata {
+  id: number
+  nombre: string
+  objetivo: number
+  apartado: number
+}
+
+/** Un renglón del historial de la plata; `monto` va con signo y los traslados llevan 0. */
+export interface MovimientoPlata {
+  tipo: 'VENTAS' | 'INGRESO' | 'GASTO' | 'PAGO_PEDIDO' | 'TRASLADO'
+  dia: string
+  hora: string
+  concepto: string
+  monto: number
+  lugar: LugarPlata
+  clientUid: string | null
+}
+
+export interface OpcionCompra {
+  dias: number
+  unidades: number
+  costo: number
+  alcanza: boolean
+}
+
+/** `GET /api/pedido/recomendacion`: cuánto cuesta pedir para varios días y cuál conviene. */
+export interface RecomendacionCompra {
+  libre: number | null
+  disponible: number | null
+  opciones: OpcionCompra[]
+  recomendado: number | null
+  motivo: string
 }
 
 /** `GET /api/plata`. Si `contadoEn` es null todavía no has contado y los montos no significan nada. */
@@ -283,6 +321,10 @@ export interface SaldoPlata {
   casa: number
   nequi: number
   total: number
+  /** Lo que está apartado en metas y `libre` = total − apartado: lo que puedes gastar. */
+  apartado: number
+  libre: number
   contadoEn: string | null
   ingresos: IngresoPlata[]
+  metas: MetaPlata[]
 }

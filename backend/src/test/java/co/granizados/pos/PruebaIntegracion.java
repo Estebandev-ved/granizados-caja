@@ -36,6 +36,9 @@ public abstract class PruebaIntegracion {
         jdbc.update("delete from pedido_proveedor");
         jdbc.update("delete from gasto");
         jdbc.update("delete from arqueo");
+        jdbc.update("delete from aporte_meta");
+        jdbc.update("delete from meta_plata");
+        jdbc.update("delete from traslado");
         jdbc.update("delete from ingreso");
         jdbc.update("delete from conteo_plata");
         jdbc.update("delete from pago_proveedor");

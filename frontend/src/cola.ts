@@ -49,7 +49,7 @@ const SUBIR: { [K in Operacion['tipo']]: (op: Carga<K>, api: ApiSync) => Promise
   merma: (op, api) => api.movimiento({
     clientUid: op.clientUid, productoId: op.productoId, tipo: 'MERMA', cantidad: op.cantidad, motivo: op.motivo,
   }),
-  recepcion: (op, api) => api.recibirPedido(op.pedidoId, op.clientUid, op.items),
+  recepcion: (op, api) => api.recibirPedido(op.pedidoId, op.clientUid, op.items, op.pagoLugar),
   gasto: (op, api) => api.gasto({
     clientUid: op.clientUid, categoria: op.categoria, concepto: op.concepto, monto: op.monto,
     creadoEn: new Date(op.creadaEn).toISOString(),

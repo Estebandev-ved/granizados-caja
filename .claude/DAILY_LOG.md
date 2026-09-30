@@ -40,6 +40,14 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-09-30
+- **Borrar cualquier venta** (Hoy): la lista "Ventas de hoy" se toca para borrar cualquiera (hasta 40 del día, "Ver todas"), no solo la última.
+- **Mi plata completo** (`V11`): "Pasé plata" (traslados caja/casa/Nequi), **metas o sobres** (apartar/sacar plata, con progreso; lo apartado no cuenta como libre), "Ver movimientos" (historial día por día), y ingresos marcables como ganancia o aporte. La ganancia de Hoy y de Reportes suma los ingresos de ganancia (`ResumenDia.ingresos`, `Totales.ingresos`).
+- **Cerrar caja** muestra con cuánta plata termina el día (total, libre, caja, casa, Nequi).
+- **Pedido**: la plata que llega prellenada es la *libre*; `GET /api/pedido/recomendacion` compara 4/7/10/14 días con esa plata y marca ⭐ el que conviene (prefiere la semana). Al marcar "Llegó" se elige de dónde se pagó (`Recepcion.pagoLugar`).
+- Fix: `api.ts` trataba una respuesta 200 vacía (cierre de caja aún sin hacer hoy) como "sin señal".
+- 83 pruebas de backend y 35 de vitest en verde. Sin subir a producción todavía.
+
 ### 2026-09-29 (2)
 - **Mi plata** (Hoy): saldo por lugares (caja, casa, Nequi) + botón "Entró plata" (ej. cobro de una deuda) + "Contar mi plata". Migración `V10__mi_plata.sql` (solo tablas nuevas: `ingreso`, `conteo_plata`, `pago_proveedor`), paquete `plata` en el backend (`GET /api/plata`, `POST /api/plata/conteo`, `POST/DELETE /api/ingresos`). El saldo = último conteo + ventas + ingresos − gastos (de la caja) − pagos al proveedor.
 - Al marcar "Llegó el pedido" se descuenta lo que llegó × costo (`Recepcion.pagoLugar` opcional; sin él se asume Nequi). Es idempotente por pedido.

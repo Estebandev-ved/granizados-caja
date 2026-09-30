@@ -1,7 +1,8 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
   CategoriaGasto, DatosProducto, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
-  LugarPlata, PedidoSugerido, Producto, Reporte, RespuestaVenta, SaldoPlata, TipoMovimiento,
+  LugarPlata, MovimientoPlata, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
+  TipoMovimiento,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -60,7 +61,9 @@ async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise
     throw new ApiError(r.status, mensaje)
   }
   if (r.status === 204) return undefined as T
-  return r.json() as Promise<T>
+  // Algunos endpoints responden 200 sin cuerpo cuando no hay nada (ej. el cierre de caja de hoy): eso es null, no un error
+  const texto = await r.text()
+  return (texto ? JSON.parse(texto) : null) as T
 }
 
 /** Mismo token, pero el cuerpo es texto (el CSV de los reportes). */
@@ -126,8 +129,17 @@ export const api = {
   plata: () => pedir<SaldoPlata>('GET', '/api/plata'),
   contarPlata: (c: { clientUid: string; caja: number; casa: number; nequi: number }) =>
     pedir<{ estado: string }>('POST', '/api/plata/conteo', c),
-  ingreso: (i: { clientUid: string; concepto: string; monto: number; lugar: LugarPlata }) =>
+  ingreso: (i: { clientUid: string; concepto: string; monto: number; lugar: LugarPlata; cuentaGanancia: boolean }) =>
     pedir<{ estado: string }>('POST', '/api/ingresos', i),
+  trasladar: (t: { clientUid: string; monto: number; desde: LugarPlata; hacia: LugarPlata }) =>
+    pedir<{ estado: string }>('POST', '/api/plata/traslado', t),
+  crearMeta: (m: { clientUid: string; nombre: string; objetivo: number }) =>
+    pedir<{ estado: string }>('POST', '/api/plata/metas', m),
+  aportarMeta: (metaId: number, a: { clientUid: string; monto: number }) =>
+    pedir<{ estado: string }>('POST', '/api/plata/metas/' + metaId + '/aporte', a),
+  borrarMeta: (metaId: number) => pedir<void>('DELETE', '/api/plata/metas/' + metaId),
+  movimientosPlata: (dias = 14) => pedir<MovimientoPlata[]>('GET', '/api/plata/movimientos?dias=' + dias),
+  recomendacion: () => pedir<RecomendacionCompra>('GET', '/api/pedido/recomendacion'),
   borrarIngreso: (clientUid: string) => pedir<void>('DELETE', '/api/ingresos/' + encodeURIComponent(clientUid)),
   pedido: (presupuesto?: number, dias?: number) => {
     const q = new URLSearchParams()
@@ -137,8 +149,8 @@ export const api = {
   },
   crearPedido: (items: LineaPedido[]) => pedir<PedidoCreado>('POST', '/api/pedidos', { items }),
   pedidos: (estado?: EstadoPedido) => pedir<Pedido[]>('GET', '/api/pedidos' + (estado ? '?estado=' + estado : '')),
-  recibirPedido: (pedidoId: number, clientUid: string, items: LineaPedido[]) =>
-    pedir<{ estado: string }>('POST', '/api/pedidos/' + pedidoId + '/recibido', { clientUid, items }),
+  recibirPedido: (pedidoId: number, clientUid: string, items: LineaPedido[], pagoLugar?: LugarPlata) =>
+    pedir<{ estado: string }>('POST', '/api/pedidos/' + pedidoId + '/recibido', { clientUid, items, pagoLugar }),
   cancelarPedido: (pedidoId: number) => pedir<{ estado: string }>('POST', '/api/pedidos/' + pedidoId + '/cancelar'),
   productos: () => pedir<Producto[]>('GET', '/api/productos'),
   reportes: (desde: string, hasta: string) => pedir<Reporte>('GET', `/api/reportes?desde=${desde}&hasta=${hasta}`),

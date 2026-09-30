@@ -33,7 +33,7 @@ Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el ne
 
 ## Comandos
 - `npm run dev` (en la raíz): prende el backend en :8080 y el frontend en :5173 con `dev.mjs`. **Se abre el 5173**: Vite le pasa `/api` al 8080.
-- `cd backend && ./mvnw test`: 64 pruebas de integración (`@SpringBootTest` con H2 y Flyway real, migraciones V1–V8).
+- `cd backend && ./mvnw test`: 83 pruebas de integración (`@SpringBootTest` con H2 y Flyway real, migraciones V1–V11).
 - `cd backend && ./mvnw spring-boot:run`: API en :8080, con PIN de desarrollo `1234`.
 - `cd frontend && npm run dev`: app en :5173, con proxy de `/api` a :8080.
 - `cd frontend && npm test`: pruebas con vitest.
@@ -42,7 +42,7 @@ Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el ne
 
 ## Arquitectura (decisiones que importan)
 - **Backend organizado por módulo de negocio:** `producto`, `venta`, `inventario`, `pedido`, `resumen`, `gasto`, `reporte`, `caja`, `ajustes`, `notificacion`, `seguridad` y `comun`. Cada módulo tiene su entidad, repositorio, servicio y controlador; los DTO son records.
-- **Migraciones:** `V1` esquema base · `V2` datos iniciales · `V3` passkeys · `V4` movimientos de inventario (conteo/merma) · `V5` pedidos · `V6` costos y gastos · `V7` meta diaria · `V8` arqueo.
+- **Migraciones:** `V1` esquema base · `V2` datos iniciales · `V3` passkeys · `V4` movimientos de inventario (conteo/merma) · `V5` pedidos · `V6` costos y gastos · `V7` meta diaria · `V8` arqueo · `V9` costos reales · `V10` Mi plata (ingresos, conteos, pagos al proveedor) · `V11` traslados, metas e ingresos que cuentan como ganancia.
 - **Stock:** solo cambia con `ProductoRepository.sumarStock` (un `UPDATE … SET stock = stock + :delta` atómico). Nunca leer y escribir por separado.
 - **Idempotencia:** `venta.client_uid`, `entrada_inventario.client_uid`, `gasto.client_uid` y `arqueo.dia` (`UNIQUE`) hacen que una operación repetida devuelva `REPETIDA`. Los controladores atrapan `DataIntegrityViolationException` por si llegan dos reintentos al mismo tiempo. Un arqueo repetido con otro `clientUid` **actualiza** el del día (solo puede haber uno).
 - **Dinero y ganancia:** `venta.costo_unitario` se congela al vender (cambiar el costo del producto no reescribe ventas viejas). `ganancia = total − costo − gastos − mermas`.

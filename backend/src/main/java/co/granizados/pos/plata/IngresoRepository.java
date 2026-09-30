@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface IngresoRepository extends JpaRepository<Ingreso, Long> {
 
@@ -14,4 +15,11 @@ public interface IngresoRepository extends JpaRepository<Ingreso, Long> {
     List<Ingreso> findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(Instant desde);
 
     List<Ingreso> findTop10ByOrderByCreadoEnDescIdDesc();
+
+    /** Ingresos del periodo [desde, hasta) que cuentan como ganancia. Nulo si no hubo. */
+    @Query("select sum(i.monto) from Ingreso i where i.cuentaGanancia = true and i.creadoEn >= :desde and i.creadoEn < :hasta")
+    Long gananciaEntre(Instant desde, Instant hasta);
+
+    @Query("select i from Ingreso i where i.cuentaGanancia = true and i.creadoEn >= :desde and i.creadoEn < :hasta")
+    List<Ingreso> deGananciaEntre(Instant desde, Instant hasta);
 }

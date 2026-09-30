@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from './api'
 import { cargarCola, guardarCola, subirPendientes } from './cola'
 import { diaBogota, estadoVisible, nuevoUid } from './estadoLocal'
-import type { CategoriaGasto, Estado, LineaPedido, Metodo, MotivoMerma, Operacion, Producto, VentaReciente } from './tipos'
+import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, Metodo, MotivoMerma, Operacion, Producto, VentaReciente } from './tipos'
 
 const CLAVE_ESTADO = 'gz_estado'
 const CLAVE_CONFIRMADAS = 'gz_confirmadas'
@@ -166,8 +166,8 @@ export function useCaja(avisar: (mensaje: string) => void) {
   }, [setCola, sincronizar])
 
   /** "Llegó el pedido": se ve al instante (suma stock y baja el banner) y sube cuando haya señal. */
-  const llegoElPedido = useCallback((pedidoId: number, items: LineaPedido[]) => {
-    const op: Operacion = { tipo: 'recepcion', clientUid: nuevoUid(), pedidoId, items, creadaEn: Date.now() }
+  const llegoElPedido = useCallback((pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => {
+    const op: Operacion = { tipo: 'recepcion', clientUid: nuevoUid(), pedidoId, items, pagoLugar, creadaEn: Date.now() }
     setCola(c => [...c, op])
     void sincronizar()
   }, [setCola, sincronizar])

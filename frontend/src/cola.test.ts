@@ -115,9 +115,16 @@ describe('subirPendientes', () => {
 
     expect(r.error).toBeUndefined()
     expect(r.aceptadas).toEqual(['rx1'])
-    expect(api.recibirPedido).toHaveBeenCalledWith(7, 'rx1', [{ productoId: 1, cantidad: 20 }])
+    expect(api.recibirPedido).toHaveBeenCalledWith(7, 'rx1', [{ productoId: 1, cantidad: 20 }], undefined)
     expect(api.movimiento).not.toHaveBeenCalled()
     expect(api.entrada).not.toHaveBeenCalled()
+  })
+
+  it('la llegada manda de dónde salió la plata cuando se dijo', async () => {
+    const api = apiFalsa()
+    await subirPendientes([{ tipo: 'recepcion', clientUid: 'rx2', pedidoId: 7, items: [{ productoId: 1, cantidad: 20 }], pagoLugar: 'CASA', creadaEn: Date.now() }], api)
+
+    expect(api.recibirPedido).toHaveBeenCalledWith(7, 'rx2', [{ productoId: 1, cantidad: 20 }], 'CASA')
   })
 
   it('el gasto sube a /api/gastos con su hora del celular', async () => {

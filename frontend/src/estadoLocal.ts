@@ -42,7 +42,7 @@ export function estadoVisible(base: Estado | null, confirmadas: readonly Operaci
 
 /** La ganancia siempre sale de la cuenta, así nunca queda desfasada con lo que se ve. */
 function recalcular(h: ResumenDia) {
-  h.ganancia = h.total - h.costo - h.gastos - h.mermas
+  h.ganancia = h.total - h.costo - h.gastos - h.mermas + (h.ingresos ?? 0)
 }
 
 function aplicar(e: Estado, op: Operacion, hoy: string, pendiente: boolean) {
@@ -108,7 +108,7 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
   e.hoy.porSabor.sort((a, b) => b.unidades - a.unidades)
 
   e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total, metodo: op.metodo, pendiente },
-    ...e.ultimas].slice(0, 8)
+    ...e.ultimas].slice(0, 40)
 }
 
 export function nuevoUid(): string {

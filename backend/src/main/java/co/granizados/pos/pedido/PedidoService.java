@@ -53,6 +53,14 @@ public class PedidoService {
                                  Long presupuesto, Long disponible, boolean recortado, int dias) {
     }
 
+    /** Lo que costaría pedir para `dias` días de venta. `alcanza`: cabe en la plata libre menos la reserva. */
+    public record Opcion(int dias, int unidades, long costo, boolean alcanza) {
+    }
+
+    /** `libre` es null si todavía no has contado tu plata. `recomendado` es null si no hace falta pedir o no alcanza. */
+    public record Recomendacion(Long libre, Long disponible, List<Opcion> opciones, Integer recomendado, String motivo) {
+    }
+
     public record NuevoItem(@NotNull Long productoId, @Min(1) @Max(1000) int cantidad) {
     }
 
@@ -90,6 +98,9 @@ public class PedidoService {
 
     /** De la plata que le pasas, este porcentaje se queda en caja y no se gasta en el pedido. */
     static final int RESERVA_PORCENTAJE = 20;
+
+    /** Frecuencias de compra que se comparan en la recomendación. */
+    static final int[] OPCIONES_DIAS = {4, 7, 10, 14};
 
     /** Tope de días de inventario que se puede pedir desde la pantalla. */
     static final int MAX_DIAS_COBERTURA = 30;
@@ -223,6 +234,56 @@ public class PedidoService {
             resultado.add(new Item(i.productoId(), i.sabor(), dado.get(i.productoId()), i.promedioDia(), i.costo(), i.ideal()));
         }
         return resultado;
+    }
+
+    /**
+     * Compara comprar para 4, 7, 10 o 14 días con la plata libre (sin lo apartado en metas y sin la reserva).
+     * Regla: una semana es lo ideal (menos viajes y no dejas mucha plata parada en inventario). Si no alcanza,
+     * el pedido más largo que sí alcance; si ni el de 4 días alcanza, se pide lo que quepa.
+     */
+    @Transactional(readOnly = true)
+    public Recomendacion recomendacion() {
+        PlataService.Saldo saldo = plata.saldo();
+        Long libre = saldo.contadoEn() == null ? null : saldo.libre();
+        Long disponible = libre == null ? null : Math.max(0, libre) * (100 - RESERVA_PORCENTAJE) / 100;
+
+        List<Opcion> opciones = new ArrayList<>();
+        for (int d : OPCIONES_DIAS) {
+            PedidoSugerido p = sugerido(null, d);
+            opciones.add(new Opcion(d, p.total(), p.costoTotal(), disponible == null || p.costoTotal() <= disponible));
+        }
+        Opcion semana = opciones.get(1);
+        Opcion corta = opciones.get(0);
+
+        if (semana.unidades() == 0) {
+            return new Recomendacion(libre, disponible, opciones, null,
+                    "Con lo que tienes en inventario no hace falta pedir para una semana.");
+        }
+        if (disponible == null) {
+            return new Recomendacion(null, null, opciones, 7,
+                    "Una semana es un buen ritmo: menos viajes y no dejas mucha plata parada. "
+                            + "Cuenta tu plata en Hoy para saber si te alcanza.");
+        }
+        if (semana.alcanza()) {
+            boolean mas = opciones.get(3).alcanza();
+            return new Recomendacion(libre, disponible, opciones, 7,
+                    "Te alcanza para una semana (" + pesos(semana.costo()) + ") y te sobran " + pesos(disponible - semana.costo())
+                            + " de lo que puedes gastar. " + (mas
+                            ? "También te alcanza para 14 días, pero dejarías más plata parada en inventario."
+                            : "Más días de una vez ya te dejaría corto de plata."));
+        }
+        if (corta.alcanza()) {
+            return new Recomendacion(libre, disponible, opciones, 4,
+                    "Una semana cuesta " + pesos(semana.costo()) + " y puedes gastar " + pesos(disponible)
+                            + ". Compra para 4 días (" + pesos(corta.costo()) + ") y repite en unos días.");
+        }
+        return new Recomendacion(libre, disponible, opciones, null,
+                "Ni para 4 días alcanza (" + pesos(corta.costo()) + " y puedes gastar " + pesos(disponible)
+                        + "). Arma el pedido con tu plata y prioriza lo que más vendes.");
+    }
+
+    private static String pesos(long n) {
+        return "$" + java.text.NumberFormat.getIntegerInstance(java.util.Locale.of("es", "CO")).format(n);
     }
 
     /** Cuentas con enteros: ceil(vendidas × cobertura / días), sin errores de redondeo de double. */

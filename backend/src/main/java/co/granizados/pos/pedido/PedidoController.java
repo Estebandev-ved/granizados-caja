@@ -30,6 +30,12 @@ public class PedidoController {
         return servicio.sugerido(presupuesto, dias);
     }
 
+    /** Cuánto costaría pedir para 4, 7, 10 o 14 días, y cuál conviene según tu plata libre. */
+    @GetMapping("/api/pedido/recomendacion")
+    public PedidoService.Recomendacion recomendacion() {
+        return servicio.recomendacion();
+    }
+
     /** Crea el pedido con las cantidades editadas y devuelve el link de WhatsApp listo para abrir. */
     @PostMapping("/api/pedidos")
     public PedidoService.PedidoCreado crear(@Valid @RequestBody PedidoService.Armar cuerpo) {
