@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Icono } from '../componentes/Icono'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
+import { ResumenInventario } from '../componentes/ResumenInventario'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { vibrar } from '../formato'
@@ -71,6 +72,8 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
           <span>{critico} sabor{critico === 1 ? '' : 'es'} con poco stock</span>
         </div>
       )}
+
+      <ResumenInventario productos={productos} />
 
       <div className="buscador">
         <Icono nombre="buscar" />

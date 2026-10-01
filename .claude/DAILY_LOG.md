@@ -40,6 +40,12 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-10-03
+- **Inventario**: línea discreta "N granizados en inventario" que al tocarla muestra invertido, valor de venta y ganancia que dejaría (se calcula en el celular, sirve sin señal).
+- **Días en operación**: `GET /api/negocio` (primera venta → días contando el primero) y una línea en Hoy: "Día N de operación · desde el …".
+- 90 pruebas de backend y 35 de vitest en verde.
+- Idea en curso: convertirlo en suscripción (~$25.000/mes) para emprendedores universitarios, integrado con Antigravity. Falta definir cómo se integran (login, cobro, multi-negocio).
+
 ### 2026-10-02
 - **Cerrar caja cuenta toda la plata**: arriba "Lo de hoy" (vendido, efectivo, Nequi, ganancia) y "Plata total del negocio" (caja + casa + Nequi, con apartado y libre); campos para el efectivo del cajón, la casa y Nequi. `NuevoArqueo` recibe `casa` y `nequi` opcionales: con ellos (o si ya había conteo) el cierre deja el conteo de Mi plata armado, así el primer cierre ya deja el saldo listo. Sin plata contada no se muestra "Faltan/Sobran" (solo se conocería el efectivo de hoy).
 - 87 pruebas de backend y 35 de vitest en verde.

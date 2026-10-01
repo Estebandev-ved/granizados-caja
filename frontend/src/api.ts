@@ -1,7 +1,7 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
   CategoriaGasto, DatosProducto, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
-  LugarPlata, MovimientoPlata, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
+  LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
 
@@ -126,6 +126,7 @@ export const api = {
   borrarGasto: (clientUid: string) => pedir<void>('DELETE', '/api/gastos/' + encodeURIComponent(clientUid)),
   arqueo: (a: ArqueoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/arqueo', a),
   cierreHoy: () => pedir<ArqueoHoy | null>('GET', '/api/arqueo'),
+  negocio: () => pedir<Negocio>('GET', '/api/negocio'),
   plata: () => pedir<SaldoPlata>('GET', '/api/plata'),
   contarPlata: (c: { clientUid: string; caja: number; casa: number; nequi: number }) =>
     pedir<{ estado: string }>('POST', '/api/plata/conteo', c),

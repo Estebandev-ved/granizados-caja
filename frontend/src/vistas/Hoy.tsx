@@ -1,11 +1,12 @@
-import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { api, type ArqueoHoy } from '../api'
 import dopaGuino from '../assets/dopa-guino.png'
 import { Icono } from '../componentes/Icono'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
-import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, PedidoSugerido, RecomendacionCompra, SaldoPlata, VentaReciente } from '../tipos'
+import { fechaCorta } from '../reportes'
+import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, Negocio, PedidoSugerido, RecomendacionCompra, SaldoPlata, VentaReciente } from '../tipos'
 
 interface Props {
   estado: Estado
@@ -34,6 +35,9 @@ const CATEGORIAS: { valor: CategoriaGasto; texto: string }[] = [
 export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGasto, onCerrarCaja, avisar }: Props) {
   const [panel, setPanel] = useState<Panel | null>(null)
   const [verTodas, setVerTodas] = useState(false)
+  const [negocio, setNegocio] = useState<Negocio | null>(null)
+  // Cuántos días lleva el negocio: si no hay señal simplemente no se muestra
+  useEffect(() => { api.negocio().then(setNegocio).catch(() => { /* sin señal */ }) }, [])
   const h = estado.hoy
   const faltaCosto = estado.productos.some(p => p.costo === 0)
 
@@ -86,6 +90,11 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
 
   return (
     <section>
+      {negocio && negocio.dias > 0 && negocio.inicio && (
+        <p className="mut" style={{ margin: '0 0 8px', textAlign: 'center', fontSize: 13 }}>
+          Día <b>{negocio.dias}</b> de operación · desde el {fechaCorta(negocio.inicio)}
+        </p>
+      )}
       {estado.pedido && (
         <PedidoEnCamino pedido={estado.pedido} onLlego={onLlego} onCancelar={onCancelar} avisar={avisar} />
       )}

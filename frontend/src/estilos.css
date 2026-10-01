@@ -331,3 +331,8 @@ button.pago-fila:active { background: var(--card2) }
 .ranking .n.falta { color: var(--bad) }
 
 .chip-link { display: block; width: 100%; background: none; border: 0; border-top: 1px solid var(--line); color: var(--morado); font-weight: 600; padding: 12px 0; cursor: pointer }
+
+.resumen-inv { margin: 0 0 10px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card); overflow: hidden }
+.resumen-inv-fila { display: flex; justify-content: space-between; align-items: center; width: 100%; background: none; border: 0; color: inherit; font: inherit; font-size: 14px; padding: 10px 14px; cursor: pointer }
+.resumen-inv-fila:active { background: var(--card2) }
+.resumen-inv-detalle { padding: 0 14px 6px; border-top: 1px solid var(--line) }

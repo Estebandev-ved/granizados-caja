@@ -268,6 +268,12 @@ export interface RespuestaVenta {
   error: string | null
 }
 
+/** `GET /api/negocio`: desde qué día vende y cuántos días lleva en operación (0 si aún no hay ventas). */
+export interface Negocio {
+  inicio: string | null
+  dias: number
+}
+
 /** Dónde está la plata: efectivo en la caja, efectivo en la casa, o en Nequi. */
 export type LugarPlata = 'CAJA' | 'CASA' | 'NEQUI'
 
