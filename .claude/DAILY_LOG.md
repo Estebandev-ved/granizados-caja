@@ -40,6 +40,19 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-10-05
+- **Rediseño con el sistema NOMA de Antigravity**: tema claro + oscuro automático, rojo `#E53935` como único color de acción, todo con variables CSS (se quitaron los colores fijos). Tipografías Plus Jakarta Sans e Inter copiadas localmente (solo el subconjunto latino, 76 KB) para que funcionen sin señal; el service worker ahora guarda también fuentes, SVG y PNG.
+- **Personajes de NOMA**: Sofía (sin ventas hoy), Nova (consejos: recomendación de compra y Mi plata sin contar), escenas de error/carga/vacío. Componentes `Personaje`, `LogoNoma` y `Marca` ("Antigravity · Caja").
+- App instalable: nombre "Antigravity Caja", íconos regenerados desde el logo de NOMA, `theme-color` claro/oscuro, barra de estado `default`. La mascota y el logo de Dopamina se quitaron. Quien ya la tenga instalada debe quitarla y volver a instalarla para ver el nombre y el ícono nuevos.
+- 41 pruebas de vitest, tipos, lint y build en verde. Revisado en 375×812 en claro y oscuro.
+
+### 2026-10-04
+- **Fase 1 del SaaS (caja multi-negocio)**: migración `V12` (`negocio_id` en todas las tablas; `client_uid`, cierre por día y sabor+tipo únicos por negocio; `config` con llave propia), `@TenantId` en las 15 entidades, `TenantResolver` + `NegocioFiltro` (el negocio sale del token verificado), `NegocioService` (ajustes por defecto al primer ingreso), aviso de stock bajo solo del negocio principal.
+- **Acceso con Antigravity**: JWT HS256 firmado con `CAJA_JWT_SECRET` (iss `antigravity`, aud `caja`, `negocio_id` obligatorio); `estado: vencido` = solo lectura (402, el celular reintenta). Frontend: `accesoExterno.ts` (`#token=`).
+- `docs/INTEGRACION_ANTIGRAVITY.md`: contrato + prompt para la otra sesión (proyecto Bot NOMA).
+- Verificado sobre PostgreSQL con copia de los datos reales: datos intactos en el negocio 1, negocio 77 aislado, 402 y 401 correctos.
+- 105 pruebas de backend y 41 de vitest en verde.
+
 ### 2026-10-03
 - **Inventario**: línea discreta "N granizados en inventario" que al tocarla muestra invertido, valor de venta y ganancia que dejaría (se calcula en el celular, sirve sin señal).
 - **Días en operación**: `GET /api/negocio` (primera venta → días contando el primero) y una línea en Hoy: "Día N de operación · desde el …".

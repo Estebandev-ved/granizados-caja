@@ -4,12 +4,12 @@ import type { Producto } from '../tipos'
 // Un color plano por sabor (sin degradado) para que cada tarjeta se distinga
 // por identidad propia, no por decoración compartida.
 const PALETA: string[] = [
-  '#7c5cff', // morado (por defecto)
-  '#ff3db8', // fucsia
+  '#e53935', // rojo NOMA (por defecto)
+  '#c62828', // rojo fuerte
   '#4d7bff', // azul
-  '#22c55e', // verde
-  '#ffb020', // ámbar
-  '#00b8c4', // cian
+  '#2e7d32', // verde
+  '#d98200', // ámbar
+  '#00838f', // cian
 ]
 
 function colorSabor(sabor: string): string {

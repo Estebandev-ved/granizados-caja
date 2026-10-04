@@ -1,6 +1,8 @@
 package co.granizados.pos;
 
+import co.granizados.pos.negocio.TenantContext;
 import co.granizados.pos.notificacion.Notificador;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,8 +29,14 @@ public abstract class PruebaIntegracion {
     @MockitoBean
     protected Notificador notificador;
 
+    @AfterEach
+    void volverAlNegocioPrincipal() {
+        TenantContext.limpiar();
+    }
+
     @BeforeEach
     void limpiarBase() {
+        TenantContext.limpiar();
         reloj.poner("2026-09-25T15:00-05:00");
         jdbc.update("delete from venta");
         jdbc.update("delete from entrada_inventario");
@@ -43,7 +51,8 @@ public abstract class PruebaIntegracion {
         jdbc.update("delete from conteo_plata");
         jdbc.update("delete from pago_proveedor");
         jdbc.update("delete from passkey");
-        jdbc.update("delete from producto where orden > 11");
+        jdbc.update("delete from producto where orden > 11 or negocio_id <> 1");
+        jdbc.update("delete from config where negocio_id <> 1");
         jdbc.update("update producto set stock = 10, stock_minimo = 3, activo = true, precio = 6000, costo = 0");
         jdbc.update("update config set valor = '573001234567' where clave = 'PROVEEDOR_WHATSAPP'");
         jdbc.update("update config set valor = '4' where clave = 'DIAS_COBERTURA'");

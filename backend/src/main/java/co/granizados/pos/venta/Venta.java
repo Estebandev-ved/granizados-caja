@@ -1,5 +1,6 @@
 package co.granizados.pos.venta;
 
+import jakarta.persistence.Column;
 import co.granizados.pos.producto.Producto;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "venta")
@@ -42,6 +44,11 @@ public class Venta {
     private MetodoPago metodo;
 
     private Instant creadaEn;
+
+    /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
+    @TenantId
+    @Column(name = "negocio_id", updatable = false)
+    private Long negocioId;
 
     protected Venta() {
     }

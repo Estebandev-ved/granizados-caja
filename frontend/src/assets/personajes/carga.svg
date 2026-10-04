@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 360 306" fill="none">
+  <title>carga</title>
+  <style>
+    .spin{transform-box:fill-box;transform-origin:center;animation:spin .6s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){.wave,.float,.shadow,.pop{animation:none}.spin{animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}}
+  </style>
+    <!-- Recuadro contenedor -->
+
+    <!-- Sombra suelo -->
+    <ellipse cx="150" cy="285" rx="50" ry="7" fill="#E5E5E5"/>
+    <ellipse cx="255" cy="283" rx="30" ry="5" fill="#E5E5E5"/>
+
+    <!-- Nova robot atento / esperando proceso -->
+    <g transform="translate(145, 0)">
+      <!-- Piernas y soportes cilíndricos -->
+      <path d="M-15 200 L-16 270 L-3 270 L-3 200 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M3 200 L3 270 L16 270 L15 200 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <rect x="-24" y="267" width="23" height="10" rx="5" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="-12" cy="272" r="2.2" fill="#E53935"/>
+      <rect x="1" y="267" width="23" height="10" rx="5" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="12" cy="272" r="2.2" fill="#E53935"/>
+
+      <!-- Cuerpo cápsula robótica blanco -->
+      <rect x="-32" y="105" width="64" height="100" rx="24" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <rect x="-22" y="122" width="44" height="70" rx="10" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+      <!-- Núcleo AI pulsando -->
+      <circle cx="0" cy="148" r="10" fill="#E53935" stroke="#FFFFFF" stroke-width="1.5"/>
+      <rect x="-3" y="145" width="6" height="6" fill="#FFFFFF" transform="rotate(45 0 148)"/>
+      <rect x="-14" y="172" width="28" height="4" rx="2" fill="#222222"/>
+      <circle cx="-9" cy="174" r="1.5" fill="#E53935"/>
+      <circle cx="0" cy="174" r="1.5" fill="#FFFFFF"/>
+      <circle cx="9" cy="174" r="1.5" fill="#FFFFFF"/>
+
+      <!-- Brazo izquierdo en reposo lateral -->
+      <path d="M-32 118 L-44 160 C-46 168 -42 176 -35 180" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
+      <path d="M-32 118 L-44 160 C-46 168 -42 176 -35 180" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="-34" cy="182" r="5" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Brazo derecho apuntando con curiosidad y serenidad hacia el spinner -->
+      <path d="M32 118 Q50 135 56 150 Q60 160 70 162" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
+      <path d="M32 118 Q50 135 56 150 Q60 160 70 162" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="72" cy="162" r="5" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Cuello mecánico -->
+      <rect x="-8" y="85" width="16" height="22" rx="3" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+      <line x1="-8" y1="96" x2="8" y2="96" stroke="#FFFFFF" stroke-width="1.5"/>
+
+      <!-- Cabeza con antena -->
+      <line x1="0" y1="36" x2="0" y2="20" stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="0" cy="17" r="4.5" fill="#E53935" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <rect x="-28" y="36" width="56" height="50" rx="22" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <rect x="-32" y="54" width="5" height="14" rx="2.5" fill="#0A0A0A"/>
+      <circle cx="-30" cy="61" r="1.5" fill="#E53935"/>
+      <rect x="27" y="54" width="5" height="14" rx="2.5" fill="#0A0A0A"/>
+      <circle cx="29" cy="61" r="1.5" fill="#E53935"/>
+
+      <!-- Visor OLED negro -->
+      <rect x="-21" y="44" width="42" height="34" rx="12" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+      <!-- Ojos LED parpadeantes / atentos a la carga -->
+      <circle cx="-9" cy="60" r="3" fill="#FFFFFF"/>
+      <circle cx="9" cy="60" r="3" fill="#FFFFFF"/>
+      <path d="M-4 69 C-1 72 1 72 4 69" fill="none" stroke="#E53935" stroke-width="2" stroke-linecap="round"/>
+    </g>
+
+    <!-- Anillo de carga (spinner de progreso) a medio dibujar a su lado -->
+    <g transform="translate(255, 160)">
+      <!-- Órbita de fondo en gris neutro punteado/tenue -->
+      <g class="spin">
+      <circle cx="0" cy="0" r="34" fill="none" stroke="#E5E5E5" stroke-width="6"/>
+      <!-- Arco de carga activo a medio dibujar (240 grados) en rojo Antigravity #E53935 con borde 2px -->
+      <!-- R=34, inicio en -90deg (0, -34), recorre 240 deg hasta 150deg (-29.44, 17) -->
+      <path d="M 0 -34 A 34 34 0 1 1 -29.44 17" fill="none" stroke="#0A0A0A" stroke-width="8" stroke-linecap="round"/>
+      <path d="M 0 -34 A 34 34 0 1 1 -29.44 17" fill="none" stroke="#E53935" stroke-width="5" stroke-linecap="round"/>
+      <!-- Punto terminal brillante -->
+      <circle cx="-29.44" cy="17" r="4.5" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="1.5"/>
+      </g>
+      <!-- Detalle central: porcentaje discreto o nodo Antigravity -->
+      <circle cx="0" cy="0" r="7" fill="#0A0A0A"/>
+      <rect x="-2.5" y="-2.5" width="5" height="5" fill="#FFFFFF" transform="rotate(45 0 0)"/>
+    </g>
+
+    <!-- Etiqueta pequeña en Inter -->
+</svg>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-const COLORES = ['#7c5cff', '#ff3db8', '#d8cfe8', '#4ade80', '#ffb020']
+const COLORES = ['#e53935', '#ff6b6b', '#c62828', '#f9a825', '#4ade80', '#1a1a1a']
 
 /**
  * Confeti en un solo canvas, sin librería: ~90 rectángulos cayendo y ya.

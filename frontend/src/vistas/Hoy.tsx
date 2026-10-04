@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { api, type ArqueoHoy } from '../api'
-import dopaGuino from '../assets/dopa-guino.png'
 import { Icono } from '../componentes/Icono'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
+import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
 import { fechaCorta } from '../reportes'
@@ -181,7 +181,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
             </button>
           )}
         </div>
-      ) : <div className="vacio"><img src={dopaGuino} alt="" className="vacio-mascota" />Aún no hay ventas hoy</div>}
+      ) : <div className="vacio"><Personaje nombre="sofia" />Aún no hay ventas hoy</div>}
 
       <div className="acciones">
         <button className="accion accion-pedido" onClick={() => void abrirPedido()}>
@@ -327,14 +327,19 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
   onCantidad: (productoId: number, cantidad: number) => void
   onEnviar: () => void
 }) {
-  if (error) return <><h2>Sin conexión</h2><p>El pedido se calcula en el servidor. Intenta cuando tengas señal.</p></>
+  if (error) return <><Personaje nombre="error" /><h2>Sin conexión</h2><p>El pedido se calcula en el servidor. Intenta cuando tengas señal.</p></>
   if (!sugerido) return <><h2>Pedido sugerido</h2><p>Calculando con tus ventas…</p></>
   if (!sugerido.items.length) {
     return (
       <>
         <h2>Pedido sugerido</h2>
         <p>Con {sugerido.dias} días de venta tienes stock suficiente. No hace falta pedir 🙌</p>
-        {rec && <p className="mut">{rec.motivo}</p>}
+        {rec && (
+        <div className="nova-tip">
+          <Personaje nombre="nova" libre />
+          <p>{rec.motivo}</p>
+        </div>
+      )}
         <p className="mut">¿Quieres inventario para más días?</p>
         <div className="chips">
           {DIAS.filter(d => d > sugerido.dias).map(d => (
@@ -355,7 +360,7 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
         <label htmlFor="pedido-plata">¿Cuánta plata tienes para el pedido?</label>
         <input id="pedido-plata" inputMode="numeric" placeholder="Ej: 150000" value={presupuesto}
           onChange={e => onPresupuesto(e.target.value.replace(/\D/g, ''))} />
-        <button type="submit" className="big" disabled={!Number(presupuesto)}>Ajustar a mi plata</button>
+        <button type="submit" className="big ghost" disabled={!Number(presupuesto)}>Ajustar a mi plata</button>
       </form>
       <p className="mut">¿Para cuántos días quieres inventario?</p>
       <div className="chips">
@@ -368,7 +373,12 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
           )
         })}
       </div>
-      {rec && <p className="mut">{rec.motivo}</p>}
+      {rec && (
+        <div className="nova-tip">
+          <Personaje nombre="nova" libre />
+          <p>{rec.motivo}</p>
+        </div>
+      )}
       {sugerido.disponible !== null && (
         <p className={sugerido.recortado ? 'aviso' : 'mut'}>
           Gasto hasta {pesos(sugerido.disponible)} y dejo {pesos((sugerido.presupuesto ?? 0) - sugerido.disponible)} de reserva.

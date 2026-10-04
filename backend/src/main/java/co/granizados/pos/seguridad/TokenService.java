@@ -29,6 +29,7 @@ public class TokenService {
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("granizados-pos")
                 .subject("dueno")
+                .claim("negocio_id", props.negocioId())
                 .issuedAt(ahora)
                 .expiresAt(ahora.plus(Duration.ofDays(props.tokenDias())))
                 .build();

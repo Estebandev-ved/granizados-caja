@@ -1,5 +1,6 @@
 package co.granizados.pos.gasto;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -8,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.annotations.TenantId;
 
 /** Un gasto del día. El clientUid es único: el celular puede reintentar sin duplicar. */
 @Entity
@@ -29,6 +31,11 @@ public class Gasto {
     private long monto;
 
     private Instant creadoEn;
+
+    /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
+    @TenantId
+    @Column(name = "negocio_id", updatable = false)
+    private Long negocioId;
 
     protected Gasto() {
     }

@@ -1,25 +1,29 @@
 import { get, set } from 'idb-keyval'
-import { esRechazo, type ApiSync } from './api'
+import { esRechazo, sesion, type ApiSync } from './api'
 import type { Operacion } from './tipos'
 
 // Cola de ventas y movimientos de inventario que aún no suben. Vive en IndexedDB: sobrevive a cerrar la app o recargar.
 
-const CLAVE = 'gz_cola'
+/** Cada negocio tiene su cola: un celular compartido no sube las ventas de uno al otro. El negocio 1 conserva la clave de siempre. */
+function clave(): string {
+  const n = sesion.negocioId
+  return n === 1 ? 'gz_cola' : 'gz_cola_' + n
+}
 
 export async function cargarCola(): Promise<Operacion[]> {
   try {
-    return (await get<Operacion[]>(CLAVE)) ?? []
+    return (await get<Operacion[]>(clave())) ?? []
   } catch {
     // Safari en modo privado a veces no deja usar IndexedDB
-    try { return JSON.parse(localStorage.getItem(CLAVE) ?? '[]') } catch { return [] }
+    try { return JSON.parse(localStorage.getItem(clave()) ?? '[]') } catch { return [] }
   }
 }
 
 export async function guardarCola(cola: Operacion[]): Promise<void> {
   try {
-    await set(CLAVE, cola)
+    await set(clave(), cola)
   } catch {
-    try { localStorage.setItem(CLAVE, JSON.stringify(cola)) } catch { /* sin almacenamiento */ }
+    try { localStorage.setItem(clave(), JSON.stringify(cola)) } catch { /* sin almacenamiento */ }
   }
 }
 

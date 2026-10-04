@@ -1,5 +1,6 @@
 package co.granizados.pos.plata;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -8,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.annotations.TenantId;
 
 /**
  * Plata que entra y no es una venta del sistema (ej. te pagaron una deuda). El clientUid es único.
@@ -34,6 +36,11 @@ public class Ingreso {
     private Instant creadoEn;
 
     private boolean cuentaGanancia = true;
+
+    /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
+    @TenantId
+    @Column(name = "negocio_id", updatable = false)
+    private Long negocioId;
 
     protected Ingreso() {
     }

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-130 52 260 464" fill="none">
+  <title>nova</title>
+  <style>
+    .float{animation:float 3.2s ease-in-out infinite}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+    .shadow{transform-box:fill-box;transform-origin:center;animation:shadow 3.2s ease-in-out infinite}
+    @keyframes shadow{0%,100%{transform:scale(1);opacity:.08}50%{transform:scale(.86);opacity:.05}}
+    .pop{transform-box:fill-box;transform-origin:center;animation:pop 3s ease-in-out infinite}
+    @keyframes pop{0%,60%,100%{transform:scale(1)}72%{transform:scale(1.12)}84%{transform:scale(1)}}
+    @media (prefers-reduced-motion:reduce){.wave,.float,.shadow,.pop,.spin{animation:none}}
+  </style>
+  <ellipse class="shadow" cx="0" cy="495" rx="72" ry="9" fill="#0A0A0A" opacity="0.08"/>
+  <g class="float">
+    <!-- PIERNAS / SOPORTES ROBÓTICOS (Misma altura que los otros) -->
+    <path d="M-26 350 L-28 475 L-6 475 L-6 350 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M6 350 L6 475 L28 475 L26 350 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+    <!-- Pies magnéticos / pods cilíndricos -->
+    <rect x="-38" y="470" width="36" height="14" rx="7" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+    <circle cx="-20" cy="477" r="3" fill="#E53935"/>
+    <rect x="2" y="470" width="36" height="14" rx="7" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+    <circle cx="20" cy="477" r="3" fill="#E53935"/>
+
+    <!-- CUERPO CÁPSULA ROBÓTICA REDONDA (Blanco puro con acentos negro y rojo) -->
+    <!-- Chasis principal -->
+    <rect x="-48" y="200" width="96" height="155" rx="36" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+    <!-- Panel ventral central tecnológico -->
+    <rect x="-34" y="225" width="68" height="110" rx="16" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+    <!-- Insignia y núcleo rojo brillante de energía AI -->
+    <circle cx="0" cy="265" r="16" fill="#E53935" stroke="#FFFFFF" stroke-width="2"/>
+    <rect x="-5" y="260" width="10" height="10" fill="#FFFFFF" transform="rotate(45 0 265)"/>
+    <!-- Indicadores LED de actividad / estado 24/7 -->
+    <rect x="-22" y="300" width="44" height="6" rx="3" fill="#222222"/>
+    <circle cx="-14" cy="303" r="2" fill="#E53935"/>
+    <circle cx="0" cy="303" r="2" fill="#FFFFFF"/>
+    <circle cx="14" cy="303" r="2" fill="#FFFFFF"/>
+
+    <!-- BRAZO DERECHO ROBÓTICO (Segmentado suave) -->
+    <path d="M-48 220 L-68 280 C-70 290 -66 308 -56 315" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+    <path d="M-48 220 L-68 280 C-70 290 -66 308 -56 315" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="-53" cy="320" r="8" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+
+    <!-- BRAZO IZQUIERDO ROBÓTICO EN ALTO INTERACTUANDO CON LA BURBUJA WHATSAPP -->
+    <path d="M48 220 Q70 200 75 165 Q78 140 82 118" fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round"/>
+    <path d="M48 220 Q70 200 75 165 Q78 140 82 118" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="84" cy="112" r="8" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+
+    <!-- CUELLO MECÁNICO -->
+    <rect x="-12" y="166" width="24" height="34" rx="4" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+    <line x1="-12" y1="178" x2="12" y2="178" stroke="#FFFFFF" stroke-width="2"/>
+
+    <!-- CABEZA REDONDA ESFÉRICA ROBOT (Misma escala de 36x40/75px) -->
+    <!-- Antena en la parte superior con punta roja -->
+    <line x1="0" y1="92" x2="0" y2="72" stroke="#0A0A0A" stroke-width="2.5"/>
+    <circle cx="0" cy="68" r="6" fill="#E53935" stroke="#0A0A0A" stroke-width="2"/>
+
+    <!-- Carcasa externa de la cabeza -->
+    <rect x="-42" y="92" width="84" height="76" rx="34" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+    <!-- Orejas tipo sensores cilíndricos con acento rojo -->
+    <rect x="-48" y="120" width="8" height="20" rx="4" fill="#0A0A0A"/>
+    <circle cx="-44" cy="130" r="2" fill="#E53935"/>
+    <rect x="40" y="120" width="8" height="20" rx="4" fill="#0A0A0A"/>
+    <circle cx="44" cy="130" r="2" fill="#E53935"/>
+
+    <!-- Pantalla-rostro visor OLED negro -->
+    <rect x="-32" y="104" width="64" height="52" rx="18" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+    <!-- Ojos digitales felices / curvados hacia arriba luminosos blancos -->
+    <path d="M-18 126 C-15 120 -9 120 -6 126" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+    <path d="M6 126 C9 120 15 120 18 126" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+    <!-- Sonrisa LED sonriente sutil roja -->
+    <path d="M-6 142 C-2 147 2 147 6 142" fill="none" stroke="#E53935" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Gran burbuja flotante WhatsApp de respuesta inmediata 24/7 -->
+    <g class="pop">
+    <g transform="translate(48, 62)">
+      <rect x="0" y="0" width="58" height="38" rx="10" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <!-- Pico hacia la mano de Nova -->
+      <path d="M12 38 L8 46 L20 38 Z" fill="#FFFFFF"/>
+      <path d="M10 38 L8 46 L22 38" stroke="#0A0A0A" stroke-width="2" fill="none"/>
+      <rect x="11" y="36" width="9" height="3" fill="#FFFFFF"/>
+      <!-- Icono de WhatsApp / check de envío verificado -->
+      <circle cx="18" cy="19" r="8" fill="#0A0A0A"/>
+      <path d="M15 19 L17 21 L22 16" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    </g>
+
+    <!-- ETIQUETAS DE TEXTO (Inter) -->
+  </g>
+</svg>

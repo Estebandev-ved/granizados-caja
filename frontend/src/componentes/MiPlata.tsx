@@ -4,6 +4,7 @@ import { nuevoUid } from '../estadoLocal'
 import { pesos, vibrar } from '../formato'
 import type { LugarPlata, MetaPlata, MovimientoPlata, SaldoPlata } from '../tipos'
 import { Icono } from './Icono'
+import { Personaje } from './Personaje'
 import { Sheet } from './Sheet'
 
 const LUGARES: { valor: LugarPlata; texto: string }[] = [
@@ -42,7 +43,10 @@ export function MiPlata({ avisar }: { avisar: (m: string) => void }) {
       <h3><Icono nombre="moneda" /> Mi plata</h3>
       {!saldo && <p className="mut">{sinSenal ? 'Sin señal para ver tu plata.' : 'Cargando…'}</p>}
       {saldo && !saldo.contadoEn && (
-        <p className="mut">Cuenta cuánto tienes en la caja, en la casa y en Nequi, y desde ahí la app lleva la cuenta.</p>
+        <div className="nova-tip">
+          <Personaje nombre="nova" libre />
+          <p>Cuenta cuánto tienes en la caja, en la casa y en Nequi, y desde ahí la app lleva la cuenta.</p>
+        </div>
       )}
       {saldo?.contadoEn && (
         <>

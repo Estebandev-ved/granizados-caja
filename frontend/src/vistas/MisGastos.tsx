@@ -1,4 +1,5 @@
 import { Icono } from '../componentes/Icono'
+import { Personaje } from '../componentes/Personaje'
 import { pesos } from '../formato'
 import { CATEGORIA_TEXTO, fechaCorta, variacion } from '../reportes'
 import type { CategoriaGasto, Reporte, ReporteCategoriaGasto, ReporteDiaGasto } from '../tipos'
@@ -53,7 +54,7 @@ export function MisGastos({ periodo, datos, onBorrar, onVolver }: Props) {
       )}
 
       {sinGastos ? (
-        <div className="vacio">No has registrado gastos en {periodo.toLowerCase()}.</div>
+        <div className="vacio"><Personaje nombre="vacio-pedidos" />No has registrado gastos en {periodo.toLowerCase()}.</div>
       ) : (
         <>
           <section className="bloque">

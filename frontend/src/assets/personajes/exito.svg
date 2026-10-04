@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 360 306" fill="none">
+  <title>exito</title>
+  <style>
+    .badge{transform-box:fill-box;transform-origin:center;animation:badge .55s cubic-bezier(.34,1.56,.64,1) both}
+    @keyframes badge{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+    .check{stroke-dasharray:34;animation:draw .4s .4s ease-out both}
+    @keyframes draw{from{stroke-dashoffset:34}to{stroke-dashoffset:0}}
+    .confetti{transform-box:fill-box;transform-origin:center;animation:burst .7s .45s ease-out both}
+    @keyframes burst{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+    @media (prefers-reduced-motion:reduce){.badge,.check,.confetti{animation:none}}
+  </style>
+    <!-- Recuadro contenedor -->
+
+    <!-- Sombra suelo -->
+    <ellipse cx="180" cy="285" rx="55" ry="7" fill="#E8CFC9"/>
+
+    <!-- Confeti geométrico mínimo sobrio (rojo, negro, blanco) -->
+    <g id="confeti-minimo" class="confetti">
+      <!-- Cuadraditos / pastillas discretas flotando -->
+      <rect x="65" y="65" width="8" height="8" rx="2" fill="#E53935" transform="rotate(25 69 69)"/>
+      <rect x="280" y="70" width="7" height="7" rx="1.5" fill="#0A0A0A" transform="rotate(45 283.5 73.5)"/>
+      <rect x="95" y="110" width="6" height="6" rx="1.5" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="1" transform="rotate(15 98 113)"/>
+      <rect x="290" y="125" width="8" height="8" rx="2" fill="#E53935" transform="rotate(30 294 129)"/>
+      <circle cx="80" cy="150" r="3" fill="#C62828"/>
+      <circle cx="275" cy="170" r="3" fill="#0A0A0A"/>
+      <line x1="70" y1="90" x2="76" y2="98" stroke="#E53935" stroke-width="2" stroke-linecap="round"/>
+      <line x1="285" y1="100" x2="292" y2="105" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+    </g>
+
+    <!-- Gran insignia circular con check rojo distintivo al fondo/lado -->
+    <g class="badge">
+    <g transform="translate(245, 95)">
+      <circle cx="0" cy="0" r="32" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="0" cy="0" r="26" fill="#E53935"/>
+      <!-- Checkmark limpio blanco -->
+      <path class="check" d="M-10 -1 L-3 7 L12 -8" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    </g>
+
+    <!-- Personaje: Sofía celebrando discretamente -->
+    <g transform="translate(160, 0)">
+      <!-- Piernas y pantalones -->
+      <path d="M-18 200 L-20 274 L-4 274 L-3 200 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M3 200 L4 274 L20 274 L18 200 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Zapatos blancos con franja roja -->
+      <path d="M-28 270 C-28 270 -22 264 -4 264 C3 264 5 271 5 277 C5 280 -25 280 -28 277 Z" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <path d="M-24 275 L-4 275" stroke="#E53935" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M-5 264 C-5 264 2 264 21 264 C28 264 30 271 30 277 C30 280 -1 280 -5 277 Z" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <path d="M2 275 L23 275" stroke="#E53935" stroke-width="2.5" stroke-linecap="round"/>
+
+      <!-- Chaqueta roja estructurada -->
+      <path d="M-30 115 C-30 105 -16 98 0 98 C16 98 30 105 30 115 L36 202 C36 207 30 211 22 211 L-22 211 C-30 211 -36 207 -36 202 Z" fill="#E53935" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M0 98 L0 211" stroke="#0A0A0A" stroke-width="2" stroke-dasharray="4,3"/>
+      <path d="M-15 120 L-15 180" stroke="#C62828" stroke-width="2" stroke-linecap="round"/>
+      <path d="M15 120 L15 180" stroke="#C62828" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Brazo izquierdo: gesto contenido de victoria con puño cerrado discreto -->
+      <path d="M-30 114 L-46 142 C-50 148 -48 156 -42 160 L-32 164" fill="none" stroke="#E53935" stroke-width="13" stroke-linecap="round"/>
+      <path d="M-30 114 L-46 142 C-50 148 -48 156 -42 160 L-32 164" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="-30" cy="164" r="5" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Brazo derecho: mano levantada con pulgar arriba (thumbs up discreto) -->
+      <path d="M28 114 Q44 96 46 76 Q48 64 45 52" fill="none" stroke="#E53935" stroke-width="13" stroke-linecap="round"/>
+      <path d="M28 114 Q44 96 46 76 Q48 64 45 52" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+      <g transform="translate(45, 42)">
+        <ellipse cx="0" cy="6" rx="5" ry="6" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+        <!-- Pulgar arriba -->
+        <path d="M-1 4 L-1 -4 C-1 -7 3 -7 3 -4 L3 4 Z" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+      </g>
+
+      <!-- Cuello -->
+      <rect x="-6" y="80" width="12" height="22" rx="2" fill="#F5D0C5" stroke="#0A0A0A" stroke-width="2"/>
+
+      <!-- Cabeza con moño -->
+      <ellipse cx="0" cy="38" rx="17" ry="16" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+      <ellipse cx="0" cy="65" rx="24" ry="26" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="2"/>
+      <path d="M-24 60 C-22 36 -6 32 0 32 C10 32 23 36 24 60 C18 48 8 45 -1 46 C-12 47 -19 53 -24 60 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="-23" cy="66" r="3.5" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+      <circle cx="23" cy="66" r="3.5" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+      <circle cx="-23" cy="67" r="1" fill="#FFFFFF"/>
+      <circle cx="23" cy="67" r="1" fill="#FFFFFF"/>
+
+      <!-- Ojos cerrados sonrientes de felicidad satisfecha -->
+      <path d="M-12 64 C-9 60 -5 60 -2 64" fill="none" stroke="#0A0A0A" stroke-width="2.2" stroke-linecap="round"/>
+      <path d="M2 64 C5 60 9 60 12 64" fill="none" stroke="#0A0A0A" stroke-width="2.2" stroke-linecap="round"/>
+      <ellipse cx="-13" cy="69" rx="4.5" ry="2.2" fill="#EF9A9A" opacity="0.7"/>
+      <ellipse cx="13" cy="69" rx="4.5" ry="2.2" fill="#EF9A9A" opacity="0.7"/>
+      <path d="M-5 74 C-3 78 3 78 5 74" fill="none" stroke="#0A0A0A" stroke-width="2.2" stroke-linecap="round"/>
+    </g>
+
+    <!-- Etiqueta pequeña en Inter -->
+</svg>

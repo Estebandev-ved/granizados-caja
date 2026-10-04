@@ -18,17 +18,40 @@ export class ApiError extends Error {
   }
 }
 
-/** 4xx = el dato está mal y reintentar no lo arregla. 401/408/429 sí se pueden reintentar. */
+/** 4xx = el dato está mal y reintentar no lo arregla. 401/402/408/429 sí se pueden reintentar (402: suscripción vencida, lo pendiente espera a que renueve). */
 export function esRechazo(e: unknown): boolean {
-  return e instanceof ApiError && e.status >= 400 && e.status < 500 && ![401, 408, 429].includes(e.status)
+  return e instanceof ApiError && e.status >= 400 && e.status < 500 && ![401, 402, 408, 429].includes(e.status)
 }
+
+/** El `negocio_id` del token (sin verificarlo: solo sirve para separar lo guardado en el celular; el servidor es quien manda). */
+export function negocioDelToken(token: string | null): number | null {
+  if (!token) return null
+  try {
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    const n = JSON.parse(atob(b64)).negocio_id
+    return typeof n === 'number' ? n : null
+  } catch { return null }
+}
+
+/** Lo que el celular guarda de un negocio y no debe verlo otro que entre después en el mismo celular. */
+const LOCAL_POR_NEGOCIO = ['gz_estado', 'gz_confirmadas', 'gz_meta_celebrada', 'gz_plata_pedido']
 
 export const sesion = {
   get token(): string | null {
     try { return localStorage.getItem(CLAVE_TOKEN) } catch { return null }
   },
+  /** Negocio de la sesión actual. Los tokens sin el claim (los de antes) son el negocio 1. */
+  get negocioId(): number {
+    return negocioDelToken(this.token) ?? 1
+  },
   guardar(token: string) {
-    try { localStorage.setItem(CLAVE_TOKEN, token) } catch { /* modo privado */ }
+    const antes = negocioDelToken(this.token)
+    const ahora = negocioDelToken(token)
+    try {
+      // Entra otro negocio al mismo celular: se limpia lo que quedó del anterior (la cola pendiente se guarda aparte por negocio)
+      if (antes !== null && ahora !== null && antes !== ahora) LOCAL_POR_NEGOCIO.forEach(k => localStorage.removeItem(k))
+      localStorage.setItem(CLAVE_TOKEN, token)
+    } catch { /* modo privado */ }
   },
   cerrar() {
     try { localStorage.removeItem(CLAVE_TOKEN) } catch { /* modo privado */ }

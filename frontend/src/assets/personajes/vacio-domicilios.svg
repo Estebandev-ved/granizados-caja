@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 360 306" fill="none">
+  <title>vacio-domicilios</title>
+    <!-- Recuadro contenedor -->
+
+    <!-- Sombra suelo -->
+    <ellipse cx="160" cy="285" rx="55" ry="7" fill="#E5E5E5"/>
+    <ellipse cx="245" cy="283" rx="35" ry="5" fill="#E5E5E5"/>
+
+    <!-- Mateo con casco negro y mochila roja -->
+    <g transform="translate(150, 0)">
+      <!-- Mochila de reparto roja detrás en perspectiva -->
+      <rect x="-42" y="112" width="22" height="88" rx="6" fill="#C62828" stroke="#0A0A0A" stroke-width="2"/>
+      <rect x="-40" y="125" width="5" height="60" rx="2" fill="#E53935"/>
+
+      <!-- Piernas y pantalones -->
+      <path d="M-18 200 L-20 274 L-4 274 L-3 200 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M3 200 L4 274 L20 274 L18 200 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M-28 270 C-28 270 -22 264 -4 264 C3 264 5 271 5 277 C5 280 -25 280 -28 277 Z" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <path d="M-24 275 L-4 275" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M-5 264 C-5 264 2 264 21 264 C28 264 30 271 30 277 C30 280 -1 280 -5 277 Z" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <path d="M2 275 L23 275" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round"/>
+
+      <!-- Torso: Camisa blanca con arnés y tirantes rojos de mochila -->
+      <path d="M-30 115 C-30 105 -16 98 0 98 C16 98 30 105 30 115 L36 202 C36 207 30 211 22 211 L-22 211 C-30 211 -36 207 -36 202 Z" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M-20 102 L-14 211" stroke="#E53935" stroke-width="5" stroke-linecap="round"/>
+      <path d="M-20 102 L-14 211" stroke="#0A0A0A" stroke-width="1.8"/>
+      <path d="M14 102 L10 211" stroke="#E53935" stroke-width="5" stroke-linecap="round"/>
+      <path d="M14 102 L10 211" stroke="#0A0A0A" stroke-width="1.8"/>
+      <rect x="-24" y="198" width="48" height="8" fill="#0A0A0A"/>
+      <rect x="-5" y="196" width="10" height="11" rx="2" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Brazo izquierdo en reposo al costado -->
+      <path d="M-30 114 L-42 165 C-44 172 -40 180 -34 185" fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round"/>
+      <path d="M-30 114 L-42 165 C-44 172 -40 180 -34 185" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="-33" cy="186" rx="4.5" ry="6" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Brazo derecho señalando pacientemente hacia el mapa -->
+      <path d="M28 114 L42 155 C46 162 55 166 64 164 L74 162" fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round"/>
+      <path d="M28 114 L42 155 C46 162 55 166 64 164 L74 162" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="76" cy="162" rx="4.5" ry="5.5" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Cuello -->
+      <rect x="-6" y="80" width="12" height="22" rx="2" fill="#F5D0C5" stroke="#0A0A0A" stroke-width="2"/>
+
+      <!-- Cabeza con casco negro urbano y franja roja -->
+      <ellipse cx="0" cy="65" rx="24" ry="26" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="2"/>
+      <path d="M-26 62 C-26 28 -12 24 0 24 C12 24 26 28 26 62 C24 55 18 48 0 48 C-18 48 -24 55 -26 62 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+      <path d="M-4 25 L4 25 L4 48 L-4 48 Z" fill="#E53935"/>
+      <path d="M-20 60 C-18 80 -10 86 0 86 C10 86 18 80 20 60" fill="none" stroke="#0A0A0A" stroke-width="1.8"/>
+
+      <circle cx="-23" cy="66" r="3.5" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+      <circle cx="23" cy="66" r="3.5" fill="#FBE4DC" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Rostro sereno y paciente -->
+      <circle cx="-8" cy="65" r="2.2" fill="#0A0A0A"/>
+      <circle cx="8" cy="65" r="2.2" fill="#0A0A0A"/>
+      <ellipse cx="-13" cy="70" rx="4" ry="2" fill="#EF9A9A" opacity="0.6"/>
+      <ellipse cx="13" cy="70" rx="4" ry="2" fill="#EF9A9A" opacity="0.6"/>
+      <!-- Sonrisa paciente serena -->
+      <path d="M-5 74 C-2 78 2 78 5 74" fill="none" stroke="#0A0A0A" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+
+    <!-- Mapa plegado en acordeón con un pin rojo fijo y sin rutas activas -->
+    <g transform="translate(230, 160)">
+      <!-- Panel plegado 1 -->
+      <polygon points="0,20 22,12 22,96 0,104" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Panel plegado 2 -->
+      <polygon points="22,12 44,20 44,104 22,96" fill="#F0F0F0" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Panel plegado 3 -->
+      <polygon points="44,20 66,12 66,96 44,104" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+
+      <!-- Trazos de calles/cuadrícula tenue en mapa -->
+      <line x1="5" y1="45" x2="18" y2="40" stroke="#D5D5D5" stroke-width="2"/>
+      <line x1="26" y1="42" x2="40" y2="47" stroke="#D5D5D5" stroke-width="2"/>
+      <line x1="48" y1="44" x2="62" y2="39" stroke="#D5D5D5" stroke-width="2"/>
+      <line x1="12" y1="28" x2="10" y2="85" stroke="#D5D5D5" stroke-width="2"/>
+      <line x1="55" y1="26" x2="55" y2="82" stroke="#D5D5D5" stroke-width="2"/>
+
+      <!-- Pin rojo de ubicación / espera -->
+      <g transform="translate(33, 44)">
+        <path d="M0 -16 C-7 -16 -12 -11 -12 -4 C-12 5 0 16 0 16 C0 16 12 5 12 -4 C12 -11 7 -16 0 -16 Z" fill="#E53935" stroke="#0A0A0A" stroke-width="1.8"/>
+        <circle cx="0" cy="-6" r="4" fill="#FFFFFF"/>
+      </g>
+    </g>
+
+    <!-- Etiqueta pequeña en Inter -->
+</svg>

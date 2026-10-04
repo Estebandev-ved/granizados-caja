@@ -1,5 +1,6 @@
 package co.granizados.pos.plata;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -8,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.annotations.TenantId;
 
 /** Lo que se le pagó a Energy Cocktails por un pedido. Uno por pedido. */
 @Entity
@@ -26,6 +28,11 @@ public class PagoProveedor {
     private LugarPlata lugar;
 
     private Instant creadoEn;
+
+    /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
+    @TenantId
+    @Column(name = "negocio_id", updatable = false)
+    private Long negocioId;
 
     protected PagoProveedor() {
     }

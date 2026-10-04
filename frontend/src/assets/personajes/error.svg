@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 360 306" fill="none">
+  <title>error</title>
+  <style>
+    .wobble{transform-box:fill-box;transform-origin:50% 100%;animation:wobble .8s .2s ease-in-out both}
+    @keyframes wobble{0%,100%{transform:rotate(0)}18%{transform:rotate(-12deg)}36%{transform:rotate(9deg)}54%{transform:rotate(-6deg)}72%{transform:rotate(3deg)}}
+    @media (prefers-reduced-motion:reduce){.wobble{animation:none}}
+  </style>
+    <!-- Recuadro contenedor -->
+
+    <!-- Sombra suelo -->
+    <ellipse cx="180" cy="285" rx="50" ry="7" fill="#E5E5E5"/>
+
+    <!-- Nova robot con gesto de disculpa (manos al pecho/abiertas suavemente) -->
+    <g transform="translate(180, 0)">
+      <!-- Piernas y soportes cilíndricos -->
+      <path d="M-15 200 L-16 270 L-3 270 L-3 200 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M3 200 L3 270 L16 270 L15 200 Z" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <rect x="-24" y="267" width="23" height="10" rx="5" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="-12" cy="272" r="2.2" fill="#E53935"/>
+      <rect x="1" y="267" width="23" height="10" rx="5" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <circle cx="12" cy="272" r="2.2" fill="#E53935"/>
+
+      <!-- Cuerpo cápsula robótica blanco -->
+      <rect x="-32" y="105" width="64" height="100" rx="24" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+      <!-- Pantalla pectoral negra con indicador tecnológico -->
+      <rect x="-22" y="122" width="44" height="70" rx="10" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+      <!-- Núcleo de energía AI -->
+      <circle cx="0" cy="148" r="10" fill="#E53935" stroke="#FFFFFF" stroke-width="1.5"/>
+      <rect x="-3" y="145" width="6" height="6" fill="#FFFFFF" transform="rotate(45 0 148)"/>
+      <rect x="-14" y="172" width="28" height="4" rx="2" fill="#222222"/>
+      <circle cx="-9" cy="174" r="1.5" fill="#E53935"/>
+      <circle cx="0" cy="174" r="1.5" fill="#FFFFFF"/>
+      <circle cx="9" cy="174" r="1.5" fill="#FFFFFF"/>
+
+      <!-- Brazos de disculpa / hombros encogidos con manos palmas abiertas al frente -->
+      <!-- Brazo izquierdo -->
+      <path d="M-32 118 L-46 150 C-48 158 -44 166 -36 168 L-26 166" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
+      <path d="M-32 118 L-46 150 C-48 158 -44 166 -36 168 L-26 166" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="-25" cy="166" r="5" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Brazo derecho -->
+      <path d="M32 118 L46 150 C48 158 44 166 36 168 L26 166" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/>
+      <path d="M32 118 L46 150 C48 158 44 166 36 168 L26 166" fill="none" stroke="#0A0A0A" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="25" cy="166" r="5" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+
+      <!-- Cuello mecánico -->
+      <rect x="-8" y="85" width="16" height="22" rx="3" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="2"/>
+      <line x1="-8" y1="96" x2="8" y2="96" stroke="#FFFFFF" stroke-width="1.5"/>
+
+      <!-- Cabeza con antena superior (inclinada un grado sutil de disculpa) -->
+      <g transform="rotate(4 0 65)">
+        <line x1="0" y1="36" x2="0" y2="20" stroke="#0A0A0A" stroke-width="2"/>
+        <circle cx="0" cy="17" r="4.5" fill="#E53935" stroke="#0A0A0A" stroke-width="1.5"/>
+
+        <rect x="-28" y="36" width="56" height="50" rx="22" fill="#FFFFFF" stroke="#0A0A0A" stroke-width="2"/>
+        <!-- Sensores tipo orejas -->
+        <rect x="-32" y="54" width="5" height="14" rx="2.5" fill="#0A0A0A"/>
+        <circle cx="-30" cy="61" r="1.5" fill="#E53935"/>
+        <rect x="27" y="54" width="5" height="14" rx="2.5" fill="#0A0A0A"/>
+        <circle cx="29" cy="61" r="1.5" fill="#E53935"/>
+
+        <!-- Visor OLED negro -->
+        <rect x="-21" y="44" width="42" height="34" rx="12" fill="#0A0A0A" stroke="#0A0A0A" stroke-width="1.5"/>
+        <!-- Ojos LED en gesto de disculpa suave (curva invertida amable/apenada) -->
+        <path d="M-13 58 C-10 63 -6 63 -3 58" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M3 58 C6 63 10 63 13 58" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Boca pequeña LED de disculpa -->
+        <line x1="-3" y1="70" x2="3" y2="70" stroke="#E53935" stroke-width="2" stroke-linecap="round"/>
+      </g>
+    </g>
+
+    <!-- Triángulo de advertencia gris sobrio al lado de Nova -->
+    <g class="wobble">
+    <g transform="translate(262, 125)">
+      <!-- Triángulo equilátero suave con esquinas redondeadas y fondo gris neutro -->
+      <path d="M0 -28 L28 20 C30 24 28 28 22 28 L-22 28 C-28 28 -30 24 -28 20 Z" fill="#E5E5E5" stroke="#0A0A0A" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Signo de exclamación en gris oscuro / negro -->
+      <line x1="0" y1="-8" x2="0" y2="8" stroke="#0A0A0A" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="0" cy="18" r="2" fill="#0A0A0A"/>
+    </g>
+    </g>
+
+    <!-- Etiqueta pequeña en Inter -->
+</svg>

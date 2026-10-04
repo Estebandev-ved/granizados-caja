@@ -1,5 +1,6 @@
 package co.granizados.pos.pedido;
 
+import jakarta.persistence.Column;
 import co.granizados.pos.producto.Producto;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -9,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.TenantId;
 
 /** Una línea del pedido: cuánto se pidió y cuánto llegó realmente. */
 @Entity
@@ -30,6 +32,11 @@ public class PedidoItem {
     private int cantidadPedida;
 
     private int cantidadRecibida;
+
+    /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
+    @TenantId
+    @Column(name = "negocio_id", updatable = false)
+    private Long negocioId;
 
     protected PedidoItem() {
     }

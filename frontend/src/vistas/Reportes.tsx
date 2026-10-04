@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { Icono } from '../componentes/Icono'
 import { MiPlata } from '../componentes/MiPlata'
+import { Personaje } from '../componentes/Personaje'
 import { diaBogota } from '../estadoLocal'
 import { pesos, vibrar } from '../formato'
 import { fechaCorta, PERIODOS, restarDias, rangoDe, variacion, type Periodo } from '../reportes'
@@ -98,7 +99,7 @@ export function Reportes({ avisar }: Props) {
       {!cargando && error && <p className="aviso">No pude cargar el reporte. Revisa la señal e intenta otra vez.</p>}
 
       {!cargando && !error && vacio && (
-        <div className="vacio">No pasó nada en {PERIODOS[periodo].toLowerCase()}. Vende algo y vuelve</div>
+        <div className="vacio"><Personaje nombre="vacio-pedidos" />No pasó nada en {PERIODOS[periodo].toLowerCase()}. Vende algo y vuelve</div>
       )}
 
       {!cargando && !error && datos && t && !vacio && (() => {

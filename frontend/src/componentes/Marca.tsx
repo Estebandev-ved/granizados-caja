@@ -1,13 +1,13 @@
-import logo from '../assets/logo-dopa.png'
+import { LogoNoma } from './LogoNoma'
 
-/** Logo y nombre de la empresa. */
+/** Logo y nombre de la plataforma. */
 export function Marca({ compacta = false }: { compacta?: boolean }) {
   return (
     <div className={'marca' + (compacta ? ' compacta' : '')}>
-      <img src={logo} alt="" width={compacta ? 22 : 64} height={compacta ? 22 : 64} />
+      <LogoNoma tamano={compacta ? 22 : 56} />
       <div>
-        <b>Dopamina</b>
-        <span>Cocktails</span>
+        <b>Antigravity</b>
+        <span>Caja</span>
       </div>
     </div>
   )

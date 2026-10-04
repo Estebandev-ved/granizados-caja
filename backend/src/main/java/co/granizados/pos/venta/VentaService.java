@@ -2,6 +2,7 @@ package co.granizados.pos.venta;
 
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.negocio.TenantContext;
 import co.granizados.pos.producto.Producto;
 import co.granizados.pos.producto.ProductoRepository;
 import jakarta.validation.constraints.Max;
@@ -89,7 +90,7 @@ public class VentaService {
         int despues = productos.stockActual(p.getId()).orElseThrow();
         int antes = despues + v.cantidad();
         if (antes > minimo && despues <= minimo) {
-            eventos.publishEvent(new StockBajo(p.getId(), nombre, despues, minimo));
+            eventos.publishEvent(new StockBajo(TenantContext.actual(), p.getId(), nombre, despues, minimo));
         }
         return Resultado.REGISTRADA;
     }

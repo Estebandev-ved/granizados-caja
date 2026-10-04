@@ -1,4 +1,4 @@
-# Dopamina Cocktails (caja) · contexto para Claude Code
+# Antigravity Caja (nació como la caja de Dopamina Cocktails) · contexto para Claude Code
 
 ## Qué es
 Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el negocio de granizados (sachets con pitillo) que Esteban vende en la universidad, en Colombia.
@@ -23,7 +23,7 @@ Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el ne
 - **`frontend/`:** React 19, TypeScript, Vite 8 y `vite-plugin-pwa`.
   - Cola offline en IndexedDB (`idb-keyval`).
   - CSS propio en `src/estilos.css`, sin librería de UI.
-  - Tema **morado y negro "dopamina"**: variables `--morado`, `--fucsia` y `--grad`. Nequi conserva su color de marca.
+  - Diseño **NOMA de Antigravity** (`design.md` del proyecto Bot NOMA): tema claro por defecto y oscuro automático con `prefers-color-scheme`, base neutra y **rojo `#E53935` como único color de acción** (variables `--primario`, `--primario-txt`, `--primario-bg`…). **No pongas colores fijos en el CSS**: todo va en variables (solo `#fff` sobre botones de color). Nequi conserva su color de marca. Tipografías Plus Jakarta Sans (títulos) e Inter (texto), copiadas en `src/assets/fuentes` para que carguen sin señal. Personajes de NOMA en `src/assets/personajes` y componente `Personaje`: Sofía (ventas y logros), Nova (guía y consejos), Lucía y Mateo, más escenas de vacío, éxito, error y carga. Ponlos en estados vacíos, errores y consejos.
   - Face ID en el cliente: `src/faceid.ts` (con `@simplewebauthn/browser`) y el ícono animado `componentes/IconoFaceId.tsx`.
 - **Deploy:** backend en Railway (`Dockerfile` de la raíz), frontend en Vercel — dominios separados (`dopaminaeventos.shop` en Vercel, backend en Railway).
   - El `Dockerfile` puede seguir sirviendo todo desde un solo servicio (imagen compila el frontend, lo copia a `static/` del backend), pero hoy en producción no se usa así: el frontend se despliega aparte en Vercel con `VITE_API_URL` apuntando al backend.
@@ -33,7 +33,7 @@ Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el ne
 
 ## Comandos
 - `npm run dev` (en la raíz): prende el backend en :8080 y el frontend en :5173 con `dev.mjs`. **Se abre el 5173**: Vite le pasa `/api` al 8080.
-- `cd backend && ./mvnw test`: 83 pruebas de integración (`@SpringBootTest` con H2 y Flyway real, migraciones V1–V11).
+- `cd backend && ./mvnw test`: 105 pruebas de integración (`@SpringBootTest` con H2 y Flyway real, migraciones V1–V12).
 - `cd backend && ./mvnw spring-boot:run`: API en :8080, con PIN de desarrollo `1234`.
 - `cd frontend && npm run dev`: app en :5173, con proxy de `/api` a :8080.
 - `cd frontend && npm test`: pruebas con vitest.
@@ -42,9 +42,11 @@ Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el ne
 
 ## Arquitectura (decisiones que importan)
 - **Backend organizado por módulo de negocio:** `producto`, `venta`, `inventario`, `pedido`, `resumen`, `gasto`, `reporte`, `caja`, `ajustes`, `notificacion`, `seguridad` y `comun`. Cada módulo tiene su entidad, repositorio, servicio y controlador; los DTO son records.
-- **Migraciones:** `V1` esquema base · `V2` datos iniciales · `V3` passkeys · `V4` movimientos de inventario (conteo/merma) · `V5` pedidos · `V6` costos y gastos · `V7` meta diaria · `V8` arqueo · `V9` costos reales · `V10` Mi plata (ingresos, conteos, pagos al proveedor) · `V11` traslados, metas e ingresos que cuentan como ganancia.
+- **Migraciones:** `V1` esquema base · `V2` datos iniciales · `V3` passkeys · `V4` movimientos de inventario (conteo/merma) · `V5` pedidos · `V6` costos y gastos · `V7` meta diaria · `V8` arqueo · `V9` costos reales · `V10` Mi plata (ingresos, conteos, pagos al proveedor) · `V11` traslados, metas e ingresos que cuentan como ganancia · `V12` multi-negocio (`negocio_id` en todas las tablas).
+- **Multi-negocio (SaaS):** cada negocio ve solo sus datos. Todas las entidades llevan `@TenantId negocioId` (Hibernate filtra y llena `negocio_id` solo, incluso en el `UPDATE` de `sumarStock`); no hay consultas nativas, así que no hay que acordarse de filtrar a mano. El negocio sale **siempre del token ya verificado** (claim `negocio_id`, `NegocioFiltro`), nunca de un dato del cliente. Un token sin el claim (los de antes) y las tareas programadas usan el negocio por defecto `app.negocio-id` (env `NEGOCIO_ID`, 1 = Dopamina Cocktails); los avisos de Telegram son solo de ese negocio. Un negocio nuevo recibe sus ajustes por defecto la primera vez que entra (`NegocioService`). `client_uid`, el cierre por día y el sabor+tipo son únicos **por negocio**. Pruebas de aislamiento en `negocio/AislamientoTest`: **cualquier tabla o consulta nueva tiene que quedar cubierta ahí**.
+- **Acceso con Antigravity:** además del PIN/Face ID (token propio), la API acepta el JWT HS256 que firma Antigravity con `CAJA_JWT_SECRET` (emisor `antigravity`, audiencia `caja`, claim `negocio_id` obligatorio, `estado`: trial/activo/vencido). Con `estado: vencido` la API queda en solo lectura (402 al escribir; el celular reintenta, no descarta). Sin `CAJA_JWT_SECRET` este acceso está apagado. El frontend lo recibe en `#token=` (`accesoExterno.ts`). Contrato completo en `docs/INTEGRACION_ANTIGRAVITY.md`.
 - **Stock:** solo cambia con `ProductoRepository.sumarStock` (un `UPDATE … SET stock = stock + :delta` atómico). Nunca leer y escribir por separado.
-- **Idempotencia:** `venta.client_uid`, `entrada_inventario.client_uid`, `gasto.client_uid` y `arqueo.dia` (`UNIQUE`) hacen que una operación repetida devuelva `REPETIDA`. Los controladores atrapan `DataIntegrityViolationException` por si llegan dos reintentos al mismo tiempo. Un arqueo repetido con otro `clientUid` **actualiza** el del día (solo puede haber uno).
+- **Idempotencia (por negocio):** `venta.client_uid`, `entrada_inventario.client_uid`, `gasto.client_uid` y `arqueo.dia` (`UNIQUE`) hacen que una operación repetida devuelva `REPETIDA`. Los controladores atrapan `DataIntegrityViolationException` por si llegan dos reintentos al mismo tiempo. Un arqueo repetido con otro `clientUid` **actualiza** el del día (solo puede haber uno).
 - **Dinero y ganancia:** `venta.costo_unitario` se congela al vender (cambiar el costo del producto no reescribe ventas viejas). `ganancia = total − costo − gastos − mermas`.
 - **Reportes** (`GET /api/reportes`): se calculan en Java sobre `VentaRepository.entre`, agrupando en hora de Bogotá, porque la zona horaria se maneja distinto en H2 y en PostgreSQL. El CSV sale con `;` y BOM para Excel.
 - **Meta y racha:** config `META_DIARIA` (0 = apagada). La racha son los días seguidos hasta ayer que cumplieron la meta, más hoy si ya la cumplió; mira los últimos 90 días y un día sin ventas la rompe. La celebración (confeti + vibración) pasa una sola vez al día (`gz_meta_celebrada` en `localStorage`).
@@ -68,7 +70,7 @@ Caja rápida, inventario y pedido automático para **Dopamina Cocktails**, el ne
 - Todo el texto de la UI en español colombiano, informal. El código y los nombres del dominio también en español.
 - Vender toma **2 toques como máximo** (sabor → método). No meter formularios en el flujo de venta. Un doble toque no puede registrar dos ventas.
 - Mobile-first a 375×812 y respetando `safe-area-inset`.
-- La marca es **Dopamina Cocktails**. El proveedor sigue siendo Energy Cocktails.
+- La marca de la app es **Antigravity Caja** (logo de NOMA: círculo rojo con dos rombos, componente `LogoNoma`). Dopamina Cocktails es el primer negocio que la usa y el proveedor sigue siendo Energy Cocktails.
 - Nada de APIs que Safari 16 no soporte. El build apunta a `safari16`.
 - No guardar datos de clientes. Los sabores con licor se venden solo a mayores de edad, así que no proponer autoservicio sin control.
 - Secretos solo por variables de entorno (`.env.example`). En `prod` no hay valores por defecto para `APP_PIN` y `JWT_SECRET`.

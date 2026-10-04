@@ -10,15 +10,15 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icono.svg'],
       manifest: {
-        name: 'Dopamina Cocktails',
-        short_name: 'Dopamina',
-        description: 'Caja rápida e inventario de Dopamina Cocktails',
+        name: 'Antigravity Caja',
+        short_name: 'Caja',
+        description: 'Caja rápida, inventario y control de la plata de tu negocio',
         lang: 'es-CO',
         start_url: '/',
         display: 'standalone',
         orientation: 'portrait',
-        background_color: '#0a0a0d',
-        theme_color: '#0a0a0d',
+        background_color: '#ffffff',
+        theme_color: '#e53935',
         icons: [
           { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
@@ -28,6 +28,8 @@ export default defineConfig({
       },
       workbox: {
         // La app abre sin señal: el service worker guarda el HTML/JS/CSS. La API nunca se cachea aquí.
+        // Las tipografías y los personajes también se guardan: la app abre completa sin señal
+        globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/actuator\//],
       },

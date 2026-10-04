@@ -39,7 +39,7 @@ public class AjustesService {
 
     @Transactional
     public ParamDto actualizar(String clave, String valor) {
-        ConfigParam p = repo.findById(clave).orElseThrow(() -> new NoEncontradoException("No existe el ajuste " + clave));
+        ConfigParam p = repo.findByClave(clave).orElseThrow(() -> new NoEncontradoException("No existe el ajuste " + clave));
         p.setValor(validar(clave, valor == null ? "" : valor.trim()));
         return new ParamDto(p.getClave(), p.getValor(), p.getNota());
     }

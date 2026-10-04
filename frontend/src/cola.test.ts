@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiError, type ApiSync } from './api'
 import { cargarCola, guardarCola, subirPendientes } from './cola'
+import { sesion } from './api'
 import type { CategoriaGasto, LineaPedido, Operacion, RespuestaVenta } from './tipos'
 
 const venta = (uid: string, productoId = 1): Operacion =>
@@ -157,5 +158,26 @@ describe('subirPendientes', () => {
     expect(r.aceptadas).toEqual([])
     expect(r.rechazadas).toEqual([])
     expect(r.error).toBeInstanceOf(ApiError)
+  })
+})
+
+describe('cola por negocio', () => {
+  const jwt = (id: number) => 'x.' + btoa(JSON.stringify({ negocio_id: id })).replace(/=/g, '') + '.f'
+
+  it('un celular compartido no mezcla las pendientes de dos negocios', async () => {
+    sesion.guardar(jwt(1))
+    await guardarCola([venta('del-uno')])
+    sesion.guardar(jwt(42))
+    expect(await cargarCola()).toEqual([])
+    await guardarCola([venta('del-42')])
+    sesion.guardar(jwt(1))
+    expect((await cargarCola()).map(o => o.clientUid)).toEqual(['del-uno'])
+  })
+
+  it('al entrar otro negocio se limpia lo guardado del anterior', () => {
+    sesion.guardar(jwt(1))
+    localStorage.setItem('gz_estado', '{}')
+    sesion.guardar(jwt(42))
+    expect(localStorage.getItem('gz_estado')).toBeNull()
   })
 })

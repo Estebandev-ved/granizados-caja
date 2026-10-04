@@ -1,11 +1,13 @@
 package co.granizados.pos.plata;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.annotations.TenantId;
 
 /** Una meta o "sobre": plata apartada para algo. `objetivo` 0 = sin tope. */
 @Entity
@@ -20,6 +22,11 @@ public class MetaPlata {
     private String nombre;
     private long objetivo;
     private Instant creadoEn;
+
+    /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
+    @TenantId
+    @Column(name = "negocio_id", updatable = false)
+    private Long negocioId;
 
     protected MetaPlata() {
     }

@@ -1,5 +1,6 @@
 package co.granizados.pos.notificacion;
 
+import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.venta.StockBajo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,15 +21,19 @@ public class Avisos {
 
     private final Reportes reportes;
     private final Notificador notificador;
+    private final long negocioPrincipal;
 
-    public Avisos(Reportes reportes, Notificador notificador) {
+    public Avisos(Reportes reportes, Notificador notificador, AppProperties props) {
         this.reportes = reportes;
         this.notificador = notificador;
+        this.negocioPrincipal = props.negocioId();
     }
 
     @Async
     @TransactionalEventListener
     public void alBajarStock(StockBajo evento) {
+        // El Telegram es del dueño del negocio principal: los demás negocios no le mandan avisos
+        if (evento.negocioId() != null && evento.negocioId() != negocioPrincipal) return;
         try {
             enviar(reportes.stockBajo(evento));
         } catch (Exception e) {

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { sesion } from './api'
-import dopaGuino from './assets/dopa-guino.png'
 import { BarraMeta } from './componentes/BarraMeta'
 import { Confeti } from './componentes/Confeti'
 import { Marca } from './componentes/Marca'
+import { Personaje } from './componentes/Personaje'
 import { useToast } from './componentes/Toast'
 import { pesos, vibrar } from './formato'
 import { useCaja, type EstadoSync } from './useCaja'
@@ -74,7 +74,7 @@ function Caja({ avisar }: { avisar: (m: string) => void }) {
   let contenido: ReactNode
   if (!estado) {
     contenido = <div className="vacio">
-      <img src={dopaGuino} alt="" className="vacio-mascota" />
+      <Personaje nombre={sync === 'sin-senal' ? 'error' : 'carga'} />
       {sync === 'sin-senal' ? 'La primera vez necesitas señal para cargar los sabores.' : 'Cargando…'}
     </div>
   } else if (vista === 'vender') {

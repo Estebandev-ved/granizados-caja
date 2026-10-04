@@ -1,5 +1,6 @@
 package co.granizados.pos.pedido;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -11,6 +12,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.TenantId;
 
 /** Un pedido que se le hizo a Energy Cocktails, por WhatsApp. */
 @Entity
@@ -35,6 +37,11 @@ public class PedidoProveedor {
 
     @OneToMany(mappedBy = "pedido", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
     private List<PedidoItem> items = new ArrayList<>();
+
+    /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
+    @TenantId
+    @Column(name = "negocio_id", updatable = false)
+    private Long negocioId;
 
     protected PedidoProveedor() {
     }
