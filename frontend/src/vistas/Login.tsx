@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, ApiError, sesion } from '../api'
 import { IconoFaceId, type ModoFaceId } from '../componentes/IconoFaceId'
 import { Marca } from '../componentes/Marca'
+import { Personaje } from '../componentes/Personaje'
 import { activarFaceId, entrarConFaceId, esCancelacion, faceIdActivado, olvidarFaceId, soportaFaceId } from '../faceid'
 import { vibrar } from '../formato'
 
 const LARGO_MAX = 8
 const NO_PREGUNTAR = 'gz_faceid_no'
+const BIENVENIDA = 'gz_bienvenida'
 
 type Paso = 'faceid' | 'pin' | 'ofrecer'
 
@@ -15,10 +17,13 @@ export function Login({ onEntrar }: { onEntrar: () => void }) {
   const [modo, setModo] = useState<ModoFaceId>('quieto')
   const [mensaje, setMensaje] = useState('')
   const intentoAutomatico = useRef(false)
+  // La bienvenida sale solo la primera vez que se abre la app en este celular
+  const [primeraVez] = useState(() => { try { return localStorage.getItem(BIENVENIDA) !== '1' } catch { return false } })
 
   /** Muestra el chulo un momento y entra, como en el iPhone. */
   const exito = useCallback((token: string) => {
     sesion.guardar(token)
+    try { localStorage.setItem(BIENVENIDA, '1') } catch { /* modo privado */ }
     setModo('ok')
     setMensaje('¡Listo!')
     setTimeout(onEntrar, 750)
@@ -91,6 +96,7 @@ export function Login({ onEntrar }: { onEntrar: () => void }) {
   return (
     <div className="login">
       <Marca />
+      {primeraVez && <Personaje nombre="bienvenida" />}
 
       {paso === 'faceid' && (
         <>

@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Icono } from '../componentes/Icono'
+import { ConsejoNova } from '../componentes/ConsejoNova'
+import { Personaje } from '../componentes/Personaje'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { ResumenInventario } from '../componentes/ResumenInventario'
 import { Sheet } from '../componentes/Sheet'
@@ -73,6 +75,10 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
         </div>
       )}
 
+      {critico === 0 && productos.length > 0 && (
+        <ConsejoNova clave="inventario-surtido" personaje="sofia">Todo surtido: ningún sabor está bajo el mínimo 🙌</ConsejoNova>
+      )}
+
       <ResumenInventario productos={productos} />
 
       <div className="buscador">
@@ -94,7 +100,12 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
           {filtrados.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} />)}
         </div>
       )}
-      {!filtrados.length && <p className="mut" style={{ textAlign: 'center', padding: '20px 0' }}>Nada con ese nombre</p>}
+      {!filtrados.length && (
+        <div className="vacio">
+          <Personaje nombre="vacio-pedidos" />
+          {productos.length ? 'Nada con ese nombre' : 'Aún no tienes sabores. Agrégalos en Ajustes'}
+        </div>
+      )}
 
       <div className="acciones" style={{ marginTop: 12 }}>
         <button className="big ghost" onClick={() => setContando(true)}>Contar todo</button>

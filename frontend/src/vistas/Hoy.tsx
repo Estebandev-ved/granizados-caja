@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { api, type ArqueoHoy } from '../api'
 import { Icono } from '../componentes/Icono'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
+import { ConsejoNova } from '../componentes/ConsejoNova'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
@@ -122,6 +123,12 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           <div className="v">{pesos(h.unidades ? Math.round(h.total / h.unidades) : 0)}</div>
         </div>
       </div>
+
+      {estado.meta.valor > 0 && estado.meta.racha > 0 && h.total < estado.meta.valor && (
+        <ConsejoNova clave="hoy-racha">
+          Llevas {estado.meta.racha} día{estado.meta.racha === 1 ? '' : 's'} de racha. Faltan {pesos(estado.meta.valor - h.total)} para mantenerla.
+        </ConsejoNova>
+      )}
 
       {faltaCosto && h.unidades > 0 && (
         <p className="aviso">Pon el costo de tus sabores en Ajustes para saber cuánto ganas de verdad.</p>
@@ -510,11 +517,16 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
       </div>
       {/* Sin la plata contada solo se conoce el efectivo de hoy: comparar contra eso confundiría */}
       {!sinContar && contada && (
-        <p className={diferencia === 0 ? 'ok-dinero' : diferencia < 0 ? 'aviso' : 'mut'}>
-          {diferencia === 0
-            ? '✓ Cuadró perfecto'
-            : (diferencia < 0 ? 'Faltan ' : 'Sobran ') + pesos(Math.abs(diferencia))}
-        </p>
+        diferencia === 0
+          ? <div className="nova-tip"><Personaje nombre="sofia" libre /><p className="ok-dinero">✓ Cuadró perfecto</p></div>
+          : (
+            <div className="nova-tip">
+              <Personaje nombre="nova" libre />
+              <p className={diferencia < 0 ? 'aviso' : 'mut'}>
+                {(diferencia < 0 ? 'Faltan ' : 'Sobran ') + pesos(Math.abs(diferencia))}. Revisa si falta anotar un gasto o una venta.
+              </p>
+            </div>
+          )
       )}
       <div className="campo">
         <label htmlFor="cierre-casa">Efectivo en la casa</label>

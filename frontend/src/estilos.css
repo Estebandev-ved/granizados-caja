@@ -383,3 +383,12 @@ h1, h2, h3, .hoy-mini, .card .v, .qty span, .login-titulo, .big { font-family: v
 /* Ícono de Face ID con los colores del tema */
 .faceid-esquinas, .faceid-cara { stroke: var(--primario-txt) }
 .faceid-circulo, .faceid-chulo { stroke: var(--ok) }
+.nova-tip p { flex: 1 }
+.nova-tip-x { background: none; border: 0; color: var(--mut); font-size: 22px; line-height: 1; padding: 4px 6px; cursor: pointer }
+/* Logro: la figura aparece un momento sobre el confeti y no estorba los toques */
+.logro-flotante { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); z-index: 31; pointer-events: none;
+  text-align: center; animation: logro 2s ease both }
+.logro-flotante .personaje { width: 120px; margin: 0 auto }
+@keyframes logro { 0% { opacity: 0; transform: translate(-50%, 16px) scale(.9) } 15%, 80% { opacity: 1; transform: translate(-50%, 0) scale(1) } 100% { opacity: 0 } }
+@media (prefers-reduced-motion: reduce) { .logro-flotante { animation: none } }
+.login .personaje { width: 120px; margin-bottom: 8px }

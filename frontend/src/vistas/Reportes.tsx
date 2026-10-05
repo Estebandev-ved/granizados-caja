@@ -150,7 +150,10 @@ export function Reportes({ avisar }: Props) {
           <section className="bloque">
             <h2><Icono nombre="calendario" /> Por día</h2>
             {datos.porDia.length > 1
-              ? <PorDias datos={datos.porDia} />
+              ? <>
+                  <PorDias datos={datos.porDia} />
+                  <MejorDia datos={datos.porDia} />
+                </>
               : <p className="mut">{datos.porDia.length ? 'Un solo día en este periodo.' : 'Sin ventas en este periodo.'}</p>}
           </section>
 
@@ -269,4 +272,16 @@ function esFinDeSemana(dia: string): boolean {
   const [a, m, d] = dia.split('-').map(Number)
   const dow = new Date(Date.UTC(a, m - 1, d)).getUTCDay()
   return dow === 0 || dow === 6
+}
+
+function MejorDia({ datos }: { datos: Reporte['porDia'] }) {
+  const mejor = datos.reduce((a, d) => (d.total > a.total ? d : a), datos[0])
+  if (!mejor || mejor.total <= 0) return null
+  const [, mes, dia] = mejor.dia.split('-')
+  return (
+    <div className="nova-tip" style={{ marginTop: 12 }}>
+      <Personaje nombre="sofia" libre />
+      <p>Tu mejor día fue el {Number(dia)}/{Number(mes)}: {pesos(mejor.total)} y {mejor.unidades} granizados.</p>
+    </div>
+  )
 }

@@ -128,7 +128,7 @@ function Caja({ avisar }: { avisar: (m: string) => void }) {
         </div>
       )}
       <main>{contenido}</main>
-      {celebrando && <Confeti />}
+      {celebrando && <><Confeti /><div className="logro-flotante"><Personaje nombre="sofia" libre /></div></>}
       <nav>
         <BotonNav activa={vista === 'vender'} onClick={() => irA('vender')} texto="Vender">
           <path d="M7 3h10l-1.5 18h-7z" /><path d="M6 8h12" />
