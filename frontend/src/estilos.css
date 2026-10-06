@@ -392,3 +392,8 @@ h1, h2, h3, .hoy-mini, .card .v, .qty span, .login-titulo, .big { font-family: v
 @keyframes logro { 0% { opacity: 0; transform: translate(-50%, 16px) scale(.9) } 15%, 80% { opacity: 1; transform: translate(-50%, 0) scale(1) } 100% { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) { .logro-flotante { animation: none } }
 .login .personaje { width: 120px; margin-bottom: 8px }
+.toast.con-accion { pointer-events: auto; display: flex; align-items: center; gap: 12px }
+.toast-accion { background: var(--primario); color: #fff; border: 0; border-radius: var(--r-full); padding: 6px 14px; font-weight: 700; font-size: 14px; cursor: pointer }
+.alcanza { display: block; font-size: 11px; font-weight: 600; color: var(--warn-txt); margin-top: 2px }
+.chip-racha { display: inline-flex; align-items: center; gap: 6px; background: var(--primario-bg); color: var(--primario-txt);
+  border-radius: var(--r-full); padding: 6px 12px; font-weight: 700; font-size: 13px; margin: 0 0 14px }

@@ -137,6 +137,7 @@ export function useCaja(avisar: (mensaje: string) => void) {
     const op: Operacion = { tipo: 'venta', clientUid: nuevoUid(), productoId: p.id, metodo, cantidad, creadaEn: Date.now() }
     setCola(c => [...c, op])
     void sincronizar()
+    return op.clientUid
   }, [setCola, sincronizar])
 
   const reponer = useCallback((p: Producto, cantidad: number) => {
@@ -200,7 +201,7 @@ export function useCaja(avisar: (mensaje: string) => void) {
   }, [refrescar])
 
   /** Si la venta no ha subido se borra aquí mismo, sin internet. Si ya subió, se borra en el servidor. */
-  const deshacer = useCallback(async (v: VentaReciente) => {
+  const deshacer = useCallback(async (v: Pick<VentaReciente, 'clientUid'>) => {
     if (colaRef.current.some(o => o.clientUid === v.clientUid)) {
       if (enVuelo.current.has(v.clientUid)) {
         avisarRef.current('Se está subiendo, intenta en un segundo')

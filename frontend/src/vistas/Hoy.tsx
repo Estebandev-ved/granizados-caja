@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { api, type ArqueoHoy } from '../api'
 import { Icono } from '../componentes/Icono'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
+import { hitoDeRacha } from '../ritmo'
 import { ConsejoNova } from '../componentes/ConsejoNova'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
@@ -123,6 +124,10 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           <div className="v">{pesos(h.unidades ? Math.round(h.total / h.unidades) : 0)}</div>
         </div>
       </div>
+
+      {estado.meta.valor > 0 && hitoDeRacha(estado.meta.racha) && (
+        <div className="chip-racha">🏅 {hitoDeRacha(estado.meta.racha)?.nombre} · {estado.meta.racha} días seguidos</div>
+      )}
 
       {estado.meta.valor > 0 && estado.meta.racha > 0 && h.total < estado.meta.valor && (
         <ConsejoNova clave="hoy-racha">

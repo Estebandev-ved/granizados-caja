@@ -4,7 +4,8 @@ import { BarraMeta } from './componentes/BarraMeta'
 import { Confeti } from './componentes/Confeti'
 import { Marca } from './componentes/Marca'
 import { Personaje } from './componentes/Personaje'
-import { useToast } from './componentes/Toast'
+import { hitoNuevo } from './ritmo'
+import { useToast, type AccionToast } from './componentes/Toast'
 import { pesos, vibrar } from './formato'
 import { useCaja, type EstadoSync } from './useCaja'
 import { Ajustes } from './vistas/Ajustes'
@@ -36,7 +37,7 @@ export default function App() {
 
 const TEXTO_SYNC: Record<EstadoSync, string> = { 'al-dia': 'al día', pendiente: 'pendientes', 'sin-senal': 'sin señal' }
 
-function Caja({ avisar }: { avisar: (m: string) => void }) {
+function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void }) {
   const [vista, setVista] = useState<Vista>('vender')
   const caja = useCaja(avisar)
   const { estado, cola, sync } = caja
@@ -65,7 +66,8 @@ function Caja({ avisar }: { avisar: (m: string) => void }) {
     // En un timeout para no montar y pintar todo en la misma pasada de React
     const arranque = window.setTimeout(() => {
       setCelebrando(true)
-      avisar(`🎉 ¡Meta cumplida! racha ${estado.meta.racha + 1}`)
+      const hito = hitoNuevo(estado.meta.racha + 1)
+      avisar(hito ? `🏅 ${hito.nombre}: ${hito.dias} días de racha` : `🎉 ¡Meta cumplida! racha ${estado.meta.racha + 1}`)
       fin = window.setTimeout(() => setCelebrando(false), 2000)
     }, 0)
     return () => { window.clearTimeout(arranque); window.clearTimeout(fin) }
@@ -79,8 +81,9 @@ function Caja({ avisar }: { avisar: (m: string) => void }) {
     </div>
   } else if (vista === 'vender') {
     contenido = <Vender productos={estado.productos} onVender={(p, metodo, cantidad) => {
-      caja.vender(p, metodo, cantidad)
-      avisar('✓ ' + (cantidad > 1 ? cantidad + ' ' : '') + p.nombre + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : 'Efectivo'))
+      const clientUid = caja.vender(p, metodo, cantidad)
+      avisar('✓ ' + (cantidad > 1 ? cantidad + ' ' : '') + p.nombre + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : 'Efectivo'),
+        { texto: 'Deshacer', alTocar: () => void caja.deshacer({ clientUid }) })
     }} />
   } else if (vista === 'inventario') {
     contenido = <Inventario productos={estado.productos} pedido={estado.pedido}

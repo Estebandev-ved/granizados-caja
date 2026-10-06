@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { api } from '../api'
 import { Icono } from '../componentes/Icono'
 import { ConsejoNova } from '../componentes/ConsejoNova'
 import { Personaje } from '../componentes/Personaje'
@@ -7,6 +8,9 @@ import { ResumenInventario } from '../componentes/ResumenInventario'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { vibrar } from '../formato'
+import { diasQueAlcanza, ritmoPorSabor, textoAlcanza, VENTANA_RITMO } from '../ritmo'
+import { restarDias } from '../reportes'
+import { diaBogota } from '../estadoLocal'
 import type { LineaPedido, LugarPlata, MotivoMerma, Producto, Tipo, PedidoEnCamino as PedidoEnCaminoDto } from '../tipos'
 
 type Modo = 'sumar' | 'contar' | 'merma'
@@ -64,6 +68,19 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
 
   const critico = productos.filter(p => p.stock <= p.stockMinimo).length
 
+  // Ritmo de venta de las últimas 2 semanas: sin señal simplemente no se muestra el aviso
+  const [ritmo, setRitmo] = useState<Map<string, number>>(new Map())
+  useEffect(() => {
+    const hoy = diaBogota()
+    Promise.all([api.reportes(restarDias(hoy, VENTANA_RITMO - 1), hoy), api.negocio()])
+      .then(([r, n]) => setRitmo(ritmoPorSabor(r.porSabor, n.dias)))
+      .catch(() => { /* sin señal: sin predicción */ })
+  }, [])
+  const alcanza = (p: Producto) => {
+    const d = diasQueAlcanza(p.stock, ritmo.get(p.nombre))
+    return d === null ? undefined : textoAlcanza(d)
+  }
+
   return (
     <section>
       {pedido && <PedidoEnCamino pedido={pedido} onLlego={onLlego} onCancelar={onCancelar} avisar={avisar} />}
@@ -92,12 +109,12 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
         <div key={g.tipo} className="seccion-grupo">
           <div className="grupo-titulo"><Icono nombre="vaso" /> {ETIQUETA_TIPO[g.tipo]}<span className="mut">{g.items.length}</span></div>
           <div className="grid">
-            {g.items.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} />)}
+            {g.items.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} alcanza={alcanza(p)} />)}
           </div>
         </div>
       )) : (
         <div className="grid">
-          {filtrados.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} />)}
+          {filtrados.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} alcanza={alcanza(p)} />)}
         </div>
       )}
       {!filtrados.length && (

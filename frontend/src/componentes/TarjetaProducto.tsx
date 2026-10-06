@@ -18,7 +18,8 @@ function colorSabor(sabor: string): string {
   return PALETA[h % PALETA.length]
 }
 
-export function TarjetaProducto({ p, onClick }: { p: Producto; onClick: () => void }) {
+/** `alcanza` (opcional): aviso corto de cuánto dura lo que queda, según el ritmo de venta. */
+export function TarjetaProducto({ p, onClick, alcanza }: { p: Producto; onClick: () => void; alcanza?: string }) {
   const nivel = p.stock <= 0 ? 'out' : p.stock <= p.stockMinimo ? 'low' : ''
   return (
     <button className="prod" onClick={onClick}>
@@ -33,6 +34,7 @@ export function TarjetaProducto({ p, onClick }: { p: Producto; onClick: () => vo
         <span className="precio">{pesos(p.precio)}</span>
         <span className={'stock ' + nivel}>{p.stock}</span>
       </div>
+      {alcanza && <span className="alcanza">{alcanza}</span>}
     </button>
   )
 }
