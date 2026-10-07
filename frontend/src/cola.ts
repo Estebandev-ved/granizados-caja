@@ -44,7 +44,7 @@ type Carga<K extends Operacion['tipo']> = Extract<Operacion, { tipo: K }>
 const SUBIR: { [K in Operacion['tipo']]: (op: Carga<K>, api: ApiSync) => Promise<unknown> } = {
   venta: (op, api) => api.venta({
     clientUid: op.clientUid, productoId: op.productoId, metodo: op.metodo,
-    cantidad: op.cantidad, creadaEn: new Date(op.creadaEn).toISOString(),
+    cantidad: op.cantidad, creadaEn: new Date(op.creadaEn).toISOString(), total: op.total,
   }),
   entrada: (op, api) => api.entrada({ clientUid: op.clientUid, productoId: op.productoId, cantidad: op.cantidad }),
   ajuste: (op, api) => api.movimiento({
@@ -80,7 +80,7 @@ export async function subirPendientes(cola: readonly Operacion[], api: ApiSync):
           const v = cola[i]
           if (v.tipo !== 'venta') break
           grupo.push({ clientUid: v.clientUid, productoId: v.productoId, metodo: v.metodo, cantidad: v.cantidad,
-            creadaEn: new Date(v.creadaEn).toISOString() })
+            creadaEn: new Date(v.creadaEn).toISOString(), total: v.total })
           i++
         }
         await subirLote(grupo, api, r)

@@ -133,8 +133,8 @@ export function useCaja(avisar: (mensaje: string) => void) {
     () => estadoVisible(base, confirmadas.map(c => c.op), cola, hoy),
     [base, confirmadas, cola, hoy])
 
-  const vender = useCallback((p: Producto, metodo: Metodo, cantidad: number) => {
-    const op: Operacion = { tipo: 'venta', clientUid: nuevoUid(), productoId: p.id, metodo, cantidad, creadaEn: Date.now() }
+  const vender = useCallback((p: Producto, metodo: Metodo, cantidad: number, total?: number) => {
+    const op: Operacion = { tipo: 'venta', clientUid: nuevoUid(), productoId: p.id, metodo, cantidad, creadaEn: Date.now(), total }
     setCola(c => [...c, op])
     void sincronizar()
     return op.clientUid

@@ -95,7 +95,7 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
   p.stock -= op.cantidad
   if (diaBogota(op.creadaEn) !== hoy) return
 
-  const total = p.precio * op.cantidad
+  const total = op.total ?? p.precio * op.cantidad
   e.hoy.total += total
   e.hoy.costo += p.costo * op.cantidad
   e.hoy.unidades += op.cantidad

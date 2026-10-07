@@ -57,6 +57,13 @@ public class Venta {
         this(clientUid, producto, cantidad, producto.getPrecio(), producto.getCosto(), metodo, creadaEn);
     }
 
+    /** Venta con promoción (ej. 2 x $10.000): `total` es lo cobrado, y el precio unitario queda como el promedio. */
+    public Venta(String clientUid, Producto producto, int cantidad, MetodoPago metodo, Instant creadaEn, long total) {
+        this(clientUid, producto, cantidad, producto.getPrecio(), producto.getCosto(), metodo, creadaEn);
+        this.total = total;
+        this.precioUnitario = total / cantidad;
+    }
+
     /** Para ventas históricas importadas: el precio y costo no son los actuales del catálogo, sino los del momento. */
     public Venta(String clientUid, Producto producto, int cantidad, long precioUnitario, long costoUnitario,
                  MetodoPago metodo, Instant creadaEn) {

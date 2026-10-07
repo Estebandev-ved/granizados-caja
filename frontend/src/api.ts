@@ -122,7 +122,7 @@ type OpcionesFaceId<T> = { solicitud: string; opciones: { publicKey: T } }
 type RespuestaFaceId = { solicitud: string; credencial: string; nombre?: string }
 export interface PasskeyInfo { id: number; nombre: string; creadaEn: string; usadaEn: string | null }
 
-type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string }
+type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string; total?: number }
 type EntradaApi = { clientUid: string; productoId: number; cantidad: number }
 /** Un movimiento de inventario: `cantidad` para ENTRADA/MERMA, `real` para CONTEO. */
 type MovimientoApi = {

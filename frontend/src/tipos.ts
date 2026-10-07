@@ -254,7 +254,7 @@ export interface Gasto {
 
 /** Lo que el celular guarda en la cola mientras no ha subido. */
 export type Operacion =
-  | { tipo: 'venta'; clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: number }
+  | { tipo: 'venta'; clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: number; /** Lo cobrado si hubo promo; si falta, precio × cantidad. */ total?: number }
   | { tipo: 'entrada'; clientUid: string; productoId: number; cantidad: number; creadaEn: number }
   | { tipo: 'ajuste'; clientUid: string; productoId: number; real: number; creadaEn: number }
   | { tipo: 'merma'; clientUid: string; productoId: number; cantidad: number; motivo: MotivoMerma; creadaEn: number }

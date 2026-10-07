@@ -2,11 +2,13 @@ import { useMemo, useRef, useState } from 'react'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { pesos, vibrar } from '../formato'
+import { aplicaPromo, PRECIO_PAR, prenderPromo, promoActiva, totalConPromo } from '../promo'
 import type { Metodo, Producto, Tipo } from '../tipos'
 
 interface Props {
   productos: Producto[]
-  onVender: (p: Producto, metodo: Metodo, cantidad: number) => void
+  /** `total` solo viene cuando hubo promo (lo realmente cobrado). */
+  onVender: (p: Producto, metodo: Metodo, cantidad: number, total?: number) => void
 }
 
 type Filtro = 'todos' | Tipo
@@ -15,6 +17,9 @@ const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremos
 export function Vender({ productos, onVender }: Props) {
   const [elegido, setElegido] = useState<Producto | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('todos')
+  const [promo, setPromo] = useState(() => promoActiva())
+  const hayPromo = productos.some(aplicaPromo)
+  const cambiarPromo = () => { prenderPromo(!promo); setPromo(!promo) }
 
   const tiposPresentes = useMemo(
     () => (Object.keys(ETIQUETA_TIPO) as Tipo[]).filter(t => productos.some(p => p.tipo === t)),
@@ -28,6 +33,12 @@ export function Vender({ productos, onVender }: Props) {
   return (
     <section>
       <div className="modo">Toca un sabor para vender</div>
+      {hayPromo && (
+        <button type="button" className={'promo' + (promo ? ' on' : '')} onClick={cambiarPromo} aria-pressed={promo}>
+          <b>2 x {pesos(PRECIO_PAR)}</b>
+          <span>{promo ? 'Promo de hoy prendida · en granizados normales' : 'Prender la promo de hoy'}</span>
+        </button>
+      )}
       {tiposPresentes.length > 1 && (
         <div className="chips categorias">
           <button className={filtro === 'todos' ? 'on' : ''} onClick={() => setFiltro('todos')}>Todos</button>
@@ -42,9 +53,9 @@ export function Vender({ productos, onVender }: Props) {
       </div>
       <Sheet abierto={!!elegido} onCerrar={() => setElegido(null)}>
         {elegido && (
-          <PanelVenta p={elegido} onPagar={(metodo, cantidad) => {
+          <PanelVenta p={elegido} promo={promo && aplicaPromo(elegido)} onPagar={(metodo, cantidad, total) => {
             setElegido(null)
-            onVender(elegido, metodo, cantidad)
+            onVender(elegido, metodo, cantidad, total)
           }} />
         )}
       </Sheet>
@@ -52,7 +63,7 @@ export function Vender({ productos, onVender }: Props) {
   )
 }
 
-function PanelVenta({ p, onPagar }: { p: Producto; onPagar: (m: Metodo, cantidad: number) => void }) {
+function PanelVenta({ p, promo, onPagar }: { p: Producto; promo: boolean; onPagar: (m: Metodo, cantidad: number, total?: number) => void }) {
   const [cantidad, setCantidad] = useState(1)
   const [billete, setBillete] = useState<number | null>(null)
   const pagado = useRef(false) // un doble toque en Nequi no puede registrar dos ventas
@@ -61,16 +72,16 @@ function PanelVenta({ p, onPagar }: { p: Producto; onPagar: (m: Metodo, cantidad
     if (pagado.current) return
     pagado.current = true
     vibrar()
-    onPagar(m, cantidad)
+    onPagar(m, cantidad, promo && total < p.precio * cantidad ? total : undefined)
   }
 
-  const total = p.precio * cantidad
+  const total = promo ? totalConPromo(p, cantidad) : p.precio * cantidad
 
   return (
     <>
       <h2>{p.nombre}</h2>
       <p className={p.stock - cantidad < 0 ? 'aviso' : ''}>
-        {pesos(total)} · {p.stock <= 0 ? 'según el inventario no quedan' : 'quedan ' + p.stock}
+        {pesos(total)}{promo && total < p.precio * cantidad ? ' (promo 2 x ' + pesos(PRECIO_PAR) + ')' : ''} · {p.stock <= 0 ? 'según el inventario no quedan' : 'quedan ' + p.stock}
       </p>
       <div className="qty">
         <button aria-label="Menos" onClick={() => setCantidad(c => Math.max(1, c - 1))}>−</button>

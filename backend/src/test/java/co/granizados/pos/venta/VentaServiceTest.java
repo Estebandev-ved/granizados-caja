@@ -40,6 +40,16 @@ class VentaServiceTest extends PruebaIntegracion {
     }
 
     @Test
+    void ventaConPromoGuardaLoCobradoYNuncaMasQueElPrecioNormal() {
+        ventas.registrar(new NuevaVenta("promo", idDe("Smirnoff"), MetodoPago.NEQUI, 2, null, 10000L));
+        ventas.registrar(new NuevaVenta("abuso", idDe("Smirnoff"), MetodoPago.NEQUI, 1, null, 99000L));
+
+        assertThat(jdbc.queryForMap("select total from venta where client_uid = 'promo'").get("total")).isEqualTo(10000L);
+        assertThat(jdbc.queryForMap("select total from venta where client_uid = 'abuso'").get("total")).isEqualTo(6000L);
+        assertThat(stockDe("Smirnoff")).isEqualTo(7);
+    }
+
+    @Test
     void laMismaVentaDosVecesNoSeDuplica() {
         var v = venta("repetida", "Mojito", MetodoPago.NEQUI, 1);
         assertThat(ventas.registrar(v)).isEqualTo(Resultado.REGISTRADA);

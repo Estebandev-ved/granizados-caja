@@ -34,10 +34,15 @@ public class VentaService {
             @NotNull Long productoId,
             @NotNull MetodoPago metodo,
             @Min(1) @Max(99) int cantidad,
-            Instant creadaEn) {
+            Instant creadaEn,
+            @Min(0) Long total) {
 
         public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad) {
-            this(clientUid, productoId, metodo, cantidad, null);
+            this(clientUid, productoId, metodo, cantidad, null, null);
+        }
+
+        public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad, Instant creadaEn) {
+            this(clientUid, productoId, metodo, cantidad, creadaEn, null);
         }
     }
 
@@ -84,7 +89,9 @@ public class VentaService {
         String nombre = p.nombre();
         int minimo = p.getStockMinimo();
 
-        ventas.saveAndFlush(new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando(v.creadaEn())));
+        long normal = p.getPrecio() * v.cantidad();
+        long cobrado = v.total() == null ? normal : Math.min(v.total(), normal); // promo: solo puede bajar el precio
+        ventas.saveAndFlush(new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando(v.creadaEn()), cobrado));
         productos.sumarStock(p.getId(), -v.cantidad());
 
         int despues = productos.stockActual(p.getId()).orElseThrow();
