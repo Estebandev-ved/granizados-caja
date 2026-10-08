@@ -19,10 +19,21 @@ function colorSabor(sabor: string): string {
 }
 
 /** `alcanza` (opcional): aviso corto de cuánto dura lo que queda, según el ritmo de venta. */
-export function TarjetaProducto({ p, onClick, alcanza }: { p: Producto; onClick: () => void; alcanza?: string }) {
-  const nivel = p.stock <= 0 ? 'out' : p.stock <= p.stockMinimo ? 'low' : ''
+export function TarjetaProducto({ p, onClick, alcanza, restante }: {
+  p: Producto
+  onClick: () => void
+  alcanza?: string
+  /** Lo que te queda de la carga de hoy. `undefined` = no hay carga; `null` = ese sabor no lo llevas hoy. */
+  restante?: number | null
+}) {
+  const conCarga = restante !== undefined
+  const fuera = conCarga && restante === null
+  const cantidad = conCarga ? (restante ?? 0) : p.stock
+  const nivel = conCarga
+    ? (cantidad <= 0 ? 'out' : cantidad <= 1 ? 'low' : '')
+    : p.stock <= 0 ? 'out' : p.stock <= p.stockMinimo ? 'low' : ''
   return (
-    <button className="prod" onClick={onClick}>
+    <button className={'prod' + (fuera ? ' fuera' : '')} onClick={onClick}>
       <div className="prod-cabeza">
         <IconoTrago color={colorSabor(p.sabor)} />
         <div>
@@ -32,7 +43,7 @@ export function TarjetaProducto({ p, onClick, alcanza }: { p: Producto; onClick:
       </div>
       <div className="fila">
         <span className="precio">{pesos(p.precio)}</span>
-        <span className={'stock ' + nivel}>{p.stock}</span>
+        <span className={'stock ' + nivel}>{fuera ? '—' : cantidad}</span>
       </div>
       {alcanza && <span className="alcanza">{alcanza}</span>}
     </button>

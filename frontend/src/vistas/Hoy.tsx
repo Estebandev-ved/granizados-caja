@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { api, type ArqueoHoy } from '../api'
 import { Icono } from '../componentes/Icono'
+import { ResumenCarga } from '../componentes/ResumenCarga'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { hitoDeRacha } from '../ritmo'
 import { ConsejoNova } from '../componentes/ConsejoNova'
@@ -151,6 +152,8 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           </div>
         </div>
       )}
+
+      <ResumenCarga productos={estado.productos} porSabor={h.porSabor} hoy={estado.dia} />
 
       {h.porSabor.length > 0 && (
         <div className="list">
