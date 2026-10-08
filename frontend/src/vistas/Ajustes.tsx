@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, sesion, type ImportarResultado, type PasskeyInfo } from '../api'
 import { Icono } from '../componentes/Icono'
+import { PromoAjustes } from '../componentes/PromoAjustes'
 import { IconoFaceId, type ModoFaceId } from '../componentes/IconoFaceId'
 import { Sheet } from '../componentes/Sheet'
 import { activarFaceId, esCancelacion, esErrorDeDominio, faceIdActivado, olvidarFaceId, soportaFaceId } from '../faceid'
@@ -93,6 +94,8 @@ export function Ajustes({ avisar, onCambio }: Props) {
           </div>
         ))}
       </div>
+
+      <PromoAjustes avisar={avisar} />
 
       <SeccionInstalar />
 

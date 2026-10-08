@@ -50,3 +50,72 @@ export function fechaCorta(dia: string): string {
   const [a, m, d] = dia.split('-')
   return `${Number(d)} ${MESES[Number(m) - 1]} ${a.slice(2)}`
 }
+
+// ---------------------------------------------------------------- comparar semanas
+
+export const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+/** Posición del día en la semana, con lunes = 0. */
+export function diaDeSemana(dia: string): number {
+  const [a, m, d] = dia.split('-').map(Number)
+  return (new Date(Date.UTC(a, m - 1, d)).getUTCDay() + 6) % 7
+}
+
+export function lunesDe(dia: string): string {
+  return restarDias(dia, diaDeSemana(dia))
+}
+
+export interface DiaSemana {
+  dia: string
+  total: number
+  unidades: number
+  /** Todavía no llega ese día (solo pasa en la semana en curso). */
+  futuro: boolean
+}
+
+export interface Semana {
+  /** El lunes de esa semana. */
+  inicio: string
+  dias: DiaSemana[]
+  total: number
+  unidades: number
+}
+
+/** Cuántas semanas completas hacia atrás se piden además de la actual. */
+export const SEMANAS_ATRAS = 3
+
+/** El rango que hay que pedir al servidor para armar las semanas: del lunes más viejo a hoy. */
+export function rangoSemanas(hoy: string, atras = SEMANAS_ATRAS): { desde: string; hasta: string } {
+  return { desde: restarDias(lunesDe(hoy), atras * 7), hasta: hoy }
+}
+
+/** Arma las semanas (lun-dom) de la más vieja a la actual, a partir de las ventas por día. */
+export function armarSemanas(
+  porDia: readonly { dia: string; total: number; unidades: number }[],
+  hoy: string,
+  atras = SEMANAS_ATRAS,
+): Semana[] {
+  const porFecha = new Map(porDia.map(d => [d.dia, d]))
+  const lunesActual = lunesDe(hoy)
+  const semanas: Semana[] = []
+  for (let s = atras; s >= 0; s--) {
+    const inicio = restarDias(lunesActual, s * 7)
+    const dias: DiaSemana[] = []
+    for (let i = 0; i < 7; i++) {
+      const dia = restarDias(inicio, -i)
+      const v = porFecha.get(dia)
+      dias.push({ dia, total: v?.total ?? 0, unidades: v?.unidades ?? 0, futuro: dia > hoy })
+    }
+    semanas.push({
+      inicio, dias,
+      total: dias.reduce((a, d) => a + d.total, 0),
+      unidades: dias.reduce((a, d) => a + d.unidades, 0),
+    })
+  }
+  return semanas
+}
+
+/** Lo vendido en los primeros `n` días de la semana (para comparar justo hasta el mismo día). */
+export function totalPrimerosDias(s: Semana, n: number): number {
+  return s.dias.slice(0, n).reduce((a, d) => a + d.total, 0)
+}

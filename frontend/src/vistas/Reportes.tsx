@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { Icono } from '../componentes/Icono'
+import { ComparaSemanas } from '../componentes/ComparaSemanas'
 import { MiPlata } from '../componentes/MiPlata'
 import { Personaje } from '../componentes/Personaje'
 import { diaBogota } from '../estadoLocal'
@@ -74,6 +75,8 @@ export function Reportes({ avisar }: Props) {
   return (
     <section>
       <MiPlata avisar={avisar} />
+
+      <ComparaSemanas />
 
       <div className="chips">
         {(Object.keys(PERIODOS) as Periodo[]).map(p => (
