@@ -2,6 +2,8 @@ package co.granizados.pos.venta;
 
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.fiado.Deuda;
+import co.granizados.pos.fiado.DeudaRepository;
 import co.granizados.pos.negocio.TenantContext;
 import co.granizados.pos.producto.Producto;
 import co.granizados.pos.producto.ProductoRepository;
@@ -35,7 +37,14 @@ public class VentaService {
             @NotNull MetodoPago metodo,
             @Min(1) @Max(99) int cantidad,
             Instant creadaEn,
-            @Min(0) Long total) {
+            @Min(0) Long total,
+            /** Solo para FIADO: quién debe y su celular (opcional, para recordarle por WhatsApp). */
+            @Size(max = 60) String cliente,
+            @Size(max = 20) String telefono) {
+
+        public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad, Instant creadaEn, Long total) {
+            this(clientUid, productoId, metodo, cantidad, creadaEn, total, null, null);
+        }
 
         public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad) {
             this(clientUid, productoId, metodo, cantidad, null, null);
@@ -62,14 +71,16 @@ public class VentaService {
     private static final Map<String, String> ALIAS_SABOR = Map.of("crema de wisky", "crema de whisky");
 
     private final VentaRepository ventas;
+    private final DeudaRepository deudas;
     private final ProductoRepository productos;
     private final ApplicationEventPublisher eventos;
     private final Clock clock;
     private final ZoneId zona;
 
-    public VentaService(VentaRepository ventas, ProductoRepository productos,
+    public VentaService(VentaRepository ventas, DeudaRepository deudas, ProductoRepository productos,
                         ApplicationEventPublisher eventos, Clock clock, AppProperties props) {
         this.ventas = ventas;
+        this.deudas = deudas;
         this.productos = productos;
         this.eventos = eventos;
         this.clock = clock;
@@ -91,7 +102,14 @@ public class VentaService {
 
         long normal = p.getPrecio() * v.cantidad();
         long cobrado = v.total() == null ? normal : Math.min(v.total(), normal); // promo: solo puede bajar el precio
-        ventas.saveAndFlush(new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando(v.creadaEn()), cobrado));
+        Instant cuando = cuando(v.creadaEn());
+        ventas.saveAndFlush(new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando, cobrado));
+        if (v.metodo() == MetodoPago.FIADO) {
+            if (v.cliente() == null || v.cliente().isBlank()) throw new IllegalArgumentException("Falta el nombre de quien debe");
+            String tel = v.telefono() == null ? "" : v.telefono().replaceAll("\\D", "");
+            deudas.save(new Deuda(v.clientUid(), v.cliente().trim(), tel.isEmpty() ? null : tel, cobrado,
+                    (v.cantidad() > 1 ? v.cantidad() + " " : "") + nombre, cuando));
+        }
         productos.sumarStock(p.getId(), -v.cantidad());
 
         int despues = productos.stockActual(p.getId()).orElseThrow();
@@ -120,6 +138,10 @@ public class VentaService {
     public void deshacer(String clientUid) {
         Venta v = ventas.findByClientUid(clientUid)
                 .orElseThrow(() -> new NoEncontradoException("Venta no encontrada: " + clientUid));
+        deudas.findByVentaUid(clientUid).ifPresent(d -> {
+            if (d.estaPagada()) throw new IllegalArgumentException("Ese fiado ya se cobró, no se puede deshacer");
+            deudas.delete(d);
+        });
         Long productoId = v.getProducto().getId();
         int cantidad = v.getCantidad();
         ventas.delete(v);

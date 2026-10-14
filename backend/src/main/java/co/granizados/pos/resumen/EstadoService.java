@@ -168,7 +168,7 @@ public class EstadoService {
             unidades += v.getCantidad();
             costo += v.getCostoUnitario() * v.getCantidad();
             if (v.getMetodo() == MetodoPago.EFECTIVO) efectivo += v.getTotal();
-            else nequi += v.getTotal();
+            else if (v.getMetodo() == MetodoPago.NEQUI) nequi += v.getTotal(); // el fiado no es plata hasta que se cobra
             porSabor.merge(v.getProducto().nombre(), v.getCantidad(), Integer::sum);
         }
         List<PorSabor> ranking = porSabor.entrySet().stream()

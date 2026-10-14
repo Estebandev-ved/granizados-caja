@@ -64,3 +64,42 @@ export function totalConPromo(promo: Promo, p: Producto, cantidad: number): numb
 export function nombrePromo(p: Pick<Promo, 'cantidad' | 'precio'>, formato: (n: number) => string): string {
   return `${p.cantidad} x ${formato(p.precio)}`
 }
+
+export interface LineaCombo {
+  p: Producto
+  cantidad: number
+}
+
+/**
+ * Total cuando el cliente mezcla sabores en la promo (ej. 2 x $10.000 con dos sabores distintos).
+ * Se arman los combos con las unidades más caras (le conviene al cliente) y las que sobran van a precio normal.
+ * Nunca cobra más que llevarlos sueltos.
+ */
+export function totalMezclado(promo: Promo, lineas: LineaCombo[]): number {
+  const normal = lineas.reduce((a, l) => a + l.p.precio * l.cantidad, 0)
+  const precios = lineas
+    .filter(l => aplicaPromo(promo, l.p))
+    .flatMap(l => Array<number>(l.cantidad).fill(l.p.precio))
+    .sort((a, b) => b - a)
+  const combos = Math.floor(precios.length / promo.cantidad)
+  if (!combos) return normal
+  const fuera = lineas.filter(l => !aplicaPromo(promo, l.p)).reduce((a, l) => a + l.p.precio * l.cantidad, 0)
+  const sobran = precios.slice(combos * promo.cantidad).reduce((a, n) => a + n, 0)
+  return Math.min(normal, combos * promo.precio + sobran + fuera)
+}
+
+/**
+ * Reparte el total cobrado entre las líneas (la API guarda una venta por sabor) en proporción a su precio normal.
+ * Cada línea queda entre 0 y su precio normal, y la suma da exactamente `total`.
+ */
+export function repartirTotal(lineas: LineaCombo[], total: number): number[] {
+  const normales = lineas.map(l => l.p.precio * l.cantidad)
+  const suma = normales.reduce((a, n) => a + n, 0)
+  if (total >= suma || suma === 0) return normales
+  const partes = normales.map(n => Math.floor((total * n) / suma))
+  let resto = total - partes.reduce((a, n) => a + n, 0)
+  for (let i = 0; resto > 0 && i < partes.length; i = (i + 1) % partes.length) {
+    if (partes[i] < normales[i]) { partes[i]++; resto-- }
+  }
+  return partes
+}

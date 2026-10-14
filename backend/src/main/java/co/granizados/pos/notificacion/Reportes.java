@@ -55,7 +55,7 @@ public class Reportes {
 
     public Aviso pedidoSemanal() {
         PedidoService.PedidoSugerido p = pedidos.sugerido();
-        if (p.items().isEmpty()) {
+        if (p.total() == 0) {
             return new Aviso("🧊 Pedido semanal", "Esta semana no hace falta pedir nada. Inventario al día.");
         }
         String destino = p.tieneProveedor()

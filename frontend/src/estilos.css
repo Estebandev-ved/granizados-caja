@@ -429,3 +429,13 @@ h1, h2, h3, .hoy-mini, .card .v, .qty span, .login-titulo, .big { font-family: v
 .carga-totales div { background: var(--card2); border-radius: var(--r-md); padding: 8px 4px }
 .carga-totales b { display: block; font-size: 22px }
 .carga-totales span { font-size: 11px; color: var(--mut); text-transform: uppercase; letter-spacing: .5px }
+
+/* Fiados */
+.fiado-boton { display: block; margin: 12px auto 0; text-align: center }
+.fiado-form { display: grid; gap: 10px }
+.deuda-fila { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line) }
+.list h3 + .deuda-fila { border-top: 0 }
+.deuda-cabeza { display: flex; justify-content: space-between; align-items: baseline; gap: 8px }
+.deuda-acciones { display: flex; flex-wrap: wrap; gap: 8px }
+.deuda-acciones button { flex: 1 1 120px; min-height: 40px }
+.deuda-total { color: var(--warn-txt); font-weight: 700 }

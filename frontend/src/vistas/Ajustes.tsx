@@ -49,6 +49,18 @@ export function Ajustes({ avisar, onCambio }: Props) {
     }
   }
 
+  const eliminarProducto = async (p: Producto) => {
+    try {
+      const r = await api.eliminarProducto(p.id)
+      setPanel(null)
+      avisar(r.borrado ? '✓ Sabor eliminado' : '✓ Sabor oculto (tiene ventas, el historial se queda)')
+      await cargar()
+      await onCambio()
+    } catch (e) {
+      avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo eliminar'))
+    }
+  }
+
   const guardarParam = async (clave: string, valor: string) => {
     try {
       await api.guardarConfig(clave, valor)
@@ -108,14 +120,19 @@ export function Ajustes({ avisar, onCambio }: Props) {
       </div>
 
       <Sheet abierto={!!panel} onCerrar={() => setPanel(null)}>
-        {panel?.tipo === 'producto' && <FormProducto producto={panel.producto} onGuardar={guardarProducto} />}
+        {panel?.tipo === 'producto' && <FormProducto producto={panel.producto} onGuardar={guardarProducto} onEliminar={eliminarProducto} />}
         {panel?.tipo === 'param' && <FormParam param={panel.param} onGuardar={guardarParam} />}
       </Sheet>
     </section>
   )
 }
 
-function FormProducto({ producto, onGuardar }: { producto: Producto | null; onGuardar: (id: number | null, d: DatosProducto) => void }) {
+function FormProducto({ producto, onGuardar, onEliminar }: {
+  producto: Producto | null
+  onGuardar: (id: number | null, d: DatosProducto) => void
+  onEliminar: (p: Producto) => void
+}) {
+  const [confirmando, setConfirmando] = useState(false)
   const [sabor, setSabor] = useState(producto?.sabor ?? '')
   const [tipo, setTipo] = useState<Tipo>(producto?.tipo ?? 'NORMAL')
   const [precio, setPrecio] = useState(String(producto?.precio ?? PRECIO_POR_TIPO.NORMAL))
@@ -171,6 +188,12 @@ function FormProducto({ producto, onGuardar }: { producto: Producto | null; onGu
         <input type="checkbox" checked={activo} onChange={e => setActivo(e.target.checked)} />
       </label>
       <button className="big primario" type="submit" disabled={!valido}>Guardar</button>
+      {producto && producto.stock <= 0 && (confirmando ? (
+        <button className="big peligro" type="button" onClick={() => onEliminar(producto)}>Sí, quitar {producto.nombre}</button>
+      ) : (
+        <button className="big ghost" type="button" onClick={() => setConfirmando(true)}>Eliminar sabor</button>
+      ))}
+      {producto && producto.stock > 0 && <p className="mut">Para eliminarlo primero deja el stock en 0 desde Inventario.</p>}
     </form>
   )
 }

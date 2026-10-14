@@ -1,6 +1,6 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
-  CategoriaGasto, DatosProducto, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  CategoriaGasto, DatosProducto, Fiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
@@ -122,7 +122,7 @@ type OpcionesFaceId<T> = { solicitud: string; opciones: { publicKey: T } }
 type RespuestaFaceId = { solicitud: string; credencial: string; nombre?: string }
 export interface PasskeyInfo { id: number; nombre: string; creadaEn: string; usadaEn: string | null }
 
-type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string; total?: number }
+type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string; total?: number; cliente?: string; telefono?: string }
 type EntradaApi = { clientUid: string; productoId: number; cantidad: number }
 /** Un movimiento de inventario: `cantidad` para ENTRADA/MERMA, `real` para CONTEO. */
 type MovimientoApi = {
@@ -150,6 +150,10 @@ export const api = {
   arqueo: (a: ArqueoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/arqueo', a),
   cierreHoy: () => pedir<ArqueoHoy | null>('GET', '/api/arqueo'),
   negocio: () => pedir<Negocio>('GET', '/api/negocio'),
+  fiados: () => pedir<Fiado[]>('GET', '/api/fiados'),
+  cobrarFiado: (id: number, lugar: 'CAJA' | 'NEQUI', clientUid: string) =>
+    pedir<Fiado>('POST', '/api/fiados/' + id + '/cobrar', { lugar, clientUid }),
+  telefonoFiado: (id: number, telefono: string) => pedir<Fiado>('PUT', '/api/fiados/' + id + '/telefono', { telefono }),
   plata: () => pedir<SaldoPlata>('GET', '/api/plata'),
   contarPlata: (c: { clientUid: string; caja: number; casa: number; nequi: number }) =>
     pedir<{ estado: string }>('POST', '/api/plata/conteo', c),
@@ -205,6 +209,8 @@ export const api = {
   },
   crearProducto: (d: DatosProducto) => pedir<Producto>('POST', '/api/productos', d),
   editarProducto: (id: number, d: DatosProducto) => pedir<Producto>('PUT', '/api/productos/' + id, d),
+  /** Borra el sabor; si ya tiene ventas o pedidos solo lo oculta (borrado=false). */
+  eliminarProducto: (id: number) => pedir<{ borrado: boolean }>('DELETE', '/api/productos/' + id),
   config: () => pedir<Param[]>('GET', '/api/config'),
   guardarConfig: (clave: string, valor: string) => pedir<Param>('PUT', '/api/config/' + clave, { valor }),
   passkeyEntradaOpciones: () => pedir<OpcionesFaceId<PublicKeyCredentialRequestOptionsJSON>>('POST', '/api/passkey/login/opciones'),

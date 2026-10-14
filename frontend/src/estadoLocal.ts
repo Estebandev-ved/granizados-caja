@@ -100,7 +100,7 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
   e.hoy.costo += p.costo * op.cantidad
   e.hoy.unidades += op.cantidad
   if (op.metodo === 'EFECTIVO') e.hoy.efectivo += total
-  else e.hoy.nequi += total
+  else if (op.metodo === 'NEQUI') e.hoy.nequi += total // el fiado no es plata hasta que se cobra
 
   const fila = e.hoy.porSabor.find(s => s.sabor === p.nombre)
   if (fila) fila.unidades += op.cantidad

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aplicaPromo, PROMO_INICIAL, promoVigente, totalConPromo, type Promo } from './promo'
+import { aplicaPromo, PROMO_INICIAL, promoVigente, repartirTotal, totalConPromo, totalMezclado, type Promo } from './promo'
 import type { Producto } from './tipos'
 
 const prod = (tipo: Producto['tipo'], precio: number): Producto =>
@@ -37,5 +37,32 @@ describe('promo 2 x $10.000', () => {
     expect(promoVigente(dosPorDiez, '2026-10-09')).toBe(false)
     expect(promoVigente({ ...dosPorDiez, soloHoy: false }, '2026-10-09')).toBe(true)
     expect(promoVigente({ ...dosPorDiez, activa: false }, '2026-10-08')).toBe(false)
+  })
+})
+
+describe('promo con sabores distintos', () => {
+  const a = { ...prod('NORMAL', 6000), id: 1 }
+  const b = { ...prod('NORMAL', 6000), id: 2, sabor: 'Mojito', nombre: 'Mojito' }
+
+  it('dos sabores distintos cuentan como un combo', () => {
+    expect(totalMezclado(dosPorDiez, [{ p: a, cantidad: 1 }, { p: b, cantidad: 1 }])).toBe(10000)
+  })
+
+  it('tres unidades mezcladas: un combo y una suelta', () => {
+    expect(totalMezclado(dosPorDiez, [{ p: a, cantidad: 2 }, { p: b, cantidad: 1 }])).toBe(16000)
+  })
+
+  it('un solo sabor sigue igual y lo que no aplica va a precio normal', () => {
+    expect(totalMezclado(dosPorDiez, [{ p: a, cantidad: 2 }])).toBe(totalConPromo(dosPorDiez, a, 2))
+    const cremoso = { ...prod('CREMOSO', 7000), id: 3 }
+    expect(totalMezclado(dosPorDiez, [{ p: a, cantidad: 1 }, { p: cremoso, cantidad: 1 }])).toBe(13000)
+  })
+
+  it('reparte el total entre las líneas sin pasarse del precio normal', () => {
+    const lineas = [{ p: a, cantidad: 1 }, { p: b, cantidad: 1 }]
+    const partes = repartirTotal(lineas, 10000)
+    expect(partes.reduce((x, n) => x + n, 0)).toBe(10000)
+    partes.forEach(n => expect(n).toBeLessThanOrEqual(6000))
+    expect(repartirTotal(lineas, 12000)).toEqual([6000, 6000])
   })
 })

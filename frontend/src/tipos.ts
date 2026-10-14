@@ -1,7 +1,7 @@
 // Tipos que devuelve la API del backend (Spring Boot).
 
 export type Tipo = 'NORMAL' | 'CREMOSO' | 'GRANDE'
-export type Metodo = 'NEQUI' | 'EFECTIVO'
+export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO'
 export type TipoMovimiento = 'ENTRADA' | 'CONTEO' | 'MERMA'
 export type MotivoMerma = 'DANADO' | 'REGALADO' | 'VENCIDO'
 export type EstadoPedido = 'ENVIADO' | 'RECIBIDO' | 'CANCELADO'
@@ -254,7 +254,7 @@ export interface Gasto {
 
 /** Lo que el celular guarda en la cola mientras no ha subido. */
 export type Operacion =
-  | { tipo: 'venta'; clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: number; /** Lo cobrado si hubo promo; si falta, precio × cantidad. */ total?: number }
+  | { tipo: 'venta'; clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: number; /** Lo cobrado si hubo promo; si falta, precio × cantidad. */ total?: number; /** Solo FIADO: quién debe y su celular. */ cliente?: string; telefono?: string }
   | { tipo: 'entrada'; clientUid: string; productoId: number; cantidad: number; creadaEn: number }
   | { tipo: 'ajuste'; clientUid: string; productoId: number; real: number; creadaEn: number }
   | { tipo: 'merma'; clientUid: string; productoId: number; cantidad: number; motivo: MotivoMerma; creadaEn: number }
@@ -269,6 +269,16 @@ export interface RespuestaVenta {
 }
 
 /** `GET /api/negocio`: desde qué día vende y cuántos días lleva en operación (0 si aún no hay ventas). */
+/** Un fiado pendiente: lo que alguien te debe. */
+export interface Fiado {
+  id: number
+  cliente: string
+  telefono: string | null
+  monto: number
+  detalle: string
+  creadaEn: string
+}
+
 export interface Negocio {
   inicio: string | null
   dias: number

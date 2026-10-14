@@ -221,7 +221,7 @@ public class PlataService {
 
         for (Venta v : ventas.entre(desde, hasta)) {
             if (v.getMetodo() == MetodoPago.EFECTIVO) caja += v.getTotal();
-            else nequi += v.getTotal();
+            else if (v.getMetodo() == MetodoPago.NEQUI) nequi += v.getTotal(); // el fiado entra al cobrarlo (ingreso)
         }
         caja -= Optional.ofNullable(gastos.montoEntre(desde, hasta)).orElse(0L);
         for (Ingreso i : ingresos.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
@@ -274,6 +274,7 @@ public class PlataService {
         }
         Map<String, Acum> porDiaYMetodo = new LinkedHashMap<>();
         for (Venta v : ventas.entre(desde, hasta)) {
+            if (v.getMetodo() == MetodoPago.FIADO) continue; // no movió plata: entra al cobrarlo
             String clave = DIA.format(v.getCreadaEn().atZone(zona)) + "|" + v.getMetodo();
             porDiaYMetodo.merge(clave, new Acum(v.getCreadaEn(), v.getTotal(), v.getCantidad()),
                     (a, b) -> new Acum(a.ultima().isAfter(b.ultima()) ? a.ultima() : b.ultima(),

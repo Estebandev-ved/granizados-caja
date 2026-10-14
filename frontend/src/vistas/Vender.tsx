@@ -4,15 +4,15 @@ import { CargaDelDia } from '../componentes/CargaDelDia'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { pesos, vibrar } from '../formato'
-import { aplicaPromo, leerPromo, nombrePromo, promoVigente, totalConPromo, type Promo } from '../promo'
+import { aplicaPromo, leerPromo, nombrePromo, promoVigente, repartirTotal, totalMezclado, type Promo } from '../promo'
 import type { Metodo, PorSabor, Producto, Tipo } from '../tipos'
 
 interface Props {
   productos: Producto[]
   /** Lo vendido hoy por sabor: sirve para saber cuánto te queda de lo que llevas. */
   porSabor: PorSabor[]
-  /** `total` solo viene cuando hubo promo (lo realmente cobrado). */
-  onVender: (p: Producto, metodo: Metodo, cantidad: number, total?: number) => void
+  /** Una línea por sabor. `total` solo viene cuando hubo promo (lo realmente cobrado en esa línea). */
+  onVender: (lineas: { p: Producto; cantidad: number; total?: number }[], metodo: Metodo, fiado?: { cliente: string; telefono: string }) => void
 }
 
 type Filtro = 'todos' | Tipo
@@ -97,9 +97,12 @@ export function Vender({ productos, porSabor, onVender }: Props) {
       <Sheet abierto={!!elegido} onCerrar={() => setElegido(null)}>
         {elegido && (
           <PanelVenta p={elegido} queda={queda(elegido)} promo={promo && aplicaPromo(promo, elegido) ? promo : null}
-            onPagar={(metodo, cantidad, total) => {
+            otros={promo && aplicaPromo(promo, elegido)
+              ? orden.filter(o => o.id !== elegido.id && aplicaPromo(promo, o) && !agotado(o))
+              : []}
+            onPagar={(metodo, lineas, fiado) => {
               setElegido(null)
-              onVender(elegido, metodo, cantidad, total)
+              onVender(lineas, metodo, fiado)
             }} />
         )}
       </Sheet>
@@ -107,34 +110,48 @@ export function Vender({ productos, porSabor, onVender }: Props) {
   )
 }
 
-function PanelVenta({ p, promo, queda, onPagar }: {
+function PanelVenta({ p, promo, otros, queda, onPagar }: {
   p: Producto
   promo: Promo | null
+  /** Otros sabores que entran en la promo: el cliente puede mezclar. */
+  otros: Producto[]
   /** Lo que te queda de la carga de hoy (undefined = no hay carga, null = ese sabor no lo llevas). */
   queda?: number | null
-  onPagar: (m: Metodo, cantidad: number, total?: number) => void
+  onPagar: (m: Metodo, lineas: { p: Producto; cantidad: number; total?: number }[], fiado?: { cliente: string; telefono: string }) => void
 }) {
+  const [fiando, setFiando] = useState(false)
+  const [cliente, setCliente] = useState('')
+  const [telefono, setTelefono] = useState('')
   const [cantidad, setCantidad] = useState(1)
+  const [extra, setExtra] = useState<Record<number, number>>({})
+  const [mezclando, setMezclando] = useState(false)
   const [billete, setBillete] = useState<number | null>(null)
   const pagado = useRef(false) // un doble toque en Nequi no puede registrar dos ventas
 
-  const pagar = (m: Metodo) => {
+  const pagar = (m: Metodo, fiado?: { cliente: string; telefono: string }) => {
     if (pagado.current) return
     pagado.current = true
     vibrar()
-    onPagar(m, cantidad, promo && total < p.precio * cantidad ? total : undefined)
+    // Si mezcló sabores, el total del combo se reparte entre las líneas (la API guarda una venta por sabor)
+    const partes = repartirTotal(lineas, total)
+    onPagar(m, lineas.map((l, i) => ({
+      p: l.p, cantidad: l.cantidad, total: promo && partes[i] < l.p.precio * l.cantidad ? partes[i] : undefined,
+    })), fiado)
   }
 
   // Con carga armada manda lo que llevas en la mano; si no, el inventario de la casa
   const conCarga = queda !== undefined
   const disponible = conCarga ? (queda ?? 0) : p.stock
-  const total = promo ? totalConPromo(promo, p, cantidad) : p.precio * cantidad
+  const lineas = [{ p, cantidad }, ...otros.filter(o => extra[o.id]).map(o => ({ p: o, cantidad: extra[o.id] }))]
+  const unidades = lineas.reduce((a, l) => a + l.cantidad, 0)
+  const normal = lineas.reduce((a, l) => a + l.p.precio * l.cantidad, 0)
+  const total = promo ? totalMezclado(promo, lineas) : normal
 
   return (
     <>
       <h2>{p.nombre}</h2>
       <p className={disponible - cantidad < 0 ? 'aviso' : ''}>
-        {pesos(total)}{promo && total < p.precio * cantidad ? ' (promo ' + nombrePromo(promo, pesos) + ')' : ''} · {
+        {unidades > cantidad ? unidades + ' unidades · ' : ''}{pesos(total)}{promo && total < normal ? ' (promo ' + nombrePromo(promo, pesos) + ')' : ''} · {
           disponible <= 0
             ? (conCarga ? 'según tu carga no te quedan' : 'según el inventario no quedan')
             : (conCarga ? 'te quedan ' : 'quedan ') + disponible}
@@ -144,6 +161,30 @@ function PanelVenta({ p, promo, queda, onPagar }: {
         <span>{cantidad}</span>
         <button aria-label="Más" onClick={() => setCantidad(c => Math.min(99, c + 1))}>+</button>
       </div>
+
+      {otros.length > 0 && (
+        <div className="vueltas">
+          <button type="button" className="link" onClick={() => setMezclando(m => !m)}>
+            {mezclando ? 'Ocultar otros sabores' : `¿Otro sabor en la promo ${promo ? nombrePromo(promo, pesos) : ''}?`}
+          </button>
+          {(mezclando || unidades > cantidad) && (
+            <div className="list">
+              {otros.map(o => (
+                <div className="row" key={o.id}>
+                  <span>{o.nombre}</span>
+                  <span className="mini">
+                    <button aria-label={'Menos ' + o.nombre}
+                      onClick={() => setExtra(e => ({ ...e, [o.id]: Math.max(0, (e[o.id] ?? 0) - 1) }))}>−</button>
+                    <b>{extra[o.id] ?? 0}</b>
+                    <button aria-label={'Más ' + o.nombre}
+                      onClick={() => setExtra(e => ({ ...e, [o.id]: Math.min(99, (e[o.id] ?? 0) + 1) }))}>+</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="vueltas">
         <button type="button" className="link" onClick={() => setBillete(b => (b === null ? 10000 : null))}>
@@ -166,10 +207,31 @@ function PanelVenta({ p, promo, queda, onPagar }: {
         )}
       </div>
 
-      <div className="pay">
-        <button className="big nequi" onClick={() => pagar('NEQUI')}>Nequi</button>
-        <button className="big cash" onClick={() => pagar('EFECTIVO')}>Efectivo</button>
-      </div>
+      {fiando ? (
+        <form className="fiado-form" onSubmit={e => {
+          e.preventDefault()
+          if (cliente.trim()) pagar('FIADO', { cliente: cliente.trim(), telefono: telefono.replace(/\D/g, '') })
+        }}>
+          <div className="campo">
+            <label htmlFor="fiado-nombre">¿Quién se lo lleva fiado?</label>
+            <input id="fiado-nombre" autoFocus maxLength={60} value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nombre" />
+          </div>
+          <div className="campo">
+            <label htmlFor="fiado-cel">Su celular (para recordarle por WhatsApp)</label>
+            <input id="fiado-cel" inputMode="tel" maxLength={20} value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Opcional" />
+          </div>
+          <button className="big primario" type="submit" disabled={!cliente.trim()}>Fiar {pesos(total)}</button>
+          <button className="big ghost" type="button" onClick={() => setFiando(false)}>Cancelar</button>
+        </form>
+      ) : (
+        <>
+          <div className="pay">
+            <button className="big nequi" onClick={() => pagar('NEQUI')}>Nequi</button>
+            <button className="big cash" onClick={() => pagar('EFECTIVO')}>Efectivo</button>
+          </div>
+          <button type="button" className="link fiado-boton" onClick={() => setFiando(true)}>Fiado (paga después)</button>
+        </>
+      )}
     </>
   )
 }

@@ -32,8 +32,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Pedido al proveedor.
- *   Sugerido: promedio = vendidas en los últimos DIAS_HISTORIAL / días reales con historial (mínimo 1)
- *             objetivo = max(ceil(promedio × DIAS_COBERTURA), stock mínimo)
+ *   Sugerido: solo se pide lo que se está vendiendo. Un sabor sin ventas en el historial no se pide, ni
+ *             siquiera para llegar al stock mínimo.
+ *             ritmo    = promedio de la ventana (DIAS_HISTORIAL) y de los últimos DIAS_RECIENTES, este con doble peso
+ *                        (lo que se vendió esta semana manda sobre lo de hace dos)
+ *             objetivo = max(ceil(ritmo × DIAS_COBERTURA), stock mínimo)
  *             pedir    = max(0, objetivo − stock)
  *   Enviado:  queda registrado con su estado para saber si ya llegó.
  */
@@ -105,6 +108,9 @@ public class PedidoService {
     /** Tope de días de inventario que se puede pedir desde la pantalla. */
     static final int MAX_DIAS_COBERTURA = 30;
 
+    /** Días que cuentan como "esta semana" y pesan doble en el ritmo de venta. */
+    static final int DIAS_RECIENTES = 7;
+
     private static final long DIA_MS = Duration.ofDays(1).toMillis();
 
     private final ProductoRepository productos;
@@ -161,10 +167,20 @@ public class PedidoService {
         long diasMs = ahora.toEpochMilli() - primera.toEpochMilli();
         long dias = Math.max(1, Math.min(diasHistorial, (diasMs + DIA_MS - 1) / DIA_MS));
 
+        // Lo vendido esta semana, con los días reales que lleva (máx. DIAS_RECIENTES)
+        Instant desdeReciente = ahora.minus(Duration.ofDays(DIAS_RECIENTES));
+        Map<Long, Long> recientes = ventas.unidadesPorProductoDesde(desdeReciente).stream()
+                .collect(Collectors.toMap(VentaRepository.UnidadesPorProducto::getProductoId,
+                        VentaRepository.UnidadesPorProducto::getUnidades));
+        long diasRecientes = Math.max(1, Math.min(dias, DIAS_RECIENTES));
+
         List<Item> ideales = new ArrayList<>();
+        List<Item> todos = new ArrayList<>();
         Map<Long, Producto> porId = new LinkedHashMap<>();
         for (Producto p : productos.findByActivoTrueOrderByOrdenAscIdAsc()) {
-            Item i = item(p, vendidas.getOrDefault(p.getId(), 0L), dias, diasCobertura);
+            Item i = item(p, vendidas.getOrDefault(p.getId(), 0L), dias,
+                    recientes.getOrDefault(p.getId(), 0L), diasRecientes, diasCobertura);
+            todos.add(i);
             if (i.ideal() > 0) {
                 ideales.add(i);
                 porId.put(p.getId(), p);
@@ -178,9 +194,10 @@ public class PedidoService {
             items = repartir(ideales, porId, disponible);
         }
         boolean recortado = items.stream().anyMatch(i -> i.pedir() < i.ideal());
-        // Con plata definida se dejan también los que quedaron en 0, para poder subirlos a mano
-        List<Item> mostrar = new ArrayList<>(presupuesto == null
-                ? items.stream().filter(i -> i.pedir() > 0).toList() : items);
+        // Salen todos los sabores activos (también los que hoy no hace falta pedir) para poder subirlos a mano
+        Map<Long, Item> sugeridos = items.stream().collect(Collectors.toMap(Item::productoId, i -> i));
+        List<Item> mostrar = new ArrayList<>();
+        for (Item i : todos) mostrar.add(sugeridos.getOrDefault(i.productoId(), i));
         mostrar.sort(Comparator.comparingInt(Item::pedir).reversed());
 
         List<Item> pedidos = mostrar.stream().filter(i -> i.pedir() > 0).toList();
@@ -286,12 +303,18 @@ public class PedidoService {
         return "$" + java.text.NumberFormat.getIntegerInstance(java.util.Locale.of("es", "CO")).format(n);
     }
 
-    /** Cuentas con enteros: ceil(vendidas × cobertura / días), sin errores de redondeo de double. */
-    private static Item item(Producto p, long vendidas, long dias, int cobertura) {
-        long porVentas = (vendidas * cobertura + dias - 1) / dias;
+    /**
+     * Cuentas con enteros, sin errores de redondeo de double.
+     * ritmo/día = (2 × recientes/diasRec + vendidas/dias) / 3; se pide ceil(ritmo × cobertura) menos el stock.
+     * Si no se vendió nada en la ventana no se pide: el stock mínimo solo aplica a lo que sí se vende.
+     */
+    private static Item item(Producto p, long vendidas, long dias, long recientes, long diasRec, int cobertura) {
+        if (vendidas <= 0) return new Item(p.getId(), p.nombre(), 0, 0, p.getCosto(), 0);
+        long porVentas = (cobertura * (2 * recientes * dias + vendidas * diasRec) + 3 * diasRec * dias - 1)
+                / (3 * diasRec * dias);
         long objetivo = Math.max(porVentas, p.getStockMinimo());
         int pedir = (int) Math.max(0, objetivo - p.getStock());
-        double promedio = Math.round(vendidas * 10.0 / dias) / 10.0;
+        double promedio = Math.round((2.0 * recientes / diasRec + (double) vendidas / dias) / 3 * 10) / 10.0;
         return new Item(p.getId(), p.nombre(), pedir, promedio, p.getCosto(), pedir);
     }
 

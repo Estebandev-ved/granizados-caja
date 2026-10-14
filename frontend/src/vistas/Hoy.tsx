@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { api, type ArqueoHoy } from '../api'
 import { Icono } from '../componentes/Icono'
 import { ResumenCarga } from '../componentes/ResumenCarga'
+import { MeDeben } from '../componentes/MeDeben'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { hitoDeRacha } from '../ritmo'
 import { ConsejoNova } from '../componentes/ConsejoNova'
@@ -173,6 +174,8 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
         </div>
       )}
 
+      <MeDeben avisar={avisar} versionVentas={estado.ultimas.length} />
+
       {estado.ultimas.length ? (
         <div className="list">
           <h3><Icono nombre="reloj" /> Ventas de hoy</h3>
@@ -184,7 +187,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
                 <Icono nombre={u.metodo === 'EFECTIVO' ? 'billete' : 'celular'} />
               </span>
               <div className="pago-info">
-                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : 'Nequi'}</b>
+                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : 'Nequi'}</b>
                 <span className="mut">{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}</span>
               </div>
               <b>{pesos(u.total)}</b>
@@ -343,30 +346,11 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
   onEnviar: () => void
 }) {
   if (error) return <><Personaje nombre="error" /><h2>Sin conexión</h2><p>El pedido se calcula en el servidor. Intenta cuando tengas señal.</p></>
-  if (!sugerido) return <><h2>Pedido sugerido</h2><p>Calculando con tus ventas…</p></>
-  if (!sugerido.items.length) {
-    return (
-      <>
-        <h2>Pedido sugerido</h2>
-        <p>Con {sugerido.dias} días de venta tienes stock suficiente. No hace falta pedir 🙌</p>
-        {rec && (
-        <div className="nova-tip">
-          <Personaje nombre="nova" libre />
-          <p>{rec.motivo}</p>
-        </div>
-      )}
-        <p className="mut">¿Quieres inventario para más días?</p>
-        <div className="chips">
-          {DIAS.filter(d => d > sugerido.dias).map(d => (
-            <button type="button" key={d} onClick={() => onDias(d)}>{d} días</button>
-          ))}
-        </div>
-      </>
-    )
-  }
-
-  const total = sugerido.items.reduce((a, i) => a + (cantidades[i.productoId] ?? 0), 0)
-  const costo = sugerido.items.reduce((a, i) => a + (cantidades[i.productoId] ?? 0) * i.costo, 0)
+  const cargando = !sugerido
+  const items = sugerido?.items ?? []
+  const total = items.reduce((a, i) => a + (cantidades[i.productoId] ?? 0), 0)
+  const costo = items.reduce((a, i) => a + (cantidades[i.productoId] ?? 0) * i.costo, 0)
+  // El campo de plata y los días siempre se ven (aunque se esté recalculando) para poder cambiarlos
   return (
     <>
       <h2>Armar pedido</h2>
@@ -375,14 +359,14 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
         <label htmlFor="pedido-plata">¿Cuánta plata tienes para el pedido?</label>
         <input id="pedido-plata" inputMode="numeric" placeholder="Ej: 150000" value={presupuesto}
           onChange={e => onPresupuesto(e.target.value.replace(/\D/g, ''))} />
-        <button type="submit" className="big ghost" disabled={!Number(presupuesto)}>Ajustar a mi plata</button>
+        <button type="submit" className="big ghost" disabled={!Number(presupuesto) || cargando}>Ajustar a mi plata</button>
       </form>
       <p className="mut">¿Para cuántos días quieres inventario?</p>
       <div className="chips">
         {DIAS.map(d => {
           const op = rec?.opciones.find(o => o.dias === d)
           return (
-            <button type="button" key={d} className={sugerido.dias === d ? 'on' : ''} onClick={() => onDias(d)}>
+            <button type="button" key={d} className={sugerido?.dias === d ? 'on' : ''} onClick={() => onDias(d)}>
               {rec?.recomendado === d ? '⭐ ' : ''}{d} días{op ? ' · ' + pesos(op.costo) : ''}
             </button>
           )
@@ -394,16 +378,20 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
           <p>{rec.motivo}</p>
         </div>
       )}
-      {sugerido.disponible !== null && (
+      {cargando && <p className="mut">Calculando con tus ventas…</p>}
+      {sugerido && sugerido.total === 0 && sugerido.disponible === null && (
+        <p className="mut">Con {sugerido.dias} días de venta tienes stock suficiente 🙌 Si quieres pedir igual, sube los sabores que quieras.</p>
+      )}
+      {sugerido && sugerido.disponible !== null && (
         <p className={sugerido.recortado ? 'aviso' : 'mut'}>
           Gasto hasta {pesos(sugerido.disponible)} y dejo {pesos((sugerido.presupuesto ?? 0) - sugerido.disponible)} de reserva.
           {sugerido.recortado ? ' No alcanza para todo, repartí por lo que más se vende.' : ' Te alcanza para todo lo sugerido 🙌'}
         </p>
       )}
       <div className="list pedido-lista">
-        {sugerido.items.map(i => (
+        {items.map(i => (
           <div className="row" key={i.productoId}>
-            <span>{i.sabor}<br /><small className="mut">{i.promedioDia}/día · sugiere {i.pedir}{i.ideal !== i.pedir ? ` (ideal ${i.ideal})` : ''}</small></span>
+            <span>{i.sabor}<br /><small className="mut">{i.promedioDia}/día · {i.pedir > 0 ? `sugiere ${i.pedir}` : 'no hace falta'}{i.ideal !== i.pedir ? ` (ideal ${i.ideal})` : ''}</small></span>
             <span className="mini">
               <button aria-label={'Menos ' + i.sabor} onClick={() => onCantidad(i.productoId, Math.max(0, (cantidades[i.productoId] ?? 0) - 1))}>−</button>
               <b className={(cantidades[i.productoId] ?? 0) !== i.pedir ? 'aviso' : ''}>{cantidades[i.productoId] ?? 0}</b>
@@ -417,7 +405,7 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
       <button className="big primario" disabled={!total || enviando} onClick={onEnviar}>
         {enviando ? 'Armando…' : `Enviar por WhatsApp · ${total} unidad${total === 1 ? '' : 'es'}`}
       </button>
-      {!sugerido.tieneProveedor && (
+      {sugerido && !sugerido.tieneProveedor && (
         <p className="aviso">Pon el WhatsApp del proveedor en Ajustes para tener el botón directo.</p>
       )}
     </>

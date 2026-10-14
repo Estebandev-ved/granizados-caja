@@ -30,29 +30,34 @@ class PedidoServiceTest extends PruebaIntegracion {
         }
     }
 
+    private static java.util.List<PedidoService.Item> conPedido(PedidoService.PedidoSugerido p) {
+        return p.items().stream().filter(i -> i.pedir() > 0).toList();
+    }
+
     @Test
     void sugiereSegunElPromedioDiario() {
         // 20 Smirnoff en 2 días = 10/día. Cobertura 4 días → objetivo 40. Hay 5 → pedir 35
         ventasHistoricas("Smirnoff", 20, reloj.instant().minus(Duration.ofDays(2)));
         ponerStock("Smirnoff", 5);
-        ponerStock("Tussi", 1); // debajo del mínimo 3 → pedir 2
+        ponerStock("Tussi", 1); // debajo del mínimo 3, pero no se vende: no se pide
 
         var p = pedidos.sugerido();
 
-        assertThat(p.items()).extracting(PedidoService.Item::sabor, PedidoService.Item::pedir)
-                .containsExactly(org.assertj.core.groups.Tuple.tuple("Smirnoff", 35), org.assertj.core.groups.Tuple.tuple("Tussi", 2));
+        assertThat(conPedido(p)).extracting(PedidoService.Item::sabor, PedidoService.Item::pedir)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("Smirnoff", 35));
         assertThat(p.items().getFirst().promedioDia()).isEqualTo(10.0);
-        assertThat(p.total()).isEqualTo(37);
+        assertThat(p.total()).isEqualTo(35);
         assertThat(p.tieneProveedor()).isTrue();
         assertThat(p.link()).startsWith("https://wa.me/573001234567?text=");
         String texto = URLDecoder.decode(p.link().substring(p.link().indexOf("text=") + 5), StandardCharsets.UTF_8);
-        assertThat(texto).contains("• 35 Smirnoff").contains("Total: 37 unidades").contains("— Esteban");
+        assertThat(texto).contains("• 35 Smirnoff").contains("Total: 35 unidades").contains("— Esteban");
     }
 
     @Test
     void conPocaPlataReparteLoQueAlcanzaYDejaReserva() {
         ventasHistoricas("Smirnoff", 20, reloj.instant().minus(Duration.ofDays(2)));
         ponerStock("Smirnoff", 5);
+        ventasHistoricas("Tussi", 1, reloj.instant().minus(Duration.ofDays(2)));
         ponerStock("Tussi", 1);
 
         jdbc.update("update producto set costo = 2200");
@@ -62,9 +67,9 @@ class PedidoServiceTest extends PruebaIntegracion {
         assertThat(p.disponible()).isEqualTo(40_000L);
         assertThat(p.recortado()).isTrue();
         assertThat(p.costoTotal()).isLessThanOrEqualTo(40_000L);
-        // Con poca plata gana lo que más se vende; el que casi no sale (Tussi) espera
-        assertThat(p.items()).extracting(PedidoService.Item::sabor, PedidoService.Item::pedir)
-                .containsExactly(org.assertj.core.groups.Tuple.tuple("Smirnoff", 18), org.assertj.core.groups.Tuple.tuple("Tussi", 0));
+        // Con poca plata gana lo que más se vende; el que casi no sale (Tussi) se lleva poco
+        assertThat(conPedido(p)).extracting(PedidoService.Item::sabor, PedidoService.Item::pedir)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("Smirnoff", 17), org.assertj.core.groups.Tuple.tuple("Tussi", 1));
         assertThat(p.items().getFirst().ideal()).isEqualTo(35);
     }
 
@@ -74,6 +79,7 @@ class PedidoServiceTest extends PruebaIntegracion {
         // Smirnoff vende 2/día con 4 en mano; Chicle casi no vende y está agotado; Mojito casi no vende y tiene 2
         ventasHistoricas("Smirnoff", 4, reloj.instant().minus(Duration.ofDays(2)));
         ventasHistoricas("Chicle", 1, reloj.instant().minus(Duration.ofDays(2)));
+        ventasHistoricas("Mojito", 1, reloj.instant().minus(Duration.ofDays(2)));
         ponerStock("Smirnoff", 4);
         ponerStock("Chicle", 0);
         ponerStock("Mojito", 2);
@@ -101,6 +107,7 @@ class PedidoServiceTest extends PruebaIntegracion {
     @Test
     void sinPlataNoPideNadaPeroDejaLosSaboresParaSubirlosAMano() {
         jdbc.update("update producto set costo = 2200");
+        ventasHistoricas("Chicle", 2, reloj.instant().minus(Duration.ofDays(2)));
         ponerStock("Chicle", 0);
 
         var p = pedidos.sugerido(0L);
@@ -121,15 +128,49 @@ class PedidoServiceTest extends PruebaIntegracion {
     }
 
     @Test
+    void loQueNoSeVendeNoSePideAunqueEsteAgotadoOBajoElMinimo() {
+        ventasHistoricas("Smirnoff", 6, reloj.instant().minus(Duration.ofDays(2)));
+        ponerStock("Smirnoff", 0);
+        ponerStock("Chicle", 0);
+        ponerStock("Tussi", 1);
+
+        var p = pedidos.sugerido();
+
+        assertThat(conPedido(p)).extracting(PedidoService.Item::sabor).containsExactly("Smirnoff");
+        // Los demás sabores activos igual salen en la lista (en 0) para poder subirlos a mano
+        assertThat(p.items()).extracting(PedidoService.Item::sabor).contains("Smirnoff", "Chicle", "Tussi");
+        assertThat(p.items().stream().filter(i -> i.sabor().equals("Chicle")).findFirst().orElseThrow().pedir()).isZero();
+    }
+
+    @Test
+    void loDeEstaSemanaPesaMasQueLoDeHaceDosSemanas() {
+        jdbc.update("update config set valor = '4' where clave = 'DIAS_COBERTURA'");
+        // Antes vendía mucho, esta semana casi nada; Mojito al revés
+        ventasHistoricas("Smirnoff", 28, reloj.instant().minus(Duration.ofDays(13)));
+        ventasHistoricas("Smirnoff", 1, reloj.instant().minus(Duration.ofDays(1)));
+        ventasHistoricas("Mojito", 1, reloj.instant().minus(Duration.ofDays(13)));
+        ventasHistoricas("Mojito", 28, reloj.instant().minus(Duration.ofDays(1)));
+        ponerStock("Smirnoff", 0);
+        ponerStock("Mojito", 0);
+
+        var por = pedidos.sugerido().items().stream()
+                .collect(java.util.stream.Collectors.toMap(PedidoService.Item::sabor, PedidoService.Item::pedir));
+
+        assertThat(por.get("Mojito")).isGreaterThan(por.get("Smirnoff"));
+    }
+
+    @Test
     void sinNadaQuePedir() {
         var p = pedidos.sugerido();
-        assertThat(p.items()).isEmpty();
+        assertThat(conPedido(p)).isEmpty();
+        assertThat(p.total()).isZero();
         assertThat(reportes.pedidoSemanal().texto()).contains("no hace falta pedir");
     }
 
     @Test
     void sinProveedorConfiguradoNoHayLinkDirecto() {
         jdbc.update("update config set valor = '' where clave = 'PROVEEDOR_WHATSAPP'");
+        ventasHistoricas("Chicle", 2, reloj.instant().minus(Duration.ofDays(2)));
         ponerStock("Chicle", 0);
         assertThat(pedidos.sugerido().tieneProveedor()).isFalse();
         assertThat(reportes.pedidoSemanal().texto()).contains("Pon el WhatsApp del proveedor");

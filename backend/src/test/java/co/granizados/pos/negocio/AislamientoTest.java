@@ -11,6 +11,7 @@ import co.granizados.pos.PruebaIntegracion;
 import co.granizados.pos.ajustes.AjustesService;
 import co.granizados.pos.caja.ArqueoService;
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.plata.LugarPlata;
 import co.granizados.pos.plata.PlataService;
 import co.granizados.pos.producto.Producto;
 import co.granizados.pos.producto.ProductoRepository;
@@ -40,6 +41,9 @@ class AislamientoTest extends PruebaIntegracion {
 
     @Autowired
     VentaService ventas;
+
+    @Autowired
+    co.granizados.pos.fiado.FiadoService fiados;
 
     @Autowired
     AjustesService ajustes;
@@ -137,6 +141,17 @@ class AislamientoTest extends PruebaIntegracion {
 
         assertThat(resultado).isEqualTo(VentaService.Resultado.REGISTRADA);
         assertThat(contar("venta")).isEqualTo(2);
+    }
+
+    @Test
+    void losFiadosDeUnNegocioNoLosVeOtro() {
+        como(2, () -> ventas.registrar(new NuevaVenta("fiado-2", idCamisa(), MetodoPago.FIADO, 1, null, null, "Ana", null)));
+
+        assertThat(como(2, () -> fiados.pendientes())).hasSize(1);
+        assertThat(como(1, () -> fiados.pendientes())).isEmpty();
+        long id = como(2, () -> fiados.pendientes().getFirst().id());
+        assertThatThrownBy(() -> como(1, () -> fiados.cobrar(id, LugarPlata.CAJA, "x")))
+                .isInstanceOf(NoEncontradoException.class);
     }
 
     @Test

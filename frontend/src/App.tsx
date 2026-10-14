@@ -80,10 +80,11 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       {sync === 'sin-senal' ? 'La primera vez necesitas señal para cargar los sabores.' : 'Cargando…'}
     </div>
   } else if (vista === 'vender') {
-    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.porSabor} onVender={(p, metodo, cantidad, total) => {
-      const clientUid = caja.vender(p, metodo, cantidad, total)
-      avisar('✓ ' + (cantidad > 1 ? cantidad + ' ' : '') + p.nombre + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : 'Efectivo'),
-        { texto: 'Deshacer', alTocar: () => void caja.deshacer({ clientUid }) })
+    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.porSabor} onVender={(lineas, metodo, fiado) => {
+      const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado))
+      const detalle = lineas.map(l => (l.cantidad > 1 ? l.cantidad + ' ' : '') + l.p.nombre).join(' + ')
+      avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
+        { texto: 'Deshacer', alTocar: () => uids.forEach(clientUid => void caja.deshacer({ clientUid })) })
     }} />
   } else if (vista === 'inventario') {
     contenido = <Inventario productos={estado.productos} pedido={estado.pedido}
