@@ -15,17 +15,30 @@ function diasDesde(iso: string): number {
 /** Los que te deben, una tarjeta por persona con todo junto. Necesita señal; sin ella simplemente no sale. */
 export function MeDeben({ avisar, versionVentas }: { avisar: (m: string) => void; versionVentas: number }) {
   const [lista, setLista] = useState<ListaFiados | null>(null)
+  const [fallo, setFallo] = useState(false)
   const [accion, setAccion] = useState<Accion | null>(null)
   const [cel, setCel] = useState('')
   const [enviando, setEnviando] = useState(false)
 
   const cargar = useCallback(() => {
-    api.fiados().then(setLista).catch(() => { /* sin señal: no se muestra */ })
+    api.fiados().then(l => { setLista(l); setFallo(false) }).catch(() => setFallo(true))
   }, [])
   // Se vuelve a pedir cuando cambian las ventas de hoy (por si acabas de fiar algo)
   useEffect(() => { cargar() }, [cargar, versionVentas])
 
-  if (!lista || !lista.personas.length) return null
+  // La tarjeta siempre se ve: así se sabe dónde está aunque nadie deba o falle la señal
+  if (!lista || !lista.personas.length) {
+    return (
+      <div className="list">
+        <h3><Icono nombre="ticket" /> Me deben</h3>
+        <p className="mut" style={{ margin: 0 }}>
+          {fallo && !lista
+            ? 'No pude cargar los fiados. Revisa la señal y abre Hoy otra vez.'
+            : 'Nadie te debe nada. Cuando fíes algo en Vender (Fiado, abajo de Nequi y Efectivo), sale aquí.'}
+        </p>
+      </div>
+    )
+  }
 
   const ids = (p: PersonaFiado) => p.deudas.map(d => d.id)
   const cerrar = () => { setAccion(null); setCel(''); setEnviando(false) }
