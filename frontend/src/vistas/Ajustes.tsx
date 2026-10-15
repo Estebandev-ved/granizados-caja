@@ -13,7 +13,7 @@ const PRECIO_POR_TIPO: Record<Tipo, number> = { NORMAL: 6000, CREMOSO: 7000, GRA
 
 const ICONO_PARAM: Record<string, string> = {
   DIAS_COBERTURA: 'caja', DIAS_HISTORIAL: 'reloj', META_DIARIA: 'trofeo',
-  NOMBRE: 'cara', PROVEEDOR_WHATSAPP: 'celular',
+  NOMBRE: 'cara', PROVEEDOR_WHATSAPP: 'celular', PAGO_NEQUI: 'celular', PAGO_BREB: 'billete', PAGO_PRESENCIAL: 'cara',
 }
 
 interface Props {
@@ -344,7 +344,7 @@ function SeccionImportar({ avisar }: { avisar: (m: string) => void }) {
 
 function FormParam({ param, onGuardar }: { param: Param; onGuardar: (clave: string, valor: string) => void }) {
   const [valor, setValor] = useState(param.valor)
-  const numerico = param.clave !== 'NOMBRE'
+  const numerico = param.clave !== 'NOMBRE' && !param.clave.startsWith('PAGO_')
   return (
     <form onSubmit={e => { e.preventDefault(); onGuardar(param.clave, valor) }}>
       <h2>{param.clave.replace(/_/g, ' ').toLowerCase()}</h2>

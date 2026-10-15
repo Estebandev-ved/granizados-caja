@@ -269,14 +269,34 @@ export interface RespuestaVenta {
 }
 
 /** `GET /api/negocio`: desde qué día vende y cuántos días lleva en operación (0 si aún no hay ventas). */
-/** Un fiado pendiente: lo que alguien te debe. */
-export interface Fiado {
+/** Un fiado suelto dentro de lo que debe una persona. */
+export interface DeudaFiado {
   id: number
+  detalle: string
+  monto: number
+  creadaEn: string
+}
+
+/** Todo lo que te debe una persona (sus fiados juntos). `mensaje` ya viene armado por el servidor. */
+export interface PersonaFiado {
   cliente: string
   telefono: string | null
-  monto: number
-  detalle: string
-  creadaEn: string
+  total: number
+  deudas: DeudaFiado[]
+  mensaje: string
+  recordadoEn: string | null
+}
+
+export interface ListaFiados {
+  /** true si el bot de WhatsApp está configurado en el servidor. */
+  bot: boolean
+  total: number
+  personas: PersonaFiado[]
+}
+
+export interface ClienteConocido {
+  cliente: string
+  telefono: string | null
 }
 
 export interface Negocio {

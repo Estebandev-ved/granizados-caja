@@ -33,6 +33,9 @@ public class Deuda {
 
     private Instant pagadaEn;
 
+    /** Cuándo se le recordó por WhatsApp (el bot no repite el aviso el mismo día). */
+    private Instant recordadoEn;
+
     /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
     @TenantId
     @Column(name = "negocio_id", updatable = false)
@@ -58,8 +61,10 @@ public class Deuda {
     public String getDetalle() { return detalle; }
     public Instant getCreadaEn() { return creadaEn; }
     public Instant getPagadaEn() { return pagadaEn; }
+    public Instant getRecordadoEn() { return recordadoEn; }
     public boolean estaPagada() { return pagadaEn != null; }
 
     public void setTelefono(String telefono) { this.telefono = telefono; }
     public void setPagadaEn(Instant pagadaEn) { this.pagadaEn = pagadaEn; }
+    public void setRecordadoEn(Instant recordadoEn) { this.recordadoEn = recordadoEn; }
 }

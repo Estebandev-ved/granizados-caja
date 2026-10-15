@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /** Configuración propia de la app (sección {@code app:} del application.yml). */
 @ConfigurationProperties("app")
 public record AppProperties(String zona, String pin, String jwtSecret, int tokenDias, long negocioId,
-                            Antigravity antigravity, Telegram telegram, Tareas tareas, Webauthn webauthn) {
+                            Antigravity antigravity, Telegram telegram, Whatsapp whatsapp, Tareas tareas,
+                            Webauthn webauthn) {
 
     public ZoneId zoneId() {
         return ZoneId.of(zona);
@@ -26,6 +27,14 @@ public record AppProperties(String zona, String pin, String jwtSecret, int token
     public record Telegram(String token, String chatId) {
         public boolean configurado() {
             return token != null && !token.isBlank() && chatId != null && !chatId.isBlank();
+        }
+    }
+
+    /** WhatsApp Cloud API de Meta (bot de recordatorios). Vacío = apagado y la app solo abre WhatsApp con el texto listo. */
+    public record Whatsapp(String token, String phoneId, String plantilla, String idioma) {
+        public boolean configurado() {
+            return token != null && !token.isBlank() && phoneId != null && !phoneId.isBlank()
+                    && plantilla != null && !plantilla.isBlank();
         }
     }
 

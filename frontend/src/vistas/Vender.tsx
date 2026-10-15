@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { api } from '../api'
 import { armarCarga, guardarCarga, leerCarga, quedaDeCarga } from '../carga'
 import { CargaDelDia } from '../componentes/CargaDelDia'
 import { Sheet } from '../componentes/Sheet'
@@ -122,6 +123,16 @@ function PanelVenta({ p, promo, otros, queda, onPagar }: {
   const [fiando, setFiando] = useState(false)
   const [cliente, setCliente] = useState('')
   const [telefono, setTelefono] = useState('')
+  // Los que ya han fiado: al escribir su nombre se llena solo el celular (sin señal simplemente no hay sugerencias)
+  const [conocidos, setConocidos] = useState<{ cliente: string; telefono: string | null }[]>([])
+  useEffect(() => {
+    if (fiando) api.fiadosConocidos().then(setConocidos).catch(() => { /* sin señal */ })
+  }, [fiando])
+  const elegirNombre = (nombre: string) => {
+    setCliente(nombre)
+    const conocido = conocidos.find(c => c.cliente.trim().toLowerCase() === nombre.trim().toLowerCase())
+    if (conocido?.telefono && !telefono) setTelefono(conocido.telefono)
+  }
   const [cantidad, setCantidad] = useState(1)
   const [extra, setExtra] = useState<Record<number, number>>({})
   const [mezclando, setMezclando] = useState(false)
@@ -214,11 +225,15 @@ function PanelVenta({ p, promo, otros, queda, onPagar }: {
         }}>
           <div className="campo">
             <label htmlFor="fiado-nombre">¿Quién se lo lleva fiado?</label>
-            <input id="fiado-nombre" autoFocus maxLength={60} value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Nombre" />
+            <input id="fiado-nombre" autoFocus maxLength={60} value={cliente} list="fiado-conocidos" autoComplete="off"
+              onChange={e => elegirNombre(e.target.value)} placeholder="Nombre" />
+            <datalist id="fiado-conocidos">
+              {conocidos.map(c => <option key={c.cliente} value={c.cliente} />)}
+            </datalist>
           </div>
           <div className="campo">
             <label htmlFor="fiado-cel">Su celular (para recordarle por WhatsApp)</label>
-            <input id="fiado-cel" inputMode="tel" maxLength={20} value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Opcional" />
+            <input id="fiado-cel" inputMode="tel" maxLength={20} value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Si ya fió antes, sale solo" />
           </div>
           <button className="big primario" type="submit" disabled={!cliente.trim()}>Fiar {pesos(total)}</button>
           <button className="big ghost" type="button" onClick={() => setFiando(false)}>Cancelar</button>

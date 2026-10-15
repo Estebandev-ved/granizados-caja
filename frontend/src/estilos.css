@@ -439,3 +439,6 @@ h1, h2, h3, .hoy-mini, .card .v, .qty span, .login-titulo, .big { font-family: v
 .deuda-acciones { display: flex; flex-wrap: wrap; gap: 8px }
 .deuda-acciones button { flex: 1 1 120px; min-height: 40px }
 .deuda-total { color: var(--warn-txt); font-weight: 700 }
+.deuda-detalle { margin: 0; padding-left: 18px; font-size: 14px }
+.deuda-mensaje { white-space: pre-wrap; font: inherit; font-size: 14px; background: var(--card2); border: 1px solid var(--line); border-radius: var(--r-md, 12px); padding: 10px 12px; margin: 0 }
+.deuda-vista { display: grid; gap: 8px }

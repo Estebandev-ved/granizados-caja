@@ -147,9 +147,10 @@ class AislamientoTest extends PruebaIntegracion {
     void losFiadosDeUnNegocioNoLosVeOtro() {
         como(2, () -> ventas.registrar(new NuevaVenta("fiado-2", idCamisa(), MetodoPago.FIADO, 1, null, null, "Ana", null)));
 
-        assertThat(como(2, () -> fiados.pendientes())).hasSize(1);
-        assertThat(como(1, () -> fiados.pendientes())).isEmpty();
-        long id = como(2, () -> fiados.pendientes().getFirst().id());
+        assertThat(como(2, () -> fiados.pendientes().personas())).hasSize(1);
+        assertThat(como(1, () -> fiados.pendientes().personas())).isEmpty();
+        assertThat(como(1, () -> fiados.conocidos())).isEmpty();
+        long id = como(2, () -> fiados.pendientes().personas().getFirst().deudas().getFirst().id());
         assertThatThrownBy(() -> como(1, () -> fiados.cobrar(id, LugarPlata.CAJA, "x")))
                 .isInstanceOf(NoEncontradoException.class);
     }

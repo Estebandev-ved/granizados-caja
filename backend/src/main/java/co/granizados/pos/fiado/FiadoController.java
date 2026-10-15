@@ -3,6 +3,7 @@ package co.granizados.pos.fiado;
 import co.granizados.pos.plata.LugarPlata;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
@@ -18,7 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/fiados")
 public class FiadoController {
 
-    public record Cobro(@NotNull LugarPlata lugar, @NotBlank @Size(max = 64) String clientUid) {
+    /** `ids`: todas las deudas de esa persona que se están cobrando juntas. */
+    public record Cobro(@NotEmpty @Size(max = 200) List<Long> ids, @NotNull LugarPlata lugar,
+                        @NotBlank @Size(max = 64) String clientUid) {
+    }
+
+    public record Recordatorio(@NotEmpty @Size(max = 200) List<Long> ids) {
     }
 
     public record Telefono(@Size(max = 30) String telefono) {
@@ -31,17 +37,29 @@ public class FiadoController {
     }
 
     @GetMapping
-    public List<FiadoService.DeudaDto> pendientes() {
+    public FiadoService.Lista pendientes() {
         return servicio.pendientes();
     }
 
-    @PostMapping("/{id}/cobrar")
-    public FiadoService.DeudaDto cobrar(@PathVariable Long id, @Valid @RequestBody Cobro cobro) {
-        return servicio.cobrar(id, cobro.lugar(), cobro.clientUid());
+    /** Nombres que ya han fiado y su celular, para no pedirlo otra vez. */
+    @GetMapping("/conocidos")
+    public List<FiadoService.Conocido> conocidos() {
+        return servicio.conocidos();
+    }
+
+    @PostMapping("/cobrar")
+    public FiadoService.Persona cobrar(@Valid @RequestBody Cobro cobro) {
+        return servicio.cobrar(cobro.ids(), cobro.lugar(), cobro.clientUid());
+    }
+
+    /** Manda el recordatorio por el bot de WhatsApp. Solo cuando el dueño toca el botón. */
+    @PostMapping("/recordar")
+    public FiadoService.Persona recordar(@Valid @RequestBody Recordatorio r) {
+        return servicio.recordar(r.ids());
     }
 
     @PutMapping("/{id}/telefono")
-    public FiadoService.DeudaDto telefono(@PathVariable Long id, @Valid @RequestBody Telefono t) {
+    public FiadoService.Persona telefono(@PathVariable Long id, @Valid @RequestBody Telefono t) {
         return servicio.telefono(id, t.telefono());
     }
 }

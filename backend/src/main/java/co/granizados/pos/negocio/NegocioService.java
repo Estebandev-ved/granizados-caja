@@ -20,7 +20,10 @@ public class NegocioService {
             new Ajuste("DIAS_COBERTURA", "4", "Para cuántos días de venta quieres tener inventario después de pedir"),
             new Ajuste("DIAS_HISTORIAL", "14", "Cuántos días atrás mirar para calcular el promedio de ventas"),
             new Ajuste("NOMBRE", "", "Cómo firmas el pedido"),
-            new Ajuste("META_DIARIA", "0", "Lo que quieres vender al día en pesos. 0 la apaga"));
+            new Ajuste("META_DIARIA", "0", "Lo que quieres vender al día en pesos. 0 la apaga"),
+            new Ajuste("PAGO_NEQUI", "", "Tu número de Nequi para que te paguen lo fiado. Ej: 3001234567"),
+            new Ajuste("PAGO_BREB", "", "Tu llave Bre-B para que te paguen lo fiado"),
+            new Ajuste("PAGO_PRESENCIAL", "", "Dónde te pueden pagar en persona. Ej: en la U, bloque 4, en horas de almuerzo"));
 
     private final ConfigParamRepository config;
     /** Negocios que ya se sabe que están listos: evita ir a la base en cada petición. */

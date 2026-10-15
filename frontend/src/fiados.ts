@@ -1,5 +1,4 @@
-import { pesos } from './formato'
-import type { Fiado } from './tipos'
+import type { PersonaFiado } from './tipos'
 
 /** Número listo para wa.me: solo dígitos y con el 57 de Colombia si viene de 10 dígitos. */
 export function numeroWhatsApp(telefono: string): string {
@@ -7,13 +6,13 @@ export function numeroWhatsApp(telefono: string): string {
   return d.length === 10 ? '57' + d : d
 }
 
-/** El recordatorio que se manda por WhatsApp, amable y con lo que debe. */
-export function mensajeRecordatorio(f: Pick<Fiado, 'cliente' | 'monto' | 'detalle'>): string {
-  return `Hola ${f.cliente} 👋 te escribo para recordarte los ${pesos(f.monto)} de ${f.detalle} que quedaron pendientes. ` +
-    'Me los puedes pasar por Nequi o en efectivo cuando puedas. ¡Gracias!'
+/** Abre WhatsApp con el recordatorio ya escrito (el servidor lo arma: explica qué debe y cómo pagar). */
+export function enlaceRecordatorio(p: Pick<PersonaFiado, 'telefono' | 'mensaje'>): string | null {
+  if (!p.telefono) return null
+  return 'https://wa.me/' + numeroWhatsApp(p.telefono) + '?text=' + encodeURIComponent(p.mensaje)
 }
 
-export function enlaceRecordatorio(f: Fiado): string | null {
-  if (!f.telefono) return null
-  return 'https://wa.me/' + numeroWhatsApp(f.telefono) + '?text=' + encodeURIComponent(mensajeRecordatorio(f))
+/** ¿Ya se le recordó en las últimas 24 horas? (el servidor tampoco deja repetirlo) */
+export function recordadoHoy(p: Pick<PersonaFiado, 'recordadoEn'>, ahora = Date.now()): boolean {
+  return !!p.recordadoEn && ahora - new Date(p.recordadoEn).getTime() < 24 * 3_600_000
 }

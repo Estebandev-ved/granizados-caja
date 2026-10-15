@@ -37,6 +37,11 @@ app:
   telegram:
     token: ${TELEGRAM_TOKEN:}
     chat-id: ${TELEGRAM_CHAT_ID:}
+  whatsapp:
+    token: ${WHATSAPP_TOKEN:}
+    phone-id: ${WHATSAPP_PHONE_ID:}
+    plantilla: ${WHATSAPP_PLANTILLA:}
+    idioma: ${WHATSAPP_IDIOMA:es_CO}
   webauthn:
     # En Railway RAILWAY_PUBLIC_DOMAIN la pone Railway sola; en tu PC queda localhost
     rp-id: ${WEBAUTHN_RP_ID:${RAILWAY_PUBLIC_DOMAIN:localhost}}

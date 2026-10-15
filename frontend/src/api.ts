@@ -1,6 +1,6 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
-  CategoriaGasto, DatosProducto, Fiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  CategoriaGasto, ClienteConocido, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
@@ -150,10 +150,14 @@ export const api = {
   arqueo: (a: ArqueoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/arqueo', a),
   cierreHoy: () => pedir<ArqueoHoy | null>('GET', '/api/arqueo'),
   negocio: () => pedir<Negocio>('GET', '/api/negocio'),
-  fiados: () => pedir<Fiado[]>('GET', '/api/fiados'),
-  cobrarFiado: (id: number, lugar: 'CAJA' | 'NEQUI', clientUid: string) =>
-    pedir<Fiado>('POST', '/api/fiados/' + id + '/cobrar', { lugar, clientUid }),
-  telefonoFiado: (id: number, telefono: string) => pedir<Fiado>('PUT', '/api/fiados/' + id + '/telefono', { telefono }),
+  fiados: () => pedir<ListaFiados>('GET', '/api/fiados'),
+  /** Los que ya han fiado, con su celular: para no pedirlo otra vez. */
+  fiadosConocidos: () => pedir<ClienteConocido[]>('GET', '/api/fiados/conocidos'),
+  cobrarFiado: (ids: number[], lugar: 'CAJA' | 'NEQUI', clientUid: string) =>
+    pedir<PersonaFiado>('POST', '/api/fiados/cobrar', { ids, lugar, clientUid }),
+  telefonoFiado: (id: number, telefono: string) => pedir<PersonaFiado>('PUT', '/api/fiados/' + id + '/telefono', { telefono }),
+  /** Manda el recordatorio por el bot de WhatsApp (una vez al día por persona). */
+  recordarFiado: (ids: number[]) => pedir<PersonaFiado>('POST', '/api/fiados/recordar', { ids }),
   plata: () => pedir<SaldoPlata>('GET', '/api/plata'),
   contarPlata: (c: { clientUid: string; caja: number; casa: number; nequi: number }) =>
     pedir<{ estado: string }>('POST', '/api/plata/conteo', c),

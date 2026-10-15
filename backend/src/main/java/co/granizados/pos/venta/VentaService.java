@@ -106,9 +106,15 @@ public class VentaService {
         ventas.saveAndFlush(new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando, cobrado));
         if (v.metodo() == MetodoPago.FIADO) {
             if (v.cliente() == null || v.cliente().isBlank()) throw new IllegalArgumentException("Falta el nombre de quien debe");
+            String nombreCliente = v.cliente().trim();
             String tel = v.telefono() == null ? "" : v.telefono().replaceAll("\\D", "");
-            deudas.save(new Deuda(v.clientUid(), v.cliente().trim(), tel.isEmpty() ? null : tel, cobrado,
-                    (v.cantidad() > 1 ? v.cantidad() + " " : "") + nombre, cuando));
+            // Si no lo escribieron, se usa el que ya se guardó para ese mismo nombre
+            if (tel.isEmpty()) {
+                tel = deudas.findFirstByClienteIgnoreCaseAndTelefonoIsNotNullOrderByIdDesc(nombreCliente)
+                        .map(Deuda::getTelefono).orElse("");
+            }
+            deudas.save(new Deuda(v.clientUid(), nombreCliente, tel.isEmpty() ? null : tel, cobrado,
+                    v.cantidad() + " " + nombre, cuando));
         }
         productos.sumarStock(p.getId(), -v.cantidad());
 
