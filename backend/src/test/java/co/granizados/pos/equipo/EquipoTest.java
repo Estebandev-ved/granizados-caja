@@ -30,6 +30,9 @@ class EquipoTest extends PruebaIntegracion {
     EquipoService equipo;
 
     @Autowired
+    co.granizados.pos.ajustes.AjustesService ajustes;
+
+    @Autowired
     MockMvc mvc;
 
     private String entrar(String pin) throws Exception {
@@ -221,5 +224,60 @@ class EquipoTest extends PruebaIntegracion {
         mvc.perform(con(token, get("/api/estado"))).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"pin\":\"1111\"}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void sinMetaDelEquipoElTrabajadorNoTieneBarra() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+
+        assertThat(equipo.metaDe(juan.id(), equipo.hoy())).isNull();
+    }
+
+    @Test
+    void laMetaDelDiaCuentaLoVendidoYLaRachaDeDiasSeguidos() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        ajustes.actualizar("META_EQUIPO", "3");
+        ajustes.actualizar("PREMIO_EQUIPO", "2000");
+        String token = entrar("1111");
+
+        // Ayer cumplió la meta (3 unidades) y hoy vende 2: todavía no la cumple
+        reloj.avanzar(Duration.ofHours(-24));
+        mvc.perform(con(token, post("/api/ventas")).content(venta("ayer", "EFECTIVO", 3, ""))).andExpect(status().isOk());
+        reloj.avanzar(Duration.ofHours(24));
+        mvc.perform(con(token, post("/api/ventas")).content(venta("h-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        var parcial = equipo.metaDe(juan.id(), equipo.hoy());
+        assertThat(parcial.unidades()).isEqualTo(3);
+        assertThat(parcial.premio()).isEqualTo(2000);
+        assertThat(parcial.vendidas()).isEqualTo(2);
+        assertThat(parcial.racha()).isEqualTo(1); // la de ayer; hoy todavía no suma
+
+        mvc.perform(con(token, post("/api/ventas")).content(venta("h-2", "NEQUI", 1, ""))).andExpect(status().isOk());
+
+        var cumplida = equipo.metaDe(juan.id(), equipo.hoy());
+        assertThat(cumplida.vendidas()).isEqualTo(3);
+        assertThat(cumplida.racha()).isEqualTo(2);
+
+        // El trabajador recibe su meta en el estado
+        mvc.perform(con(token, get("/api/estado"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.metaEquipo.unidades").value(3))
+                .andExpect(jsonPath("$.metaEquipo.vendidas").value(3));
+    }
+
+    @Test
+    void elPremioPorMetaSeDescuentaDelSaldoUnaVezPorDiaCumplido() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        ajustes.actualizar("META_EQUIPO", "3");
+        ajustes.actualizar("PREMIO_EQUIPO", "2000");
+        String token = entrar("1111");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("h-1", "EFECTIVO", 3, ""))).andExpect(status().isOk());
+
+        var l = equipo.liquidar(LocalDate.of(2026, 9, 25), LocalDate.of(2026, 9, 25)).getFirst();
+
+        assertThat(l.total()).isEqualTo(18000);
+        assertThat(l.comision()).isEqualTo(1800);
+        assertThat(l.diasMeta()).isEqualTo(1);
+        assertThat(l.bonos()).isEqualTo(2000);
+        assertThat(l.saldo()).isEqualTo(18000 - 1800 - 2000);
     }
 }

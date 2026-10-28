@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { sesion } from './api'
+import { BarraLogros } from './componentes/BarraLogros'
 import { BarraMeta } from './componentes/BarraMeta'
 import { Confeti } from './componentes/Confeti'
 import { Marca } from './componentes/Marca'
 import { Personaje } from './componentes/Personaje'
+import { nivelAlcanzado } from './logros'
 import { hitoNuevo } from './ritmo'
 import { useToast, type AccionToast } from './componentes/Toast'
 import { pesos, vibrar } from './formato'
@@ -76,6 +78,34 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     return () => { window.clearTimeout(arranque); window.clearTimeout(fin) }
   }, [estado, avisar])
 
+  // Un trabajador celebra al llegar a cada logro de su barra, una sola vez por logro y por día
+  const metaEquipo = estado?.metaEquipo ?? null
+  const nivelEquipo = metaEquipo ? nivelAlcanzado(metaEquipo) : 0
+  const nivelAnterior = useRef<number | null>(null)
+  const diaEquipo = estado?.dia
+  useEffect(() => {
+    if (!trabajador || !metaEquipo || !diaEquipo) { nivelAnterior.current = null; return }
+    const antes = nivelAnterior.current
+    nivelAnterior.current = nivelEquipo
+    if (antes === null || nivelEquipo <= antes) return
+
+    const clave = 'gz_logro_equipo'
+    let ya = ''
+    try { ya = localStorage.getItem(clave) ?? '' } catch { /* modo privado */ }
+    if (ya === diaEquipo + ':' + nivelEquipo) return
+    try { localStorage.setItem(clave, diaEquipo + ':' + nivelEquipo) } catch { /* modo privado */ }
+
+    vibrar()
+    const arranque = window.setTimeout(() => {
+      setCelebrando(true)
+      avisar(nivelEquipo === 1 ? '⭐ ¡A medio camino de la meta!'
+        : nivelEquipo === 2 ? '🎉 ¡Meta cumplida!' + (metaEquipo.premio > 0 ? ' Ganaste ' + pesos(metaEquipo.premio) : '')
+        : '🏆 ¡Súper meta!')
+      window.setTimeout(() => setCelebrando(false), 2000)
+    }, 0)
+    return () => window.clearTimeout(arranque)
+  }, [trabajador, metaEquipo, nivelEquipo, diaEquipo, avisar])
+
   let contenido: ReactNode
   if (!estado) {
     contenido = <div className="vacio">
@@ -131,9 +161,14 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
           <div className="sync"><span className={'dot ' + sync} />{textoSync}</div>
         </div>
       </header>
-      {estado && (
+      {estado && !trabajador && (
         <div className="meta-envoltorio">
           <BarraMeta total={estado.hoy.total} meta={estado.meta.valor} racha={estado.meta.racha} />
+        </div>
+      )}
+      {estado && trabajador && metaEquipo && (
+        <div className="meta-envoltorio">
+          <BarraLogros meta={metaEquipo} />
         </div>
       )}
       <main>{contenido}</main>

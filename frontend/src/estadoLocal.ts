@@ -118,6 +118,7 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
   if (fila) fila.unidades += op.cantidad
   else e.hoy.porSabor.push({ sabor: p.nombre, unidades: op.cantidad })
   e.hoy.porSabor.sort((a, b) => b.unidades - a.unidades)
+  if (e.metaEquipo) e.metaEquipo.vendidas += op.cantidad
   // Lo que vende este celular es siempre de quien está logueado: cuenta en sus ventas propias
   if (e.hoy.propias) {
     const mia = e.hoy.propias.find(s => s.sabor === p.nombre)

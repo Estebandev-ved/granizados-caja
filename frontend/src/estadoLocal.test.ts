@@ -22,6 +22,15 @@ const venta = (uid: string, productoId: number, cantidad: number, metodo: 'NEQUI
   ({ tipo: 'venta', clientUid: uid, productoId, metodo, cantidad, creadaEn })
 
 describe('estadoVisible', () => {
+  it('la barra de logros del trabajador sube al instante con cada venta pendiente', () => {
+    const b = base()
+    b.metaEquipo = { unidades: 10, premio: 2000, vendidas: 3, racha: 0 }
+    const e = estadoVisible(b, [], [venta('p1', 1, 2)], '2026-09-25')!
+
+    expect(e.metaEquipo?.vendidas).toBe(5)
+    expect(b.metaEquipo.vendidas).toBe(3)
+  })
+
   it('lo que vende este celular también cuenta en las ventas propias (la carga del día)', () => {
     const b = base()
     b.hoy.propias = [{ sabor: 'Smirnoff', unidades: 1 }]

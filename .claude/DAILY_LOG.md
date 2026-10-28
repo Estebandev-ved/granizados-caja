@@ -41,6 +41,7 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 ## Cambios
 
 ### 2026-10-27
+- **Metas del equipo** (`V17`): `META_EQUIPO` y `PREMIO_EQUIPO` en Ajustes; el trabajador ve una barra de logros (medio camino, meta, súper meta) con racha y confeti, y el premio se descuenta del saldo en la liquidación. Todo lo de costos, ganancia y reportes sigue siendo solo del dueño.
 - **Equipo**: trabajadores con PIN propio dentro de la misma caja (`V16`). Solo ven Vender y Mi día; la carga de cada uno vive en el servidor y las cuentas (efectivo, Nequi, comisión, saldo) salen de Ajustes → Equipo. Supuestos a confirmar con Esteban: el Nequi entra a su cuenta, comisión en % por trabajador, cada uno saca su carga de la casa.
 - **Sincronización y "Lo que llevo hoy"**: refresco cada 20 s, sin doble conteo de una venta que sube mientras se pide el estado, la carga de ayer ya no cuenta, la merma pendiente baja la ganancia al instante. Las pruebas HTTP fallaban por el reloj fijo de pruebas contra tokens de 30 días: `token-dias` de pruebas en 36500.
 - **Pago dividido (efectivo + Nequi)**: método `MIXTO` y columna `venta.monto_efectivo` (migración `V15`). Link "Pagó mitad y mitad" en Vender; Estado, Reportes, Mi plata y arqueo suman cada parte donde entró. Pruebas: `PagoMixtoTest` y las de frontend (`repartirEfectivo`, `estadoLocal`).

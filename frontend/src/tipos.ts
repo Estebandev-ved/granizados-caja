@@ -43,6 +43,14 @@ export interface ResumenDia {
   propias?: PorSabor[]
 }
 
+/** La meta del día de un trabajador (la pone el dueño en Ajustes). */
+export interface MetaEquipo {
+  unidades: number
+  premio: number
+  vendidas: number
+  racha: number
+}
+
 /** Un sabor de la carga de un trabajador. */
 export interface FilaCargaEquipo {
   productoId: number
@@ -72,6 +80,9 @@ export interface Liquidacion {
   efectivo: number
   nequi: number
   comision: number
+  /** Días del rango en que cumplió la meta y lo que ganó por eso. */
+  diasMeta: number
+  bonos: number
   saldo: number
 }
 
@@ -95,6 +106,8 @@ export interface Estado {
   pedido: PedidoEnCamino | null
   /** Meta del día. `valor = 0` = apagada; `racha` = días seguidos cumpliéndola. */
   meta: Meta
+  /** Solo para un trabajador: su meta de granizados del día (ausente o null = apagada). */
+  metaEquipo?: MetaEquipo | null
 }
 
 export interface Meta {

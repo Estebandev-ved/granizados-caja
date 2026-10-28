@@ -68,6 +68,12 @@ public class AjustesService {
                 }
                 return valor;
             }
+            case "META_EQUIPO", "PREMIO_EQUIPO" -> {
+                if (!valor.matches("\\d{1,7}")) {
+                    throw new IllegalArgumentException(clave + " es un número sin decimales ni letras. 0 la apaga");
+                }
+                return valor;
+            }
             case META_DIARIA -> {
                 if (!valor.matches("\\d{1,10}")) {
                     throw new IllegalArgumentException("La meta es un monto en pesos, sin decimales ni letras. 0 la apaga");

@@ -13,7 +13,7 @@ import type { DatosProducto, Param, Producto, Tipo } from '../tipos'
 const PRECIO_POR_TIPO: Record<Tipo, number> = { NORMAL: 6000, CREMOSO: 7000, GRANDE: 10000 }
 
 const ICONO_PARAM: Record<string, string> = {
-  DIAS_COBERTURA: 'caja', DIAS_HISTORIAL: 'reloj', META_DIARIA: 'trofeo',
+  DIAS_COBERTURA: 'caja', DIAS_HISTORIAL: 'reloj', META_DIARIA: 'trofeo', META_EQUIPO: 'trofeo', PREMIO_EQUIPO: 'moneda',
   NOMBRE: 'cara', PROVEEDOR_WHATSAPP: 'celular', PAGO_NEQUI: 'celular', PAGO_BREB: 'billete', PAGO_PRESENCIAL: 'cara',
 }
 

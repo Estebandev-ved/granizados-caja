@@ -182,12 +182,17 @@ function PanelTrabajador({ t, onCarga, onCambiar }: {
           <div className="list">
             <div className="row"><span>Total vendido</span><b>{pesos(cuentas.total)}</b></div>
             <div className="row"><span>Su comisión ({cuentas.comisionPct}%)</span><b>{pesos(cuentas.comision)}</b></div>
+            {cuentas.diasMeta > 0 && (
+              <div className="row">
+                <span>Premio por meta ({cuentas.diasMeta} día{cuentas.diasMeta === 1 ? '' : 's'})</span><b>{pesos(cuentas.bonos)}</b>
+              </div>
+            )}
             <div className="row">
               <span>{cuentas.saldo >= 0 ? 'Te debe entregar' : 'Le debes'}</span>
               <b>{pesos(Math.abs(cuentas.saldo))}</b>
             </div>
           </div>
-          <p className="mut">El Nequi entra a tu cuenta; por eso lo que te entrega es el efectivo menos su comisión.</p>
+          <p className="mut">El Nequi entra a tu cuenta; por eso lo que te entrega es el efectivo menos su comisión y su premio.</p>
         </>
       )}
 

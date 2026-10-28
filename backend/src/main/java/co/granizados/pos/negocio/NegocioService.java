@@ -21,6 +21,8 @@ public class NegocioService {
             new Ajuste("DIAS_HISTORIAL", "14", "Cuántos días atrás mirar para calcular el promedio de ventas"),
             new Ajuste("NOMBRE", "", "Cómo firmas el pedido"),
             new Ajuste("META_DIARIA", "0", "Lo que quieres vender al día en pesos. 0 la apaga"),
+            new Ajuste("META_EQUIPO", "0", "Granizados que debe vender cada trabajador al día. 0 la apaga"),
+            new Ajuste("PREMIO_EQUIPO", "0", "Pesos que gana el trabajador por cada día que cumple la meta. 0 = solo reconocimiento"),
             new Ajuste("PAGO_NEQUI", "", "Tu número de Nequi para que te paguen lo fiado. Ej: 3001234567"),
             new Ajuste("PAGO_BREB", "", "Tu llave Bre-B para que te paguen lo fiado"),
             new Ajuste("PAGO_PRESENCIAL", "", "Dónde te pueden pagar en persona. Ej: en la U, bloque 4, en horas de almuerzo"));

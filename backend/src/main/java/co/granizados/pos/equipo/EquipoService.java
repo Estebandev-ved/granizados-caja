@@ -1,5 +1,6 @@
 package co.granizados.pos.equipo;
 
+import co.granizados.pos.ajustes.AjustesService;
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
 import co.granizados.pos.producto.Producto;
@@ -65,28 +66,37 @@ public class EquipoService {
     }
 
     /**
-     * Cuentas de un trabajador en un rango de días. `saldo` = efectivo − comisión: si es positivo el trabajador le
-     * debe esa plata al dueño; si es negativo, el dueño le debe a él.
+     * Cuentas de un trabajador en un rango de días. `saldo` = efectivo − comisión − bonos por meta: si es positivo el
+     * trabajador le debe esa plata al dueño; si es negativo, el dueño le debe a él.
      */
     public record Liquidacion(Long vendedorId, String nombre, int comisionPct, int unidades, long total, long efectivo,
-                              long nequi, long comision, long saldo) {
+                              long nequi, long comision, int diasMeta, long bonos, long saldo) {
     }
+
+    /** La meta del día de un trabajador: cuánto lleva, cuánto gana si la cumple y cuántos días seguidos la viene cumpliendo. */
+    public record MetaEquipo(int unidades, long premio, int vendidas, int racha) {
+    }
+
+    /** Cuántos días atrás se mira la racha. */
+    static final int DIAS_RACHA = 30;
 
     private final VendedorRepository vendedores;
     private final CargaVendedorRepository cargas;
     private final ProductoRepository productos;
     private final VentaRepository ventas;
+    private final AjustesService ajustes;
     private final AppProperties props;
     private final Clock clock;
     private final ZoneId zona;
     private final BCryptPasswordEncoder hash = new BCryptPasswordEncoder();
 
     public EquipoService(VendedorRepository vendedores, CargaVendedorRepository cargas, ProductoRepository productos,
-                         VentaRepository ventas, AppProperties props, Clock clock) {
+                         VentaRepository ventas, AjustesService ajustes, AppProperties props, Clock clock) {
         this.vendedores = vendedores;
         this.cargas = cargas;
         this.productos = productos;
         this.ventas = ventas;
+        this.ajustes = ajustes;
         this.props = props;
         this.clock = clock;
         this.zona = props.zoneId();
@@ -226,6 +236,9 @@ public class EquipoService {
         if (hasta.isBefore(desde)) throw new IllegalArgumentException("El rango está al revés");
         List<Venta> delRango = ventas.entre(desde.atStartOfDay(zona).toInstant(), hasta.plusDays(1).atStartOfDay(zona).toInstant());
         List<Liquidacion> filas = new ArrayList<>();
+        Map<String, String> cfg = ajustes.mapa();
+        int meta = AjustesService.entero(cfg, "META_EQUIPO", 0);
+        long premio = AjustesService.entero(cfg, "PREMIO_EQUIPO", 0);
         for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
             long total = 0, efectivo = 0, nequi = 0;
             int unidades = 0;
@@ -238,10 +251,46 @@ public class EquipoService {
             }
             if (!v.isActivo() && unidades == 0) continue;
             long comision = total * v.getComisionPct() / 100;
+            // Un premio por cada día del rango en que cumplió la meta
+            int diasMeta = 0;
+            if (meta > 0) {
+                for (int unidadesDia : unidadesPorDia(v.getId(), desde, hasta).values()) {
+                    if (unidadesDia >= meta) diasMeta++;
+                }
+            }
+            long bonos = diasMeta * premio;
             filas.add(new Liquidacion(v.getId(), v.getNombre(), v.getComisionPct(), unidades, total, efectivo, nequi,
-                    comision, efectivo - comision));
+                    comision, diasMeta, bonos, efectivo - comision - bonos));
         }
         return filas;
+    }
+
+    /** La meta del día de ese trabajador, o null si el dueño la tiene apagada. */
+    @Transactional(readOnly = true)
+    public MetaEquipo metaDe(Long vendedorId, LocalDate dia) {
+        Map<String, String> cfg = ajustes.mapa();
+        int meta = AjustesService.entero(cfg, "META_EQUIPO", 0);
+        if (meta <= 0) return null;
+        long premio = AjustesService.entero(cfg, "PREMIO_EQUIPO", 0);
+
+        Map<LocalDate, Integer> porDia = unidadesPorDia(vendedorId, dia.minusDays(DIAS_RACHA), dia);
+        int vendidas = porDia.getOrDefault(dia, 0);
+        int racha = vendidas >= meta ? 1 : 0;
+        for (LocalDate d = dia.minusDays(1); !d.isBefore(dia.minusDays(DIAS_RACHA)); d = d.minusDays(1)) {
+            if (porDia.getOrDefault(d, 0) < meta) break;
+            racha++;
+        }
+        return new MetaEquipo(meta, premio, vendidas, racha);
+    }
+
+    private Map<LocalDate, Integer> unidadesPorDia(Long vendedorId, LocalDate desde, LocalDate hasta) {
+        Map<LocalDate, Integer> porDia = new HashMap<>();
+        for (Venta v : ventas.entre(desde.atStartOfDay(zona).toInstant(), hasta.plusDays(1).atStartOfDay(zona).toInstant())) {
+            if (vendedorId.equals(v.getVendedorId())) {
+                porDia.merge(v.getCreadaEn().atZone(zona).toLocalDate(), v.getCantidad(), Integer::sum);
+            }
+        }
+        return porDia;
     }
 
     private VendedorDto dto(Vendedor v, List<Venta> mias, List<FilaCarga> carga) {
