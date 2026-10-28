@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aplicaPromo, PROMO_INICIAL, promoVigente, repartirTotal, totalConPromo, totalMezclado, type Promo } from './promo'
+import { aplicaPromo, PROMO_INICIAL, promoVigente, repartirEfectivo, repartirTotal, totalConPromo, totalMezclado, type Promo } from './promo'
 import type { Producto } from './tipos'
 
 const prod = (tipo: Producto['tipo'], precio: number): Producto =>
@@ -64,5 +64,15 @@ describe('promo con sabores distintos', () => {
     expect(partes.reduce((x, n) => x + n, 0)).toBe(10000)
     partes.forEach(n => expect(n).toBeLessThanOrEqual(6000))
     expect(repartirTotal(lineas, 12000)).toEqual([6000, 6000])
+  })
+
+  it('reparte el efectivo entre las líneas sin pasarse de lo cobrado en cada una', () => {
+    expect(repartirEfectivo([8000], 5000)).toEqual([5000])
+    const partes = repartirEfectivo([6000, 4000], 5001)
+    expect(partes.reduce((x, n) => x + n, 0)).toBe(5001)
+    expect(partes[0]).toBeLessThanOrEqual(6000)
+    expect(partes[1]).toBeLessThanOrEqual(4000)
+    expect(repartirEfectivo([6000, 6000], 20000)).toEqual([6000, 6000])
+    expect(repartirEfectivo([6000, 6000], 0)).toEqual([0, 0])
   })
 })

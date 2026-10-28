@@ -13,10 +13,14 @@ interface Props {
   actual: Carga | null
   onGuardar: (llevo: Record<number, number>) => void
   onLimpiar: () => void
+  /** Para darle la carga a un trabajador: cambia los textos. */
+  titulo?: string
+  ayuda?: string
+  textoQuitar?: string
 }
 
 /** Cuántos de cada sabor sacas hoy para vender, por secciones (normal, cremoso, grande). */
-export function CargaDelDia({ productos, actual, onGuardar, onLimpiar }: Props) {
+export function CargaDelDia({ productos, actual, onGuardar, onLimpiar, titulo = 'Lo que llevo hoy', ayuda, textoQuitar }: Props) {
   const [llevo, setLlevo] = useState<Record<number, number>>(() =>
     Object.fromEntries(productos.map(p => [p.id, actual?.items[p.id]?.llevo ?? 0])))
 
@@ -29,8 +33,8 @@ export function CargaDelDia({ productos, actual, onGuardar, onLimpiar }: Props) 
 
   return (
     <>
-      <h2>Lo que llevo hoy</h2>
-      <p>Anota cuántos de cada sabor sacas para vender. En Vender te va mostrando cuántos te quedan.</p>
+      <h2>{titulo}</h2>
+      <p>{ayuda ?? 'Anota cuántos de cada sabor sacas para vender. En Vender te va mostrando cuántos te quedan.'}</p>
 
       <div className="carga-lista">
         {TIPOS.map(({ tipo, titulo }) => {
@@ -61,7 +65,7 @@ export function CargaDelDia({ productos, actual, onGuardar, onLimpiar }: Props) 
         <button className="big primario" onClick={() => onGuardar(llevo)} disabled={total === 0}>
           Guardar · {total} {total === 1 ? 'granizado' : 'granizados'}
         </button>
-        {actual && <button className="big ghost" onClick={onLimpiar}>Quitar la carga de hoy</button>}
+        {actual && <button className="big ghost" onClick={onLimpiar}>{textoQuitar ?? 'Quitar la carga de hoy'}</button>}
       </div>
     </>
   )

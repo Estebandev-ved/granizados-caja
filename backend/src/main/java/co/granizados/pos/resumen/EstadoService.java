@@ -2,6 +2,8 @@ package co.granizados.pos.resumen;
 
 import co.granizados.pos.ajustes.AjustesService;
 import co.granizados.pos.comun.AppProperties;
+import co.granizados.pos.equipo.EquipoService;
+import co.granizados.pos.equipo.Sesion;
 import co.granizados.pos.gasto.GastoRepository;
 import co.granizados.pos.inventario.EntradaInventarioRepository;
 import co.granizados.pos.inventario.TipoMovimiento;
@@ -40,7 +42,9 @@ public class EstadoService {
      * (por ejemplo el cobro de una venta vieja).
      */
     public record ResumenDia(long total, long nequi, long efectivo, int unidades, List<PorSabor> porSabor,
-                             long costo, long gastos, long mermas, long ganancia, long ingresos) {
+                             long costo, long gastos, long mermas, long ganancia, long ingresos,
+                             /** Solo lo que vendió el dueño en persona (sin el equipo): sirve para su carga del día. */
+                             List<PorSabor> propias) {
     }
 
     public record VentaReciente(String clientUid, String hora, String sabor, long total, MetodoPago metodo) {
@@ -69,12 +73,14 @@ public class EstadoService {
     private final EntradaInventarioRepository movimientos;
     private final IngresoRepository ingresosExtra;
     private final AjustesService ajustes;
+    private final EquipoService equipo;
     private final Clock clock;
     private final ZoneId zona;
 
     public EstadoService(ProductoRepository productos, VentaRepository ventas, PedidoService pedidos,
                          GastoRepository gastos, EntradaInventarioRepository movimientos,
-                         IngresoRepository ingresosExtra, AjustesService ajustes, Clock clock, AppProperties props) {
+                         IngresoRepository ingresosExtra, AjustesService ajustes, EquipoService equipo, Clock clock,
+                         AppProperties props) {
         this.productos = productos;
         this.ventas = ventas;
         this.pedidos = pedidos;
@@ -82,6 +88,7 @@ public class EstadoService {
         this.movimientos = movimientos;
         this.ingresosExtra = ingresosExtra;
         this.ajustes = ajustes;
+        this.equipo = equipo;
         this.clock = clock;
         this.zona = props.zoneId();
     }
@@ -95,6 +102,8 @@ public class EstadoService {
     public Estado estado() {
         LocalDate dia = hoy();
         List<Venta> delDia = ventasDe(dia);
+        Long vendedor = Sesion.vendedorId();
+        if (vendedor != null) return estadoDeTrabajador(vendedor, dia, delDia);
         List<VentaReciente> ultimas = delDia.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
                         v.getProducto().nombre(), v.getTotal(), v.getMetodo()))
@@ -102,6 +111,27 @@ public class EstadoService {
         List<ProductoDto> activos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream().map(ProductoDto::de).toList();
         ResumenDia resumen = resumenDe(dia, delDia);
         return new Estado(activos, resumen, ultimas, dia, pedidos.enCamino(), metaDe(dia));
+    }
+
+    /**
+     * Lo que ve un trabajador: solo sus ventas, sin costos ni ganancia, y como "stock" lo que le queda de su carga,
+     * así la pantalla de Vender funciona igual y no puede vender lo que no sacó.
+     */
+    private Estado estadoDeTrabajador(Long vendedor, LocalDate dia, List<Venta> delDia) {
+        List<Venta> mias = delDia.stream().filter(v -> vendedor.equals(v.getVendedorId())).toList();
+        Map<Long, Integer> queda = equipo.queda(vendedor, dia, delDia);
+        List<ProductoDto> suyos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream()
+                .map(p -> new ProductoDto(p.getId(), p.getSabor(), p.getTipo(), p.nombre(), p.getPrecio(), 0,
+                        queda.getOrDefault(p.getId(), 0), 0, true, p.getOrden()))
+                .toList();
+        List<VentaReciente> ultimas = mias.stream().limit(MAX_ULTIMAS)
+                .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
+                        v.getProducto().nombre(), v.getTotal(), v.getMetodo()))
+                .toList();
+        ResumenDia r = resumir(mias, 0, 0, 0);
+        ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades(), r.porSabor(), 0, 0, 0,
+                r.total(), 0, r.porSabor());
+        return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0));
     }
 
     /** La meta puesta en Ajustes, más la racha. Con 0 la meta está apagada y no hay racha. */
@@ -160,6 +190,14 @@ public class EstadoService {
     }
 
     private static ResumenDia resumir(List<Venta> lista, long gastos, long mermas, long ingresos) {
+        Map<String, Integer> propiasPorSabor = new LinkedHashMap<>();
+        for (Venta v : lista) {
+            if (v.getVendedorId() == null) propiasPorSabor.merge(v.getProducto().nombre(), v.getCantidad(), Integer::sum);
+        }
+        List<PorSabor> propias = propiasPorSabor.entrySet().stream()
+                .map(e -> new PorSabor(e.getKey(), e.getValue()))
+                .sorted(Comparator.comparingInt(PorSabor::unidades).reversed())
+                .toList();
         long total = 0, nequi = 0, efectivo = 0, costo = 0;
         int unidades = 0;
         Map<String, Integer> porSabor = new LinkedHashMap<>();
@@ -167,8 +205,8 @@ public class EstadoService {
             total += v.getTotal();
             unidades += v.getCantidad();
             costo += v.getCostoUnitario() * v.getCantidad();
-            if (v.getMetodo() == MetodoPago.EFECTIVO) efectivo += v.getTotal();
-            else if (v.getMetodo() == MetodoPago.NEQUI) nequi += v.getTotal(); // el fiado no es plata hasta que se cobra
+            efectivo += v.efectivo(); // el fiado no es plata hasta que se cobra
+            nequi += v.nequi();
             porSabor.merge(v.getProducto().nombre(), v.getCantidad(), Integer::sum);
         }
         List<PorSabor> ranking = porSabor.entrySet().stream()
@@ -176,6 +214,6 @@ public class EstadoService {
                 .sorted(Comparator.comparingInt(PorSabor::unidades).reversed())
                 .toList();
         return new ResumenDia(total, nequi, efectivo, unidades, ranking, costo, gastos, mermas,
-                total - costo - gastos - mermas + ingresos, ingresos);
+                total - costo - gastos - mermas + ingresos, ingresos, propias);
     }
 }

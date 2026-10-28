@@ -40,6 +40,12 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-10-27
+- **Equipo**: trabajadores con PIN propio dentro de la misma caja (`V16`). Solo ven Vender y Mi día; la carga de cada uno vive en el servidor y las cuentas (efectivo, Nequi, comisión, saldo) salen de Ajustes → Equipo. Supuestos a confirmar con Esteban: el Nequi entra a su cuenta, comisión en % por trabajador, cada uno saca su carga de la casa.
+- **Sincronización y "Lo que llevo hoy"**: refresco cada 20 s, sin doble conteo de una venta que sube mientras se pide el estado, la carga de ayer ya no cuenta, la merma pendiente baja la ganancia al instante. Las pruebas HTTP fallaban por el reloj fijo de pruebas contra tokens de 30 días: `token-dias` de pruebas en 36500.
+- **Pago dividido (efectivo + Nequi)**: método `MIXTO` y columna `venta.monto_efectivo` (migración `V15`). Link "Pagó mitad y mitad" en Vender; Estado, Reportes, Mi plata y arqueo suman cada parte donde entró. Pruebas: `PagoMixtoTest` y las de frontend (`repartirEfectivo`, `estadoLocal`).
+- **Pendiente**: sellos de fidelidad (canje como venta `CANJE` que descuenta stock). Falta que Esteban cuente cómo funcionan hoy, cuántos sellos dan un granizado y qué sabores se regalan. `ApiTest` y `FaceIdTest` ya fallaban con 401 antes de este cambio.
+
 ### 2026-10-05
 - **Rediseño con el sistema NOMA de Antigravity**: tema claro + oscuro automático, rojo `#E53935` como único color de acción, todo con variables CSS (se quitaron los colores fijos). Tipografías Plus Jakarta Sans e Inter copiadas localmente (solo el subconjunto latino, 76 KB) para que funcionen sin señal; el service worker ahora guarda también fuentes, SVG y PNG.
 - **Personajes de NOMA**: Sofía (sin ventas hoy), Nova (consejos: recomendación de compra y Mi plata sin contar), escenas de error/carga/vacío. Componentes `Personaje`, `LogoNoma` y `Marca` ("Antigravity · Caja").

@@ -52,6 +52,8 @@ public abstract class PruebaIntegracion {
         jdbc.update("delete from conteo_plata");
         jdbc.update("delete from pago_proveedor");
         jdbc.update("delete from passkey");
+        jdbc.update("delete from carga_vendedor");
+        jdbc.update("delete from vendedor");
         jdbc.update("delete from producto where orden > 11 or negocio_id <> 1");
         jdbc.update("delete from config where negocio_id <> 1");
         jdbc.update("update producto set stock = 10, stock_minimo = 3, activo = true, precio = 6000, costo = 0");

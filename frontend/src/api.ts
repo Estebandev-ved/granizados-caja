@@ -1,6 +1,6 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
-  CategoriaGasto, ClienteConocido, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  CategoriaGasto, ClienteConocido, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
@@ -33,12 +33,29 @@ export function negocioDelToken(token: string | null): number | null {
   } catch { return null }
 }
 
+/** Un claim del token (sin verificarlo: solo decide qué pantallas mostrar; los permisos los pone el servidor). */
+function claimDelToken(token: string | null, claim: string): unknown {
+  if (!token) return null
+  try {
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(b64))[claim] ?? null
+  } catch { return null }
+}
+
 /** Lo que el celular guarda de un negocio y no debe verlo otro que entre después en el mismo celular. */
 const LOCAL_POR_NEGOCIO = ['gz_estado', 'gz_confirmadas', 'gz_meta_celebrada', 'gz_plata_pedido']
 
 export const sesion = {
   get token(): string | null {
     try { return localStorage.getItem(CLAVE_TOKEN) } catch { return null }
+  },
+  /** Un trabajador solo ve Vender y su día; el dueño lo ve todo. */
+  get esTrabajador(): boolean {
+    return claimDelToken(this.token, 'rol') === 'vendedor'
+  },
+  get nombre(): string {
+    const n = claimDelToken(this.token, 'nombre')
+    return typeof n === 'string' ? n : ''
   },
   /** Negocio de la sesión actual. Los tokens sin el claim (los de antes) son el negocio 1. */
   get negocioId(): number {
@@ -122,7 +139,7 @@ type OpcionesFaceId<T> = { solicitud: string; opciones: { publicKey: T } }
 type RespuestaFaceId = { solicitud: string; credencial: string; nombre?: string }
 export interface PasskeyInfo { id: number; nombre: string; creadaEn: string; usadaEn: string | null }
 
-type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string; total?: number; cliente?: string; telefono?: string }
+type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string; total?: number; cliente?: string; telefono?: string; efectivo?: number }
 type EntradaApi = { clientUid: string; productoId: number; cantidad: number }
 /** Un movimiento de inventario: `cantidad` para ENTRADA/MERMA, `real` para CONTEO. */
 type MovimientoApi = {
@@ -140,6 +157,14 @@ type ArqueoApi = { clientUid: string; contado: number; nota: string | null; crea
 export const api = {
   login: (pin: string) => pedir<{ token: string }>('POST', '/api/auth/login', { pin }),
   estado: () => pedir<Estado>('GET', '/api/estado'),
+  equipo: () => pedir<Trabajador[]>('GET', '/api/equipo'),
+  crearTrabajador: (d: { nombre: string; pin: string; comisionPct: number }) => pedir<Trabajador>('POST', '/api/equipo', d),
+  cambiarTrabajador: (id: number, d: { nombre?: string; pin?: string; comisionPct?: number; activo?: boolean }) =>
+    pedir<Trabajador>('PATCH', '/api/equipo/' + id, d),
+  cargarTrabajador: (id: number, items: { productoId: number; llevo: number }[]) =>
+    pedir<FilaCargaEquipo[]>('PUT', '/api/equipo/' + id + '/carga', { items }),
+  liquidacionEquipo: (desde: string, hasta: string) =>
+    pedir<Liquidacion[]>('GET', '/api/equipo/liquidacion?desde=' + desde + '&hasta=' + hasta),
   venta: (v: VentaApi) => pedir<RespuestaVenta>('POST', '/api/ventas', v),
   lote: (ventas: VentaApi[]) => pedir<RespuestaVenta[]>('POST', '/api/ventas/lote', { ventas }),
   deshacer: (clientUid: string) => pedir<void>('DELETE', '/api/ventas/' + encodeURIComponent(clientUid)),

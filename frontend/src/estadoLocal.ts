@@ -34,8 +34,11 @@ export function estadoVisible(base: Estado | null, confirmadas: readonly Operaci
     e.ultimas = []
     e.dia = hoy
   }
-  for (const op of confirmadas) aplicar(e, op, hoy, false)
-  for (const op of pendientes) aplicar(e, op, hoy, true)
+  // Si el servidor ya trae una venta (subió justo mientras se pedía el estado, o se perdió la respuesta), no se suma otra vez
+  const yaEnServidor = new Set(base.ultimas.map(u => u.clientUid))
+  const nueva = (op: Operacion) => !(op.tipo === 'venta' && yaEnServidor.has(op.clientUid))
+  for (const op of confirmadas) if (nueva(op)) aplicar(e, op, hoy, false)
+  for (const op of pendientes) if (nueva(op)) aplicar(e, op, hoy, true)
   recalcular(e.hoy)
   return e
 }
@@ -54,7 +57,11 @@ function aplicar(e: Estado, op: Operacion, hoy: string, pendiente: boolean) {
     }
     case 'merma': {
       const p = producto(e, op.productoId)
-      if (p) p.stock -= op.cantidad
+      if (p) {
+        p.stock -= op.cantidad
+        // La merma resta de la ganancia del día, igual que en el servidor
+        if (diaBogota(op.creadaEn) === hoy) e.hoy.mermas += op.cantidad * p.costo
+      }
       return
     }
     case 'ajuste': {
@@ -101,11 +108,22 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
   e.hoy.unidades += op.cantidad
   if (op.metodo === 'EFECTIVO') e.hoy.efectivo += total
   else if (op.metodo === 'NEQUI') e.hoy.nequi += total // el fiado no es plata hasta que se cobra
+  else if (op.metodo === 'MIXTO') {
+    const efectivo = Math.min(op.efectivo ?? 0, total)
+    e.hoy.efectivo += efectivo
+    e.hoy.nequi += total - efectivo
+  }
 
   const fila = e.hoy.porSabor.find(s => s.sabor === p.nombre)
   if (fila) fila.unidades += op.cantidad
   else e.hoy.porSabor.push({ sabor: p.nombre, unidades: op.cantidad })
   e.hoy.porSabor.sort((a, b) => b.unidades - a.unidades)
+  // Lo que vende este celular es siempre de quien está logueado: cuenta en sus ventas propias
+  if (e.hoy.propias) {
+    const mia = e.hoy.propias.find(s => s.sabor === p.nombre)
+    if (mia) mia.unidades += op.cantidad
+    else e.hoy.propias.push({ sabor: p.nombre, unidades: op.cantidad })
+  }
 
   e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total, metodo: op.metodo, pendiente },
     ...e.ultimas].slice(0, 40)

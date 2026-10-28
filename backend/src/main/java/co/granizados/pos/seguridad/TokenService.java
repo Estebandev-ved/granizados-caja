@@ -24,6 +24,23 @@ public class TokenService {
         this.clock = clock;
     }
 
+    /** Token de un trabajador: solo puede vender (ver RolFiltro) y trae quién es, para marcar sus ventas. */
+    public String emitirVendedor(Long vendedorId, String nombre) {
+        Instant ahora = clock.instant();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("granizados-pos")
+                .subject("vendedor:" + vendedorId)
+                .claim("negocio_id", props.negocioId())
+                .claim("rol", "vendedor")
+                .claim("vendedor_id", vendedorId)
+                .claim("nombre", nombre)
+                .issuedAt(ahora)
+                .expiresAt(ahora.plus(Duration.ofDays(props.tokenDias())))
+                .build();
+        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+        return encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+    }
+
     public String emitir() {
         Instant ahora = clock.instant();
         JwtClaimsSet claims = JwtClaimsSet.builder()

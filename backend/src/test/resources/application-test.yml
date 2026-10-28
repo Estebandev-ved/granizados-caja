@@ -6,5 +6,7 @@ spring:
 
 app:
   pin: "4321"
+  # El reloj de las pruebas está fijo en el pasado; con 30 días el token ya vencería frente al reloj real
+  token-dias: 36500
   tareas:
     habilitadas: false

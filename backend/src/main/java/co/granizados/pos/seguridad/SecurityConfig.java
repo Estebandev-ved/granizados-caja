@@ -1,6 +1,7 @@
 package co.granizados.pos.seguridad;
 
 import co.granizados.pos.comun.AppProperties;
+import co.granizados.pos.equipo.EquipoService;
 import co.granizados.pos.negocio.NegocioFiltro;
 import co.granizados.pos.negocio.NegocioService;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
@@ -115,7 +116,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filtros(HttpSecurity http, @Qualifier("corsConfigurationSource") CorsConfigurationSource cors,
-                                AppProperties props, NegocioService negocios) throws Exception {
+                                AppProperties props, NegocioService negocios, EquipoService equipo) throws Exception {
         http
                 .csrf(c -> c.disable())
                 .cors(c -> c.configurationSource(cors))
@@ -126,7 +127,9 @@ public class SecurityConfig {
                         .anyRequest().permitAll()) // el frontend (archivos estáticos)
                 .oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()))
                 // Después de verificar el token: de ahí sale el negocio de la petición
-                .addFilterAfter(new NegocioFiltro(props, negocios), BearerTokenAuthenticationFilter.class);
+                .addFilterAfter(new NegocioFiltro(props, negocios), BearerTokenAuthenticationFilter.class)
+                // Y después, qué puede hacer quien entró (un trabajador solo vende)
+                .addFilterAfter(new RolFiltro(equipo), NegocioFiltro.class);
         return http.build();
     }
 }

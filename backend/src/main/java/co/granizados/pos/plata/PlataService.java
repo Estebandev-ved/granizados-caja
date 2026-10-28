@@ -220,8 +220,8 @@ public class PlataService {
         long caja = c.getCaja(), casa = c.getCasa(), nequi = c.getNequi();
 
         for (Venta v : ventas.entre(desde, hasta)) {
-            if (v.getMetodo() == MetodoPago.EFECTIVO) caja += v.getTotal();
-            else if (v.getMetodo() == MetodoPago.NEQUI) nequi += v.getTotal(); // el fiado entra al cobrarlo (ingreso)
+            caja += v.efectivo(); // el fiado entra al cobrarlo (ingreso)
+            nequi += v.nequi();
         }
         caja -= Optional.ofNullable(gastos.montoEntre(desde, hasta)).orElse(0L);
         for (Ingreso i : ingresos.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
@@ -269,16 +269,25 @@ public class PlataService {
         }
         List<Fila> filas = new ArrayList<>();
 
-        // Ventas por día y método
+        // Ventas por día y lugar donde entró la plata (una venta mixta aporta a los dos)
         record Acum(Instant ultima, long total, int unidades) {
         }
+        java.util.function.BinaryOperator<Acum> sumar = (a, b) -> new Acum(a.ultima().isAfter(b.ultima()) ? a.ultima() : b.ultima(),
+                a.total() + b.total(), a.unidades() + b.unidades());
         Map<String, Acum> porDiaYMetodo = new LinkedHashMap<>();
         for (Venta v : ventas.entre(desde, hasta)) {
             if (v.getMetodo() == MetodoPago.FIADO) continue; // no movió plata: entra al cobrarlo
-            String clave = DIA.format(v.getCreadaEn().atZone(zona)) + "|" + v.getMetodo();
-            porDiaYMetodo.merge(clave, new Acum(v.getCreadaEn(), v.getTotal(), v.getCantidad()),
-                    (a, b) -> new Acum(a.ultima().isAfter(b.ultima()) ? a.ultima() : b.ultima(),
-                            a.total() + b.total(), a.unidades() + b.unidades()));
+            String dia = DIA.format(v.getCreadaEn().atZone(zona));
+            // Las unidades de una venta mixta se cuentan una sola vez, del lado que puso más plata
+            boolean unidadesEnEfectivo = v.efectivo() >= v.nequi();
+            if (v.efectivo() > 0) {
+                porDiaYMetodo.merge(dia + "|" + MetodoPago.EFECTIVO,
+                        new Acum(v.getCreadaEn(), v.efectivo(), unidadesEnEfectivo ? v.getCantidad() : 0), sumar);
+            }
+            if (v.nequi() > 0) {
+                porDiaYMetodo.merge(dia + "|" + MetodoPago.NEQUI,
+                        new Acum(v.getCreadaEn(), v.nequi(), unidadesEnEfectivo ? 0 : v.getCantidad()), sumar);
+            }
         }
         porDiaYMetodo.forEach((clave, a) -> {
             boolean efectivo = clave.endsWith("|" + MetodoPago.EFECTIVO);

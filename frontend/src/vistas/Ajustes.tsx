@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, sesion, type ImportarResultado, type PasskeyInfo } from '../api'
+import { Equipo } from '../componentes/Equipo'
 import { Icono } from '../componentes/Icono'
 import { PromoAjustes } from '../componentes/PromoAjustes'
 import { IconoFaceId, type ModoFaceId } from '../componentes/IconoFaceId'
@@ -108,6 +109,8 @@ export function Ajustes({ avisar, onCambio }: Props) {
       </div>
 
       <PromoAjustes avisar={avisar} />
+
+      <Equipo productos={productos} avisar={avisar} />
 
       <SeccionInstalar />
 

@@ -103,3 +103,19 @@ export function repartirTotal(lineas: LineaCombo[], total: number): number[] {
   }
   return partes
 }
+
+/**
+ * Pago dividido: reparte lo que se pagó en efectivo entre las líneas de la venta, en proporción a lo cobrado en cada una.
+ * El resto de cada línea es Nequi. Cada parte cabe en su línea y la suma da justo `efectivo`.
+ */
+export function repartirEfectivo(cobrados: number[], efectivo: number): number[] {
+  const suma = cobrados.reduce((a, n) => a + n, 0)
+  if (suma === 0) return cobrados.map(() => 0)
+  const tope = Math.min(Math.max(efectivo, 0), suma)
+  const partes = cobrados.map(n => Math.floor((tope * n) / suma))
+  let resto = tope - partes.reduce((a, n) => a + n, 0)
+  for (let i = 0; resto > 0 && i < partes.length; i = (i + 1) % partes.length) {
+    if (partes[i] < cobrados[i]) { partes[i]++; resto-- }
+  }
+  return partes
+}

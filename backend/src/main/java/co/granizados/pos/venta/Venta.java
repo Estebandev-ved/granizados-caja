@@ -43,6 +43,12 @@ public class Venta {
     @Enumerated(EnumType.STRING)
     private MetodoPago metodo;
 
+    /** Solo MIXTO: cuánto de `total` se pagó en efectivo; el resto fue por Nequi. */
+    private Long montoEfectivo;
+
+    /** Quién la vendió: el id del trabajador, o null si la hizo el dueño. */
+    private Long vendedorId;
+
     private Instant creadaEn;
 
     /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
@@ -77,7 +83,38 @@ public class Venta {
         this.creadaEn = creadaEn;
     }
 
+    /** Venta pagada mitad y mitad: `efectivo` en la caja y el resto por Nequi. */
+    public Venta mixto(long efectivo) {
+        this.metodo = MetodoPago.MIXTO;
+        this.montoEfectivo = efectivo;
+        return this;
+    }
+
+    /** Lo de esta venta que entró a la caja (el fiado no entra hasta cobrarlo). */
+    public long efectivo() {
+        return switch (metodo) {
+            case EFECTIVO -> total;
+            case MIXTO -> montoEfectivo == null ? 0 : montoEfectivo;
+            case NEQUI, FIADO -> 0;
+        };
+    }
+
+    /** Lo de esta venta que entró por Nequi. */
+    public long nequi() {
+        return switch (metodo) {
+            case NEQUI -> total;
+            case MIXTO -> total - efectivo();
+            case EFECTIVO, FIADO -> 0;
+        };
+    }
+
+    public Venta porVendedor(Long vendedorId) {
+        this.vendedorId = vendedorId;
+        return this;
+    }
+
     public Long getId() { return id; }
+    public Long getVendedorId() { return vendedorId; }
     public String getClientUid() { return clientUid; }
     public Producto getProducto() { return producto; }
     public int getCantidad() { return cantidad; }
@@ -85,5 +122,6 @@ public class Venta {
     public long getCostoUnitario() { return costoUnitario; }
     public long getTotal() { return total; }
     public MetodoPago getMetodo() { return metodo; }
+    public Long getMontoEfectivo() { return montoEfectivo; }
     public Instant getCreadaEn() { return creadaEn; }
 }

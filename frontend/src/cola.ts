@@ -45,7 +45,7 @@ const SUBIR: { [K in Operacion['tipo']]: (op: Carga<K>, api: ApiSync) => Promise
   venta: (op, api) => api.venta({
     clientUid: op.clientUid, productoId: op.productoId, metodo: op.metodo,
     cantidad: op.cantidad, creadaEn: new Date(op.creadaEn).toISOString(), total: op.total,
-    cliente: op.cliente, telefono: op.telefono,
+    cliente: op.cliente, telefono: op.telefono, efectivo: op.efectivo,
   }),
   entrada: (op, api) => api.entrada({ clientUid: op.clientUid, productoId: op.productoId, cantidad: op.cantidad }),
   ajuste: (op, api) => api.movimiento({
@@ -81,7 +81,7 @@ export async function subirPendientes(cola: readonly Operacion[], api: ApiSync):
           const v = cola[i]
           if (v.tipo !== 'venta') break
           grupo.push({ clientUid: v.clientUid, productoId: v.productoId, metodo: v.metodo, cantidad: v.cantidad,
-            creadaEn: new Date(v.creadaEn).toISOString(), total: v.total, cliente: v.cliente, telefono: v.telefono })
+            creadaEn: new Date(v.creadaEn).toISOString(), total: v.total, cliente: v.cliente, telefono: v.telefono, efectivo: v.efectivo })
           i++
         }
         await subirLote(grupo, api, r)

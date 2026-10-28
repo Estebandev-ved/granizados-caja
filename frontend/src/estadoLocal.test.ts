@@ -22,6 +22,45 @@ const venta = (uid: string, productoId: number, cantidad: number, metodo: 'NEQUI
   ({ tipo: 'venta', clientUid: uid, productoId, metodo, cantidad, creadaEn })
 
 describe('estadoVisible', () => {
+  it('lo que vende este celular también cuenta en las ventas propias (la carga del día)', () => {
+    const b = base()
+    b.hoy.propias = [{ sabor: 'Smirnoff', unidades: 1 }]
+    const e = estadoVisible(b, [], [venta('p1', 1, 2), venta('p2', 2, 1)], '2026-09-25')!
+
+    expect(e.hoy.propias).toEqual([{ sabor: 'Smirnoff', unidades: 3 }, { sabor: 'Piña colada cremoso', unidades: 1 }])
+    expect(b.hoy.propias).toEqual([{ sabor: 'Smirnoff', unidades: 1 }])
+  })
+
+  it('una venta que el servidor ya trae no se suma otra vez (ni confirmada ni pendiente)', () => {
+    const b = base()
+    b.ultimas = [{ clientUid: 'ya', hora: '2:55 PM', sabor: 'Smirnoff', total: 6000, metodo: 'NEQUI' }, ...b.ultimas]
+    const op = venta('ya', 1, 1, 'NEQUI')
+
+    for (const e of [estadoVisible(b, [op], [], '2026-09-25')!, estadoVisible(b, [], [op], '2026-09-25')!]) {
+      expect(e.productos[0].stock).toBe(10)
+      expect(e.hoy.total).toBe(6000)
+      expect(e.hoy.unidades).toBe(1)
+    }
+  })
+
+  it('una merma pendiente baja la ganancia del día y el stock', () => {
+    const merma: Operacion = { tipo: 'merma', clientUid: 'mm', productoId: 1, cantidad: 2, motivo: 'DANADO', creadaEn: HOY_3PM }
+    const e = estadoVisible(base(), [], [merma], '2026-09-25')!
+
+    expect(e.productos[0].stock).toBe(8)
+    expect(e.hoy.mermas).toBe(6000)
+    expect(e.hoy.ganancia).toBe(3000 - 6000)
+  })
+
+  it('una venta mixta suma cada parte donde entró la plata', () => {
+    const op: Operacion = { tipo: 'venta', clientUid: 'm1', productoId: 2, metodo: 'MIXTO', cantidad: 1, creadaEn: HOY_3PM, efectivo: 3000 }
+    const e = estadoVisible(base(), [], [op], '2026-09-25')!
+
+    expect(e.hoy.efectivo).toBe(3000)
+    expect(e.hoy.nequi).toBe(6000 + 4000)
+    expect(e.hoy.total).toBe(13000)
+  })
+
   it('suma las ventas pendientes encima del estado del servidor', () => {
     const e = estadoVisible(base(), [], [venta('p1', 2, 2)], '2026-09-25')!
 

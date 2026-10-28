@@ -154,7 +154,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
         </div>
       )}
 
-      <ResumenCarga productos={estado.productos} porSabor={h.porSabor} hoy={estado.dia} />
+      <ResumenCarga productos={estado.productos} porSabor={h.propias ?? h.porSabor} hoy={estado.dia} />
 
       {h.porSabor.length > 0 && (
         <div className="list">
@@ -187,7 +187,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
                 <Icono nombre={u.metodo === 'EFECTIVO' ? 'billete' : 'celular'} />
               </span>
               <div className="pago-info">
-                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : 'Nequi'}</b>
+                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : 'Nequi'}</b>
                 <span className="mut">{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}</span>
               </div>
               <b>{pesos(u.total)}</b>

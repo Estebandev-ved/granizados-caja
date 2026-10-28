@@ -2,6 +2,7 @@ package co.granizados.pos.venta;
 
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.equipo.Sesion;
 import co.granizados.pos.fiado.Deuda;
 import co.granizados.pos.fiado.DeudaRepository;
 import co.granizados.pos.negocio.TenantContext;
@@ -40,10 +41,17 @@ public class VentaService {
             @Min(0) Long total,
             /** Solo para FIADO: quién debe y su celular (opcional, para recordarle por WhatsApp). */
             @Size(max = 60) String cliente,
-            @Size(max = 20) String telefono) {
+            @Size(max = 20) String telefono,
+            /** Solo para MIXTO: cuánto de lo cobrado se pagó en efectivo (el resto fue por Nequi). */
+            @Min(0) Long efectivo) {
+
+        public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad, Instant creadaEn, Long total,
+                          String cliente, String telefono) {
+            this(clientUid, productoId, metodo, cantidad, creadaEn, total, cliente, telefono, null);
+        }
 
         public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad, Instant creadaEn, Long total) {
-            this(clientUid, productoId, metodo, cantidad, creadaEn, total, null, null);
+            this(clientUid, productoId, metodo, cantidad, creadaEn, total, null, null, null);
         }
 
         public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad) {
@@ -103,7 +111,20 @@ public class VentaService {
         long normal = p.getPrecio() * v.cantidad();
         long cobrado = v.total() == null ? normal : Math.min(v.total(), normal); // promo: solo puede bajar el precio
         Instant cuando = cuando(v.creadaEn());
-        ventas.saveAndFlush(new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando, cobrado));
+        Venta venta = new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando, cobrado);
+        if (v.metodo() == MetodoPago.MIXTO) {
+            // Con varios sabores en un combo el efectivo se reparte por línea: una puede quedar toda en un solo método
+            if (v.efectivo() == null || v.efectivo() > cobrado) {
+                throw new IllegalArgumentException("En el pago mixto el efectivo no puede ser más que lo cobrado");
+            }
+            venta.mixto(v.efectivo());
+        }
+        Long vendedor = Sesion.vendedorId();
+        if (vendedor != null) {
+            if (v.metodo() == MetodoPago.FIADO) throw new IllegalArgumentException("Los trabajadores no pueden fiar");
+            venta.porVendedor(vendedor);
+        }
+        ventas.saveAndFlush(venta);
         if (v.metodo() == MetodoPago.FIADO) {
             if (v.cliente() == null || v.cliente().isBlank()) throw new IllegalArgumentException("Falta el nombre de quien debe");
             String nombreCliente = v.cliente().trim();
@@ -144,6 +165,11 @@ public class VentaService {
     public void deshacer(String clientUid) {
         Venta v = ventas.findByClientUid(clientUid)
                 .orElseThrow(() -> new NoEncontradoException("Venta no encontrada: " + clientUid));
+        // Un trabajador solo puede deshacer lo suyo
+        Long vendedor = Sesion.vendedorId();
+        if (vendedor != null && !vendedor.equals(v.getVendedorId())) {
+            throw new NoEncontradoException("Venta no encontrada: " + clientUid);
+        }
         deudas.findByVentaUid(clientUid).ifPresent(d -> {
             if (d.estaPagada()) throw new IllegalArgumentException("Ese fiado ya se cobró, no se puede deshacer");
             deudas.delete(d);

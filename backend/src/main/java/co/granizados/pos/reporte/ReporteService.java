@@ -153,7 +153,8 @@ public class ReporteService {
                     .append(v.getPrecioUnitario()).append(';')
                     .append(v.getTotal()).append(';')
                     .append((long) v.getCostoUnitario() * v.getCantidad()).append(';')
-                    .append(switch (v.getMetodo()) { case EFECTIVO -> "Efectivo"; case NEQUI -> "Nequi"; case FIADO -> "Fiado"; }).append('\n');
+                    .append(switch (v.getMetodo()) { case EFECTIVO -> "Efectivo"; case NEQUI -> "Nequi"; case FIADO -> "Fiado";
+                        case MIXTO -> "Mixto (efectivo " + v.efectivo() + " / Nequi " + v.nequi() + ")"; }).append('\n');
         }
         return sb.toString();
     }
@@ -171,8 +172,8 @@ public class ReporteService {
             ventasTotal += v.getTotal();
             unidades += v.getCantidad();
             costo += (long) v.getCostoUnitario() * v.getCantidad();
-            if (v.getMetodo() == MetodoPago.EFECTIVO) efectivo += v.getTotal();
-            else if (v.getMetodo() == MetodoPago.NEQUI) nequi += v.getTotal(); // el fiado no es plata hasta que se cobra
+            efectivo += v.efectivo(); // el fiado no es plata hasta que se cobra
+            nequi += v.nequi();
         }
         return new Totales(ventasTotal, unidades, nequi, efectivo, costo, gastosTotal, mermasTotal,
                 ventasTotal - costo - gastosTotal - mermasTotal + ingresosTotal, ingresosTotal);

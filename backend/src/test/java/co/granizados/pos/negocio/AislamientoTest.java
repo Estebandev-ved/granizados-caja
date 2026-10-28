@@ -58,6 +58,9 @@ class AislamientoTest extends PruebaIntegracion {
     EstadoService estado;
 
     @Autowired
+    co.granizados.pos.equipo.EquipoService equipo;
+
+    @Autowired
     NegocioService negocios;
 
     @Autowired
@@ -153,6 +156,22 @@ class AislamientoTest extends PruebaIntegracion {
         long id = como(2, () -> fiados.pendientes().personas().getFirst().deudas().getFirst().id());
         assertThatThrownBy(() -> como(1, () -> fiados.cobrar(id, LugarPlata.CAJA, "x")))
                 .isInstanceOf(NoEncontradoException.class);
+    }
+
+    @Test
+    void losTrabajadoresYSusCargasSonDeCadaNegocio() {
+        var juan = como(1, () -> equipo.crear(new co.granizados.pos.equipo.EquipoService.NuevoVendedor("Juan", "1111", 0)));
+        como(1, () -> equipo.cargar(juan.id(), new co.granizados.pos.equipo.EquipoService.Carga(
+                java.util.List.of(new co.granizados.pos.equipo.EquipoService.ItemCarga(idDe("Smirnoff"), 3)))));
+
+        assertThat(como(1, () -> equipo.listar())).hasSize(1);
+        assertThat(como(2, () -> equipo.listar())).isEmpty();
+        assertThat(como(2, () -> equipo.entrar("1111"))).isEmpty();
+        assertThat(como(2, () -> equipo.estaActivo(juan.id()))).isFalse();
+        assertThatThrownBy(() -> como(2, () -> equipo.cargar(juan.id(),
+                new co.granizados.pos.equipo.EquipoService.Carga(java.util.List.of()))))
+                .isInstanceOf(NoEncontradoException.class);
+        assertThat(como(2, () -> equipo.liquidar(estado.hoy(), estado.hoy()))).isEmpty();
     }
 
     @Test

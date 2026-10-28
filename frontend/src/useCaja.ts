@@ -41,6 +41,8 @@ export function useCaja(avisar: (mensaje: string) => void) {
   const enVuelo = useRef(new Set<string>())
   const reintento = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const espera = useRef(0)
+  // Sube cada vez que empieza o termina una subida: un estado pedido durante una subida llega "a medias" y se descarta
+  const generacion = useRef(0)
   const avisarRef = useRef(avisar)
   useEffect(() => { avisarRef.current = avisar }, [avisar])
 
@@ -55,9 +57,11 @@ export function useCaja(avisar: (mensaje: string) => void) {
   const refrescar = useCallback(async () => {
     if (enVuelo.current.size) return
     const pedidoEn = Date.now()
+    const gen = generacion.current
     try {
       const e = await api.estado()
-      if (enVuelo.current.size) return
+      // Si una subida empezó o terminó mientras llegaba, el estado puede incluir o no esa venta: se pide de nuevo después
+      if (enVuelo.current.size || gen !== generacion.current) return
       setBase(e)
       guardar(CLAVE_ESTADO, e)
       setConfirmadas(cs => cs.filter(c => c.en > pedidoEn))
@@ -71,9 +75,11 @@ export function useCaja(avisar: (mensaje: string) => void) {
     if (enVuelo.current.size || !colaRef.current.length) return
     const tanda = [...colaRef.current]
     tanda.forEach(o => enVuelo.current.add(o.clientUid))
+    generacion.current++
 
     const r = await subirPendientes(tanda, api)
     enVuelo.current.clear()
+    generacion.current++
 
     const aceptadas = new Set(r.aceptadas)
     const salen = new Set([...r.aceptadas, ...r.rechazadas])
@@ -118,11 +124,14 @@ export function useCaja(avisar: (mensaje: string) => void) {
     const conSenal = () => { setEnLinea(true); espera.current = 0; void sincronizar() }
     const sinSenal = () => setEnLinea(false)
     const reloj = setInterval(() => setHoy(diaBogota()), 60_000)
+    // Lo que venden o cambian otros celulares aparece solo, sin tener que salir y volver a la app
+    const sondeo = setInterval(() => { if (!document.hidden && navigator.onLine) void refrescar() }, 20_000)
     document.addEventListener('visibilitychange', alVolver)
     window.addEventListener('online', conSenal)
     window.addEventListener('offline', sinSenal)
     return () => {
       clearInterval(reloj)
+      clearInterval(sondeo)
       document.removeEventListener('visibilitychange', alVolver)
       window.removeEventListener('online', conSenal)
       window.removeEventListener('offline', sinSenal)
@@ -133,9 +142,9 @@ export function useCaja(avisar: (mensaje: string) => void) {
     () => estadoVisible(base, confirmadas.map(c => c.op), cola, hoy),
     [base, confirmadas, cola, hoy])
 
-  const vender = useCallback((p: Producto, metodo: Metodo, cantidad: number, total?: number, fiado?: { cliente: string; telefono: string }) => {
+  const vender = useCallback((p: Producto, metodo: Metodo, cantidad: number, total?: number, fiado?: { cliente: string; telefono: string }, efectivo?: number) => {
     const op: Operacion = { tipo: 'venta', clientUid: nuevoUid(), productoId: p.id, metodo, cantidad, creadaEn: Date.now(), total,
-      cliente: fiado?.cliente, telefono: fiado?.telefono || undefined }
+      cliente: fiado?.cliente, telefono: fiado?.telefono || undefined, efectivo }
     setCola(c => [...c, op])
     void sincronizar()
     return op.clientUid

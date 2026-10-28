@@ -12,6 +12,7 @@ import { Ajustes } from './vistas/Ajustes'
 import { Hoy } from './vistas/Hoy'
 import { Inventario } from './vistas/Inventario'
 import { Login } from './vistas/Login'
+import { MiDia } from './vistas/MiDia'
 import { Reportes } from './vistas/Reportes'
 import { Vender } from './vistas/Vender'
 
@@ -39,6 +40,8 @@ const TEXTO_SYNC: Record<EstadoSync, string> = { 'al-dia': 'al día', pendiente:
 
 function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void }) {
   const [vista, setVista] = useState<Vista>('vender')
+  // Un trabajador solo ve Vender y su día (el servidor también se lo exige)
+  const trabajador = sesion.esTrabajador
   const caja = useCaja(avisar)
   const { estado, cola, sync } = caja
 
@@ -80,10 +83,10 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       {sync === 'sin-senal' ? 'La primera vez necesitas señal para cargar los sabores.' : 'Cargando…'}
     </div>
   } else if (vista === 'vender') {
-    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.porSabor} onVender={(lineas, metodo, fiado) => {
-      const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado))
+    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} onVender={(lineas, metodo, fiado) => {
+      const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado, l.efectivo))
       const detalle = lineas.map(l => (l.cantidad > 1 ? l.cantidad + ' ' : '') + l.p.nombre).join(' + ')
-      avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
+      avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'MIXTO' ? 'Efectivo + Nequi' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
         { texto: 'Deshacer', alTocar: () => uids.forEach(clientUid => void caja.deshacer({ clientUid })) })
     }} />
   } else if (vista === 'inventario') {
@@ -98,6 +101,8 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       }}
       onCancelar={caja.cancelarPedido}
       avisar={avisar} />
+  } else if (vista === 'hoy' && trabajador) {
+    contenido = <MiDia estado={estado} onDeshacer={caja.deshacer} />
   } else if (vista === 'hoy') {
     contenido = <Hoy estado={estado} onDeshacer={caja.deshacer} onRecargar={caja.recargar}
       onLlego={(pedidoId, items, pagoLugar) => {
@@ -137,18 +142,24 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
         <BotonNav activa={vista === 'vender'} onClick={() => irA('vender')} texto="Vender">
           <path d="M7 3h10l-1.5 18h-7z" /><path d="M6 8h12" />
         </BotonNav>
-        <BotonNav activa={vista === 'inventario'} onClick={() => irA('inventario')} texto="Inventario">
-          <path d="M12 5v14M5 12h14" />
-        </BotonNav>
-        <BotonNav activa={vista === 'hoy'} onClick={() => irA('hoy')} texto="Hoy">
+        {!trabajador && (
+          <BotonNav activa={vista === 'inventario'} onClick={() => irA('inventario')} texto="Inventario">
+            <path d="M12 5v14M5 12h14" />
+          </BotonNav>
+        )}
+        <BotonNav activa={vista === 'hoy'} onClick={() => irA('hoy')} texto={trabajador ? 'Mi día' : 'Hoy'}>
           <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
         </BotonNav>
-        <BotonNav activa={vista === 'reportes'} onClick={() => irA('reportes')} texto="Reportes">
-          <path d="M4 20V4M4 20h16M8 16v-5M13 16V8M18 16v-9" />
-        </BotonNav>
-        <BotonNav activa={vista === 'ajustes'} onClick={() => irA('ajustes')} texto="Ajustes">
-          <circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
-        </BotonNav>
+        {!trabajador && (
+          <BotonNav activa={vista === 'reportes'} onClick={() => irA('reportes')} texto="Reportes">
+            <path d="M4 20V4M4 20h16M8 16v-5M13 16V8M18 16v-9" />
+          </BotonNav>
+        )}
+        {!trabajador && (
+          <BotonNav activa={vista === 'ajustes'} onClick={() => irA('ajustes')} texto="Ajustes">
+            <circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+          </BotonNav>
+        )}
       </nav>
     </>
   )
