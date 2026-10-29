@@ -36,13 +36,13 @@
   }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0 }
-html, body { background: var(--bg); color: var(--txt); font: 16px/1.35 var(--font-body);
+html, body { font-variant-numeric: tabular-nums; background: var(--bg); color: var(--txt); font: 16px/1.35 var(--font-body);
   -webkit-user-select: none; user-select: none; overscroll-behavior: none; -webkit-text-size-adjust: 100% }
 body { min-height: 100vh }
 button { font-family: inherit; color: inherit; cursor: pointer }
 input, select { font: inherit; color: var(--txt); -webkit-user-select: text; user-select: text }
 
-header { position: sticky; top: 0; z-index: 5; background: linear-gradient(180deg, var(--bg) 75%, var(--bg-0));
+header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line);
   padding: calc(var(--safe-t) + 12px) 16px 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px }
 .hoy-mini { font-weight: 800; font-size: 24px; letter-spacing: -.5px; color: var(--txt) }
 .hoy-mini small { display: block; font-size: 12px; font-weight: 500; color: var(--mut); letter-spacing: 0; -webkit-text-fill-color: var(--mut) }
@@ -52,7 +52,7 @@ header { position: sticky; top: 0; z-index: 5; background: linear-gradient(180de
 .dot.pendiente { background: var(--warn); box-shadow: 0 0 8px var(--warn) } .dot.sin-senal { background: var(--bad); box-shadow: 0 0 8px var(--bad) }
 
 main { padding: 0 12px calc(90px + var(--safe-b)) }
-.modo { font-size: 13px; color: var(--mut); margin: 4px 4px 10px }
+.modo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); margin: 14px 4px 8px }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
 
 .aviso-stock { display: flex; align-items: center; gap: 8px; background: var(--bad-bg); color: var(--bad-txt);
@@ -70,21 +70,23 @@ main { padding: 0 12px calc(90px + var(--safe-b)) }
   display: flex; flex-direction: column; justify-content: space-between; text-align: left; font: inherit; transition: transform .08s, border-color .15s }
 .prod:active { transform: scale(.96); background: var(--card2); border-color: var(--primario) }
 .prod-cabeza { display: flex; align-items: center; gap: 10px }
-.prod-icono { flex: 0 0 auto; width: 38px; height: 38px; border-radius: var(--r-md); background: var(--primario);
-  display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 2px 8px var(--sombra) }
+.prod-icono { flex: 0 0 auto; width: 38px; height: 38px; border-radius: var(--r-md); background: var(--primario-bg);
+  display: flex; align-items: center; justify-content: center; color: var(--primario-txt) }
 .prod-icono svg { width: 20px; height: 20px }
-.prod b { font-size: 17px; line-height: 1.15 }
+.prod b { font-size: 16px; line-height: 1.2; font-weight: 700 }
 .prod .tipo { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--acento); margin-top: 2px }
 .prod .fila { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8px }
 .precio { color: var(--mut); font-size: 14px }
-.stock { font-weight: 700; font-size: 15px; padding: 3px 9px; border-radius: var(--r-full); background: var(--primario-bg); color: var(--primario-txt) }
+.stock { font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; padding: 3px 9px; border-radius: var(--r-full); background: var(--card2); color: var(--txt); border: 1px solid var(--line) }
 .stock.low { background: var(--warn-bg); color: var(--warn-txt) } .stock.out { background: var(--bad-bg); color: var(--bad-txt) }
 
 nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; background: var(--nav-bg);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-top: 1px solid var(--line); padding-bottom: var(--safe-b) }
 nav button { flex: 1; background: none; border: 0; color: var(--mut); font-size: 12px; font-weight: 600; line-height: 1; padding: 13px 0 11px;
   display: flex; flex-direction: column; align-items: center; gap: 5px }
+nav button { position: relative }
 nav button.on { color: var(--primario-txt) }
+nav button.on::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 var(--r) var(--r); background: var(--primario) }
 nav svg { width: 24px; height: 24px }
 
 .sheet-bg { position: fixed; inset: 0; background: var(--velo); z-index: 10; opacity: 0; pointer-events: none; transition: opacity .18s }
@@ -94,10 +96,11 @@ nav svg { width: 24px; height: 24px }
   padding: 18px 16px calc(18px + var(--safe-b)); transform: translateY(105%); transition: transform .18s ease-out;
   max-height: 88vh; overflow-y: auto; pointer-events: none }
 .sheet.on { transform: none; pointer-events: auto }
+.sheet::before { content: ''; display: block; width: 40px; height: 4px; border-radius: var(--r-full); background: var(--line); margin: -6px auto 14px }
 .sheet h2 { font-size: 22px; margin-bottom: 2px } .sheet p { color: var(--mut); margin-bottom: 16px }
 
 .pay { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
-.big { border: 0; border-radius: var(--r-lg); padding: 22px 10px; font-size: 20px; font-weight: 700; line-height: 1; color: #fff; width: 100% }
+.big { border: 0; border-radius: var(--r-md); padding: 18px 10px; font-size: 20px; font-weight: 700; line-height: 1; color: #fff; width: 100% }
 .big:active { filter: brightness(.85) }
 .big:disabled { opacity: .45 }
 .nequi { background: var(--nequi) } .cash { background: var(--cash-fuerte) } .rojo { background: var(--bad-fuerte) }
@@ -443,10 +446,10 @@ h1, h2, h3, .hoy-mini, .card .v, .qty span, .login-titulo, .big { font-family: v
 
 /* Lo que llevo hoy */
 .carga-boton { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; margin: 0 0 12px; padding: 12px 14px; text-align: left;
-  background: var(--card); border: 1px dashed var(--primario); border-radius: var(--r-lg) }
-.carga-boton b { font-size: 16px; color: var(--primario-txt) }
+  background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--primario); border-radius: var(--r-md) }
+.carga-boton b { font-size: 15px; color: var(--txt) }
 .carga-boton span { font-size: 13px; color: var(--mut) }
-.carga-boton.on { border-style: solid; border-color: var(--line) }
+.carga-boton.on { border-left-color: var(--ok) }
 .prod.fuera { opacity: .45 }
 .carga-lista { max-height: 52vh; overflow-y: auto; margin-bottom: 12px }
 .carga-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line) }
@@ -472,3 +475,7 @@ h1, h2, h3, .hoy-mini, .card .v, .qty span, .login-titulo, .big { font-family: v
 .deuda-detalle { margin: 0; padding-left: 18px; font-size: 14px }
 .deuda-mensaje { white-space: pre-wrap; font: inherit; font-size: 14px; background: var(--card2); border: 1px solid var(--line); border-radius: var(--r-md, 12px); padding: 10px 12px; margin: 0 }
 .deuda-vista { display: grid; gap: 8px }
+
+/* Foco visible y toques más finos */
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px }
+.card, .list, .menu, .prod { box-shadow: 0 1px 2px var(--sombra) }

@@ -78,7 +78,6 @@ export function Vender({ productos, porSabor, trabajador = false, onVender }: Pr
 
   return (
     <section>
-      <div className="modo">Toca un sabor para vender</div>
       {hayPromo && promo && (
         <div className="promo-aviso"><b>{nombrePromo(promo, pesos)}</b> · promo prendida</div>
       )}
@@ -91,6 +90,7 @@ export function Vender({ productos, porSabor, trabajador = false, onVender }: Pr
       {trabajador && !productos.some(p => p.stock > 0) && (
         <p className="aviso" style={{ textAlign: 'center' }}>No tienes nada cargado. Pídele al dueño que te anote lo que sacas a vender.</p>
       )}
+      <div className="modo">Toca un sabor para vender</div>
       {tiposPresentes.length > 1 && (
         <div className="chips categorias">
           <button className={filtro === 'todos' ? 'on' : ''} onClick={() => setFiltro('todos')}>Todos</button>
