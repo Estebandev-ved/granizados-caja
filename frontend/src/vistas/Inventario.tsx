@@ -16,7 +16,7 @@ import type { LineaPedido, LugarPlata, MotivoMerma, Producto, Tipo, PedidoEnCami
 type Modo = 'sumar' | 'contar' | 'merma'
 
 const ETIQUETA: Record<Modo, string> = { sumar: 'Sumar', contar: 'Contar', merma: 'Merma' }
-const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande' }
+const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande', CERVEZA: 'Cerveza' }
 
 const MOTIVOS: { valor: MotivoMerma; texto: string }[] = [
   { valor: 'DANADO', texto: 'Dañado' },
@@ -60,7 +60,7 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
   }, [productos, busqueda])
 
   const grupos = useMemo(() => {
-    const tipos: Tipo[] = ['NORMAL', 'CREMOSO', 'GRANDE']
+    const tipos: Tipo[] = ['NORMAL', 'CREMOSO', 'GRANDE', 'CERVEZA']
     return tipos
       .map(t => ({ tipo: t, items: filtrados.filter(p => p.tipo === t) }))
       .filter(g => g.items.length > 0)

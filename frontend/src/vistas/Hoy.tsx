@@ -118,9 +118,19 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
             {h.mermas > 0 && <span>mermas {pesos(h.mermas)}</span>}
           </div>
         </div>
+        {h.cerveza && h.cerveza.unidades > 0 && (
+          <div className="card full ganancia">
+            <div className="k"><Icono nombre="vaso" /> Cerveza · {h.cerveza.unidades}</div>
+            <div className="v">{pesos(h.cerveza.ganancia)}</div>
+            <div className="desglose">
+              <span>vendido {pesos(h.cerveza.total)}</span>
+              <span>producto {pesos(h.cerveza.costo)}</span>
+            </div>
+          </div>
+        )}
         <div className="card">
           <div className="k"><Icono nombre="vaso" /> Granizados</div>
-          <div className="v">{h.unidades}</div>
+          <div className="v">{h.unidades - (h.cerveza?.unidades ?? 0)}</div>
         </div>
         <div className="card">
           <div className="k"><Icono nombre="ticket" /> Ticket promedio</div>

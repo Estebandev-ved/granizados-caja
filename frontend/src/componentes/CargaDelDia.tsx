@@ -5,6 +5,7 @@ import type { Producto, Tipo } from '../tipos'
 
 const TIPOS: { tipo: Tipo; titulo: string }[] = [
   { tipo: 'NORMAL', titulo: 'Normales' }, { tipo: 'CREMOSO', titulo: 'Cremosos' }, { tipo: 'GRANDE', titulo: 'Grandes' },
+  { tipo: 'CERVEZA', titulo: 'Cervezas' },
 ]
 
 interface Props {

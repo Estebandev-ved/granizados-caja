@@ -21,7 +21,7 @@ interface Props {
 }
 
 type Filtro = 'todos' | Tipo
-const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande' }
+const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande', CERVEZA: 'Cerveza' }
 
 export function Vender({ productos, porSabor, trabajador = false, onVender }: Props) {
   const [elegido, setElegido] = useState<Producto | null>(null)

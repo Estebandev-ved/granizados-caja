@@ -11,6 +11,7 @@ import co.granizados.pos.pedido.PedidoService;
 import co.granizados.pos.plata.IngresoRepository;
 import co.granizados.pos.producto.ProductoDto;
 import co.granizados.pos.producto.ProductoRepository;
+import co.granizados.pos.producto.TipoProducto;
 import co.granizados.pos.venta.MetodoPago;
 import co.granizados.pos.venta.Venta;
 import co.granizados.pos.venta.VentaRepository;
@@ -44,7 +45,24 @@ public class EstadoService {
     public record ResumenDia(long total, long nequi, long efectivo, int unidades, List<PorSabor> porSabor,
                              long costo, long gastos, long mermas, long ganancia, long ingresos,
                              /** Solo lo que vendió el dueño en persona (sin el equipo): sirve para su carga del día. */
-                             List<PorSabor> propias) {
+                             List<PorSabor> propias,
+                             /** La parte de cerveza, que ya está dentro de los totales de arriba. */
+                             Cerveza cerveza) {
+    }
+
+    /** Lo vendido en cerveza. `ganancia = total − costo` (los gastos y mermas son de todo el negocio). */
+    public record Cerveza(int unidades, long total, long costo, long ganancia) {
+        public static Cerveza de(List<Venta> lista) {
+            int unidades = 0;
+            long total = 0, costo = 0;
+            for (Venta v : lista) {
+                if (v.getProducto().getTipo() != TipoProducto.CERVEZA) continue;
+                unidades += v.getCantidad();
+                total += v.getTotal();
+                costo += v.getCostoUnitario() * v.getCantidad();
+            }
+            return new Cerveza(unidades, total, costo, total - costo);
+        }
     }
 
     public record VentaReciente(String clientUid, String hora, String sabor, long total, MetodoPago metodo) {
@@ -132,7 +150,7 @@ public class EstadoService {
                 .toList();
         ResumenDia r = resumir(mias, 0, 0, 0);
         ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades(), r.porSabor(), 0, 0, 0,
-                r.total(), 0, r.porSabor());
+                r.total(), 0, r.porSabor(), r.cerveza());
         return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0), equipo.metaDe(vendedor, dia));
     }
 
@@ -216,6 +234,6 @@ public class EstadoService {
                 .sorted(Comparator.comparingInt(PorSabor::unidades).reversed())
                 .toList();
         return new ResumenDia(total, nequi, efectivo, unidades, ranking, costo, gastos, mermas,
-                total - costo - gastos - mermas + ingresos, ingresos, propias);
+                total - costo - gastos - mermas + ingresos, ingresos, propias, Cerveza.de(lista));
     }
 }

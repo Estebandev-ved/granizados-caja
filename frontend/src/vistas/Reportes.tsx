@@ -130,9 +130,19 @@ export function Reportes({ avisar }: Props) {
                 {vGanancia && <span className={vGanancia.clase}>{vGanancia.texto}</span>}
               </div>
             </div>
+            {t.cerveza && t.cerveza.unidades > 0 && (
+              <div className="card full ganancia">
+                <div className="k"><Icono nombre="vaso" /> Cerveza · {t.cerveza.unidades}</div>
+                <div className="v">{pesos(t.cerveza.ganancia)}</div>
+                <div className="desglose">
+                  <span>vendido {pesos(t.cerveza.total)}</span>
+                  <span>producto {pesos(t.cerveza.costo)}</span>
+                </div>
+              </div>
+            )}
             <div className="card">
               <div className="k"><Icono nombre="vaso" /> Granizados</div>
-              <div className="v">{t.unidades}</div>
+              <div className="v">{t.unidades - (t.cerveza?.unidades ?? 0)}</div>
             </div>
             <div className="card">
               <div className="k"><Icono nombre="caja" /> Pedidos</div>

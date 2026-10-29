@@ -56,7 +56,7 @@ public class Producto {
 
     /** "Smirnoff", o "Piña colada cremoso" si no es normal. */
     public String nombre() {
-        return tipo == TipoProducto.NORMAL ? sabor : sabor + " " + tipo.etiqueta();
+        return tipo == TipoProducto.NORMAL || tipo == TipoProducto.CERVEZA ? sabor : sabor + " " + tipo.etiqueta();
     }
 
     public Long getId() { return id; }

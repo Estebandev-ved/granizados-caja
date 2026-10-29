@@ -1,6 +1,6 @@
 // Tipos que devuelve la API del backend (Spring Boot).
 
-export type Tipo = 'NORMAL' | 'CREMOSO' | 'GRANDE'
+export type Tipo = 'NORMAL' | 'CREMOSO' | 'GRANDE' | 'CERVEZA'
 export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO' | 'MIXTO'
 export type TipoMovimiento = 'ENTRADA' | 'CONTEO' | 'MERMA'
 export type MotivoMerma = 'DANADO' | 'REGALADO' | 'VENCIDO'
@@ -26,6 +26,14 @@ export interface PorSabor {
   unidades: number
 }
 
+/** La parte de cerveza (ya está dentro de los totales). `ganancia = total - costo`. */
+export interface Cerveza {
+  unidades: number
+  total: number
+  costo: number
+  ganancia: number
+}
+
 /** Todo en pesos enteros. `ganancia = total - costo - gastos - mermas`. */
 export interface ResumenDia {
   total: number
@@ -41,6 +49,7 @@ export interface ResumenDia {
   ingresos?: number
   /** Solo lo que vendió el dueño en persona, sin el equipo: su carga del día cuenta con esto. */
   propias?: PorSabor[]
+  cerveza?: Cerveza
 }
 
 /** La meta del día de un trabajador (la pone el dueño en Ajustes). */
@@ -200,6 +209,7 @@ export interface ReporteTotales {
   gastos: number
   mermas: number
   ganancia: number
+  cerveza?: Cerveza
 }
 
 export interface ReporteDia {

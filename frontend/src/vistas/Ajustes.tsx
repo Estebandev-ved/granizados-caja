@@ -12,7 +12,7 @@ import { useInstalarPWA } from '../instalarPwa'
 import { leerPromo, nombrePromo, promoVigente } from '../promo'
 import type { DatosProducto, Param, Producto, Tipo } from '../tipos'
 
-const PRECIO_POR_TIPO: Record<Tipo, number> = { NORMAL: 6000, CREMOSO: 7000, GRANDE: 10000 }
+const PRECIO_POR_TIPO: Record<Tipo, number> = { NORMAL: 6000, CREMOSO: 7000, GRANDE: 10000, CERVEZA: 5000 }
 
 /** Cómo se llama cada ajuste, qué tipo de dato es y en qué sección vive. */
 type Clase = 'dinero' | 'entero' | 'telefono' | 'texto'
@@ -294,11 +294,12 @@ function FormProducto({ producto, onGuardar, onEliminar }: {
         <input id="sabor" value={sabor} maxLength={80} onChange={e => setSabor(e.target.value)} placeholder="Ej: Piña colada" />
       </div>
       <div className="campo">
-        <label htmlFor="tipo">Tamaño</label>
+        <label htmlFor="tipo">Tamaño o tipo</label>
         <select id="tipo" value={tipo} onChange={e => cambiarTipo(e.target.value as Tipo)}>
           <option value="NORMAL">Normal</option>
           <option value="CREMOSO">Cremoso</option>
           <option value="GRANDE">Grande</option>
+          <option value="CERVEZA">Cerveza</option>
         </select>
       </div>
       <div className="dos">

@@ -114,6 +114,15 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
     e.hoy.nequi += total - efectivo
   }
 
+  if (p.tipo === 'CERVEZA') {
+    const c = e.hoy.cerveza ?? { unidades: 0, total: 0, costo: 0, ganancia: 0 }
+    c.unidades += op.cantidad
+    c.total += total
+    c.costo += p.costo * op.cantidad
+    c.ganancia = c.total - c.costo
+    e.hoy.cerveza = c
+  }
+
   const fila = e.hoy.porSabor.find(s => s.sabor === p.nombre)
   if (fila) fila.unidades += op.cantidad
   else e.hoy.porSabor.push({ sabor: p.nombre, unidades: op.cantidad })

@@ -10,6 +10,7 @@ import co.granizados.pos.inventario.TipoMovimiento;
 import co.granizados.pos.pedido.PedidoService;
 import co.granizados.pos.plata.Ingreso;
 import co.granizados.pos.plata.IngresoRepository;
+import co.granizados.pos.resumen.EstadoService;
 import co.granizados.pos.venta.MetodoPago;
 import co.granizados.pos.venta.Venta;
 import co.granizados.pos.venta.VentaRepository;
@@ -39,7 +40,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReporteService {
 
     public record Totales(long ventas, int unidades, long nequi, long efectivo, long costo,
-                          long gastos, long mermas, long ganancia, long ingresos) {
+                          long gastos, long mermas, long ganancia, long ingresos,
+                          /** La parte de cerveza, ya incluida en los totales de arriba. */
+                          EstadoService.Cerveza cerveza) {
     }
 
     public record PorDia(String dia, int unidades, long total, long ganancia) {
@@ -176,7 +179,8 @@ public class ReporteService {
             nequi += v.nequi();
         }
         return new Totales(ventasTotal, unidades, nequi, efectivo, costo, gastosTotal, mermasTotal,
-                ventasTotal - costo - gastosTotal - mermasTotal + ingresosTotal, ingresosTotal);
+                ventasTotal - costo - gastosTotal - mermasTotal + ingresosTotal, ingresosTotal,
+                EstadoService.Cerveza.de(lista));
     }
 
     private List<PorDia> porDia(List<Venta> lista, List<Gasto> gastosLista, Map<String, Long> mermasPorDia,

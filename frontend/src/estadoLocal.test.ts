@@ -40,6 +40,17 @@ describe('estadoVisible', () => {
     expect(b.hoy.propias).toEqual([{ sabor: 'Smirnoff', unidades: 1 }])
   })
 
+  it('la cerveza cuenta en el total pero también en su propio bloque de ganancia', () => {
+    const b = base()
+    b.productos.push({ id: 3, sabor: 'Águila', tipo: 'CERVEZA', nombre: 'Águila', precio: 5000, costo: 3200, stock: 24, stockMinimo: 6, activo: true, orden: 3 })
+    const e = estadoVisible(b, [], [venta('c1', 3, 2), venta('c2', 1, 1)], '2026-09-25')!
+
+    expect(e.hoy.cerveza).toEqual({ unidades: 2, total: 10000, costo: 6400, ganancia: 3600 })
+    expect(e.hoy.total).toBe(6000 + 10000 + 6000)
+    expect(e.hoy.ganancia).toBe(3000 + 3600 + 3000)
+    expect(b.hoy.cerveza).toBeUndefined()
+  })
+
   it('una venta que el servidor ya trae no se suma otra vez (ni confirmada ni pendiente)', () => {
     const b = base()
     b.ultimas = [{ clientUid: 'ya', hora: '2:55 PM', sabor: 'Smirnoff', total: 6000, metodo: 'NEQUI' }, ...b.ultimas]
