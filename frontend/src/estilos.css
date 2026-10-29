@@ -295,6 +295,31 @@ button.pago-fila:active { background: var(--card2) }
 .quitar { background: none; border: 1px solid var(--line); color: var(--bad-txt); border-radius: var(--r-full); padding: 6px 12px; font-size: 13px; font-weight: 600 }
 .faceid-fila { display: flex; align-items: center; gap: 10px }
 
+/* Ajustes ordenados: menú por temas y subpantallas */
+.menu { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 4px 14px; margin-bottom: 14px }
+.menu h3 { font-size: 12px; color: var(--mut); text-transform: uppercase; letter-spacing: .6px; padding: 10px 0 4px }
+.menu-fila { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; border-top: 1px solid var(--line);
+  padding: 12px 0; text-align: left; font: inherit; color: inherit }
+.menu h3 + .menu-fila { border-top: 0 }
+.menu-fila:active { background: var(--card2); margin: 0 -14px; padding: 12px 14px; border-radius: var(--r) }
+.menu-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
+.menu-texto b { font-size: 15px }
+.menu-texto small { font-size: 12px; color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.chevron { flex: 0 0 auto; color: var(--mut); font-size: 22px; line-height: 1 }
+.sub-cab { margin: 0 0 12px }
+.sub-cab h2 { font-size: 22px; margin-top: 2px }
+.atras { background: none; border: 0; color: var(--primario-txt); font-size: 15px; font-weight: 600; padding: 6px 0; display: inline-flex; align-items: center; gap: 4px }
+.atras span { font-size: 24px; line-height: 1 }
+.ayuda { color: var(--mut); font-size: 14px; margin: 0 4px 12px }
+.ajustes .list > .config-fila:last-child, .ajustes .list > .sabor-fila:last-child { padding-bottom: 12px }
+
+/* Cobro: el total grande y legible */
+.panel-total { font-family: var(--font-head); font-size: 38px; font-weight: 800; letter-spacing: -.5px; margin: 2px 0 2px }
+.panel-total small { font-size: 14px; font-weight: 600; color: var(--primario-txt); margin-left: 8px; letter-spacing: 0 }
+.panel-sub { color: var(--mut); margin-bottom: 14px; font-size: 14px }
+.panel-sub.aviso { font-weight: 600 }
+.chips.vuelto button { padding: 8px 14px }
+
 /* ---------------------------------------------------------------- reportes */
 .rango { display: flex; gap: 10px; margin-bottom: 16px }
 .rango label { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--mut);

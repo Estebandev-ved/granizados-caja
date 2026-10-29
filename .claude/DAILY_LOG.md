@@ -40,6 +40,12 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-10-28
+- **Números sin bugs**: `CampoNumero` (puntos de miles mientras escribes, solo dígitos, sin ceros de más, con tope de largo; el PIN conserva ceros) en todos los campos de plata y cantidades. `pesos()` ya no da `$NaN` ni `-$0`. Un sabor no se puede guardar con precio vacío o 0 y avisa si vendes bajo el costo. Comisión máx. 100 %. Los ajustes numéricos se validan según su tipo.
+- **Ajustes ordenados**: menú por temas (Sabores y precios, Promoción, Metas y premios, Equipo, Pedido al proveedor, Cobro de fiados, Seguridad, Datos y celular) con subpantallas y botón "‹ Ajustes". Cada ajuste con nombre en español y valor legible ($20.000, "Apagada", "4 días").
+- **Vender**: el total va grande arriba del panel de cobro, y las vueltas suman el billete de $100.000.
+- Pruebas: `formato.test.ts` (82 en total).
+
 ### 2026-10-27
 - **Metas del equipo** (`V17`): `META_EQUIPO` y `PREMIO_EQUIPO` en Ajustes; el trabajador ve una barra de logros (medio camino, meta, súper meta) con racha y confeti, y el premio se descuenta del saldo en la liquidación. Todo lo de costos, ganancia y reportes sigue siendo solo del dueño.
 - **Equipo**: trabajadores con PIN propio dentro de la misma caja (`V16`). Solo ven Vender y Mi día; la carga de cada uno vive en el servidor y las cuentas (efectivo, Nequi, comisión, saldo) salen de Ajustes → Equipo. Supuestos a confirmar con Esteban: el Nequi entra a su cuenta, comisión en % por trabajador, cada uno saca su carga de la casa.

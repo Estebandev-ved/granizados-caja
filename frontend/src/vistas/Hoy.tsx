@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { api, type ArqueoHoy } from '../api'
+import { CampoNumero } from '../componentes/CampoNumero'
 import { Icono } from '../componentes/Icono'
 import { ResumenCarga } from '../componentes/ResumenCarga'
 import { MeDeben } from '../componentes/MeDeben'
@@ -357,8 +358,7 @@ function PanelPedido({ sugerido, error, aviso, cantidades, enviando, presupuesto
       <p>Edita lo que quieres pedir. Se arma en el servidor y abre WhatsApp.</p>
       <form className="campo" onSubmit={e => { e.preventDefault(); onAjustar() }}>
         <label htmlFor="pedido-plata">¿Cuánta plata tienes para el pedido?</label>
-        <input id="pedido-plata" inputMode="numeric" placeholder="Ej: 150000" value={presupuesto}
-          onChange={e => onPresupuesto(e.target.value.replace(/\D/g, ''))} />
+        <CampoNumero id="pedido-plata" miles placeholder="Ej: 150.000" value={presupuesto} onCambio={onPresupuesto} />
         <button type="submit" className="big ghost" disabled={!Number(presupuesto) || cargando}>Ajustar a mi plata</button>
       </form>
       <p className="mut">¿Para cuántos días quieres inventario?</p>
@@ -439,7 +439,6 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
   onCambio: (cambio: { contado?: string; casa?: string; nequi?: string; nota?: string }) => void
   onGuardar: (contado: number, nota: string, casa?: number, nequi?: number) => void
 }) {
-  const soloNumeros = (v: string) => v.replace(/\D/g, '')
   const n = Number(contado) || 0
   const diferencia = n - esperado
   const sinContar = contado === ''
@@ -508,8 +507,8 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
       </p>
       <div className="campo">
         <label htmlFor="cierre-contado">Efectivo que hay de verdad en la caja</label>
-        <input id="cierre-contado" inputMode="numeric" placeholder="0" value={contado} disabled={cargando}
-          onChange={e => onCambio({ contado: soloNumeros(e.target.value) })} />
+        <CampoNumero id="cierre-contado" miles placeholder="0" value={contado} disabled={cargando}
+          onCambio={v => onCambio({ contado: v })} />
       </div>
       {/* Sin la plata contada solo se conoce el efectivo de hoy: comparar contra eso confundiría */}
       {!sinContar && contada && (
@@ -526,13 +525,13 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
       )}
       <div className="campo">
         <label htmlFor="cierre-casa">Efectivo en la casa</label>
-        <input id="cierre-casa" inputMode="numeric" placeholder="0" value={casa} disabled={cargando}
-          onChange={e => onCambio({ casa: soloNumeros(e.target.value) })} />
+        <CampoNumero id="cierre-casa" miles placeholder="0" value={casa} disabled={cargando}
+          onCambio={v => onCambio({ casa: v })} />
       </div>
       <div className="campo">
         <label htmlFor="cierre-nequi">En Nequi</label>
-        <input id="cierre-nequi" inputMode="numeric" placeholder="0" value={nequi} disabled={cargando}
-          onChange={e => onCambio({ nequi: soloNumeros(e.target.value) })} />
+        <CampoNumero id="cierre-nequi" miles placeholder="0" value={nequi} disabled={cargando}
+          onCambio={v => onCambio({ nequi: v })} />
       </div>
       <div className="campo">
         <label htmlFor="cierre-nota">Nota (opcional)</label>
@@ -572,8 +571,7 @@ function PanelGasto({ onGuardar }: { onGuardar: (categoria: CategoriaGasto, conc
       </div>
       <div className="campo">
         <label htmlFor="gasto-monto">Monto</label>
-        <input id="gasto-monto" inputMode="numeric" autoFocus placeholder="0" value={monto}
-          onChange={e => setMonto(e.target.value.replace(/\D/g, ''))} />
+        <CampoNumero id="gasto-monto" miles autoFocus placeholder="0" value={monto} onCambio={setMonto} />
       </div>
       <div className="campo">
         <label htmlFor="gasto-concepto">Para qué (opcional)</label>

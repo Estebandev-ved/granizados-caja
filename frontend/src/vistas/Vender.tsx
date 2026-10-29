@@ -5,7 +5,8 @@ import { diaBogota } from '../estadoLocal'
 import { CargaDelDia } from '../componentes/CargaDelDia'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
-import { pesos, vibrar } from '../formato'
+import { CampoNumero } from '../componentes/CampoNumero'
+import { aEntero, pesos, vibrar } from '../formato'
 import { aplicaPromo, leerPromo, nombrePromo, promoVigente, repartirEfectivo, repartirTotal, totalMezclado, type Promo } from '../promo'
 import type { Metodo, PorSabor, Producto, Tipo } from '../tipos'
 
@@ -173,14 +174,18 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
   const unidades = lineas.reduce((a, l) => a + l.cantidad, 0)
   const normal = lineas.reduce((a, l) => a + l.p.precio * l.cantidad, 0)
   const total = promo ? totalMezclado(promo, lineas) : normal
-  const enEfectivo = Number(efectivoTxt.replace(/\D/g, '')) || 0
+  const enEfectivo = aEntero(efectivoTxt)
   const mixtoValido = enEfectivo > 0 && enEfectivo < total
 
   return (
     <>
       <h2>{p.nombre}</h2>
-      <p className={disponible - cantidad < 0 ? 'aviso' : ''}>
-        {unidades > cantidad ? unidades + ' unidades · ' : ''}{pesos(total)}{promo && total < normal ? ' (promo ' + nombrePromo(promo, pesos) + ')' : ''} · {
+      <div className="panel-total">
+        {pesos(total)}
+        {promo && total < normal && <small>promo {nombrePromo(promo, pesos)}</small>}
+      </div>
+      <p className={'panel-sub' + (disponible - cantidad < 0 ? ' aviso' : '')}>
+        {unidades > cantidad ? unidades + ' unidades · ' : ''}{
           disponible <= 0
             ? (conCarga ? 'según tu carga no te quedan' : 'según el inventario no quedan')
             : (conCarga ? 'te quedan ' : 'quedan ') + disponible}
@@ -221,8 +226,8 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
         </button>
         {billete !== null && (
           <>
-            <div className="chips">
-              {[10000, 20000, 50000].map(b => (
+            <div className="chips vuelto">
+              {[10000, 20000, 50000, 100000].map(b => (
                 <button key={b} type="button" className={billete === b ? 'on' : ''}
                   onClick={() => setBillete(b)}>{pesos(b)}</button>
               ))}
@@ -263,8 +268,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
         }}>
           <div className="campo">
             <label htmlFor="mixto-efectivo">¿Cuánto pagó en efectivo?</label>
-            <input id="mixto-efectivo" autoFocus inputMode="numeric" maxLength={9} autoComplete="off" value={efectivoTxt}
-              onChange={e => setEfectivoTxt(e.target.value)} placeholder="Ej. 5000" />
+            <CampoNumero id="mixto-efectivo" miles autoFocus value={efectivoTxt} onCambio={setEfectivoTxt} placeholder="Ej. 5.000" />
           </div>
           <p className={enEfectivo >= total && enEfectivo > 0 ? 'aviso' : 'mut'}>
             {enEfectivo <= 0

@@ -5,6 +5,7 @@ import { diaBogota } from '../estadoLocal'
 import { pesos } from '../formato'
 import type { Liquidacion, Producto, Trabajador } from '../tipos'
 import { CargaDelDia } from './CargaDelDia'
+import { CampoNumero } from './CampoNumero'
 import { Icono } from './Icono'
 import { Sheet } from './Sheet'
 
@@ -122,13 +123,11 @@ function FormNuevo({ onGuardar }: { onGuardar: (d: { nombre: string; pin: string
       <div className="dos">
         <div className="campo">
           <label htmlFor="eq-pin">PIN (4 a 8 números)</label>
-          <input id="eq-pin" inputMode="numeric" maxLength={8} autoComplete="off" value={pin}
-            onChange={e => setPin(e.target.value.replace(/\D/g, ''))} />
+          <CampoNumero id="eq-pin" max={8} conCeros value={pin} onCambio={setPin} />
         </div>
         <div className="campo">
           <label htmlFor="eq-com">Comisión %</label>
-          <input id="eq-com" inputMode="numeric" maxLength={3} value={comision}
-            onChange={e => setComision(e.target.value.replace(/\D/g, ''))} />
+          <CampoNumero id="eq-com" max={3} value={comision} onCambio={v => setComision(Number(v) > 100 ? '100' : v)} />
         </div>
       </div>
       <div className="acciones">
@@ -231,13 +230,11 @@ function PanelTrabajador({ t, onCarga, onCambiar }: {
           <div className="dos">
             <div className="campo">
               <label htmlFor="ed-pin">PIN nuevo (opcional)</label>
-              <input id="ed-pin" inputMode="numeric" maxLength={8} autoComplete="off" value={pin} placeholder="Déjalo vacío para no cambiarlo"
-                onChange={e => setPin(e.target.value.replace(/\D/g, ''))} />
+              <CampoNumero id="ed-pin" max={8} conCeros value={pin} onCambio={setPin} placeholder="Vacío = no cambia" />
             </div>
             <div className="campo">
               <label htmlFor="ed-com">Comisión %</label>
-              <input id="ed-com" inputMode="numeric" maxLength={3} value={comision}
-                onChange={e => setComision(e.target.value.replace(/\D/g, ''))} />
+              <CampoNumero id="ed-com" max={3} value={comision} onCambio={v => setComision(Number(v) > 100 ? '100' : v)} />
             </div>
           </div>
           <button className="big primario" type="submit" disabled={pin.length > 0 && pin.length < 4}>Guardar</button>

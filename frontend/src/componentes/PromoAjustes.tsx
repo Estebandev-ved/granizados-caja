@@ -3,6 +3,7 @@ import { diaBogota } from '../estadoLocal'
 import { pesos } from '../formato'
 import { guardarPromo, leerPromo, nombrePromo, promoVigente, type Promo } from '../promo'
 import type { Tipo } from '../tipos'
+import { CampoNumero } from './CampoNumero'
 import { Icono } from './Icono'
 import { Sheet } from './Sheet'
 
@@ -83,13 +84,13 @@ function FormPromo({ inicial, onGuardar }: { inicial: Promo; onGuardar: (p: Prom
 
       <div className="campo">
         <label>Cuántos lleva</label>
-        <input value={cantidad} inputMode="numeric" onChange={e => setCantidad(e.target.value.replace(/\D/g, ''))} />
+        <CampoNumero max={2} value={cantidad} onCambio={setCantidad} />
         <small>De 2 a 10 granizados.</small>
       </div>
 
       <div className="campo">
         <label>Precio del combo</label>
-        <input value={precio} inputMode="numeric" onChange={e => setPrecio(e.target.value.replace(/\D/g, ''))} />
+        <CampoNumero miles value={precio} onCambio={setPrecio} />
         <small>{valido ? nombrePromo({ cantidad: n, precio: valor }, pesos) : 'Revisa los datos'}</small>
       </div>
 

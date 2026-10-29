@@ -3,6 +3,7 @@ import { api } from '../api'
 import { nuevoUid } from '../estadoLocal'
 import { pesos, vibrar } from '../formato'
 import type { LugarPlata, MetaPlata, MovimientoPlata, SaldoPlata } from '../tipos'
+import { CampoNumero } from './CampoNumero'
 import { Icono } from './Icono'
 import { Personaje } from './Personaje'
 import { Sheet } from './Sheet'
@@ -14,7 +15,6 @@ const LUGARES: { valor: LugarPlata; texto: string }[] = [
 ]
 
 const nombreLugar = (l: LugarPlata) => LUGARES.find(x => x.valor === l)?.texto ?? l
-const soloDigitos = (v: string) => v.replace(/\D/g, '')
 
 type Panel = 'ingreso' | 'traslado' | 'conteo' | 'metas' | 'historial'
 
@@ -147,8 +147,7 @@ function PanelIngreso({ onListo, avisar }: { onListo: () => void; avisar: (m: st
       <p>Plata que no es una venta de hoy: el pago de una deuda, un aporte…</p>
       <div className="campo">
         <label htmlFor="ingreso-monto">¿Cuánto?</label>
-        <input id="ingreso-monto" inputMode="numeric" autoFocus placeholder="0" value={monto}
-          onChange={e => setMonto(soloDigitos(e.target.value))} />
+        <CampoNumero id="ingreso-monto" miles autoFocus placeholder="0" value={monto} onCambio={setMonto} />
       </div>
       <div className="campo">
         <label htmlFor="ingreso-concepto">¿De qué? (opcional)</label>
@@ -201,8 +200,7 @@ function PanelTraslado({ onListo, avisar }: { onListo: () => void; avisar: (m: s
       <p>Por ejemplo, sacaste efectivo de la caja y lo llevaste a la casa, o lo consignaste a Nequi.</p>
       <div className="campo">
         <label htmlFor="traslado-monto">¿Cuánto?</label>
-        <input id="traslado-monto" inputMode="numeric" autoFocus placeholder="0" value={monto}
-          onChange={e => setMonto(soloDigitos(e.target.value))} />
+        <CampoNumero id="traslado-monto" miles autoFocus placeholder="0" value={monto} onCambio={setMonto} />
       </div>
       <p className="mut">Sale de</p>
       <Chips opciones={LUGARES} valor={desde} onCambio={setDesde} />
@@ -241,7 +239,7 @@ function PanelConteo({ saldo, onListo, avisar }: { saldo: SaldoPlata | null; onL
   const campo = (id: string, etiqueta: string, valor: string, set: (v: string) => void) => (
     <div className="campo">
       <label htmlFor={id}>{etiqueta}</label>
-      <input id={id} inputMode="numeric" placeholder="0" value={valor} onChange={e => set(soloDigitos(e.target.value))} />
+      <CampoNumero id={id} miles placeholder="0" value={valor} onCambio={set} />
     </div>
   )
 
@@ -341,8 +339,7 @@ function NuevaMeta({ onVolver, onListo, avisar }: { onVolver: () => void; onList
       </div>
       <div className="campo">
         <label htmlFor="meta-objetivo">¿Cuánto quieres juntar? (opcional)</label>
-        <input id="meta-objetivo" inputMode="numeric" placeholder="0" value={objetivo}
-          onChange={e => setObjetivo(soloDigitos(e.target.value))} />
+        <CampoNumero id="meta-objetivo" miles placeholder="0" value={objetivo} onCambio={setObjetivo} />
       </div>
       <div className="pay">
         <button type="button" className="big ghost" onClick={onVolver}>Volver</button>
@@ -399,8 +396,7 @@ function MoverMeta({ meta, libre, onVolver, onListo, avisar }: {
       <Chips opciones={[{ valor: 'apartar', texto: 'Apartar' }, { valor: 'sacar', texto: 'Sacar' }]} valor={accion} onCambio={setAccion} />
       <div className="campo">
         <label htmlFor="meta-monto">{accion === 'apartar' ? 'Cuánto apartas' : 'Cuánto sacas'}</label>
-        <input id="meta-monto" inputMode="numeric" autoFocus placeholder="0" value={monto}
-          onChange={e => setMonto(soloDigitos(e.target.value))} />
+        <CampoNumero id="meta-monto" miles autoFocus placeholder="0" value={monto} onCambio={setMonto} />
       </div>
       <p className={pasa ? 'aviso' : 'mut'}>
         {accion === 'apartar' ? 'Libre para apartar: ' : 'Apartado en la meta: '}{pesos(Math.max(0, tope))}
