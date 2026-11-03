@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { sesion } from '../api'
+import { vendidasHoy } from '../carga'
 import { Icono } from '../componentes/Icono'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
@@ -10,7 +11,15 @@ import type { Estado, VentaReciente } from '../tipos'
 export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: VentaReciente) => Promise<void> }) {
   const h = estado.hoy
   const [borrar, setBorrar] = useState<VentaReciente | null>(null)
-  const quedan = estado.productos.filter(p => p.stock > 0)
+  // Su "stock" es lo que le queda de la carga; lo que llevó = lo que le queda + lo que ya vendió
+  const filas = estado.productos
+    .map(p => {
+      const vendi = vendidasHoy(h.porSabor, p)
+      return { p, vendi, queda: p.stock, llevo: p.stock + vendi }
+    })
+    .filter(f => f.llevo > 0)
+  const llevo = filas.reduce((a, f) => a + f.llevo, 0)
+  const queda = filas.reduce((a, f) => a + f.queda, 0)
 
   return (
     <section>
@@ -27,10 +36,26 @@ export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: 
       </div>
 
       <div className="list">
-        <h3><Icono nombre="caja" /> Lo que me queda</h3>
-        {quedan.length ? quedan.map(p => (
-          <div className="row" key={p.id}><span>{p.nombre}</span><b>{p.stock}</b></div>
-        )) : <p className="mut" style={{ margin: 0 }}>Nada cargado por ahora.</p>}
+        <h3><Icono nombre="caja" /> Lo que llevé hoy</h3>
+        {filas.length ? (
+          <>
+            <div className="carga-totales">
+              <div><b>{llevo}</b><span>llevé</span></div>
+              <div><b>{h.unidades}</b><span>vendí</span></div>
+              <div><b>{queda}</b><span>me quedan</span></div>
+            </div>
+            {filas.map(f => (
+              <div className="sabor-fila" key={f.p.id}>
+                <div className="sabor-info">
+                  <div className="sabor-cabeza"><b>{f.p.nombre}</b><b>{f.vendi} / {f.llevo}</b></div>
+                  <div className="sabor-pie">
+                    <span className="mut">{f.queda === 0 ? 'se acabó' : 'te quedan ' + f.queda}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        ) : <p className="mut" style={{ margin: 0 }}>Nada cargado por ahora. Pídele al dueño que te anote lo que sacas a vender.</p>}
       </div>
 
       {estado.ultimas.length ? (
