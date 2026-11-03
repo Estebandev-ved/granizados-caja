@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { sesion } from './api'
+import { AvisoActualizacion } from './componentes/AvisoActualizacion'
 import { BarraLogros } from './componentes/BarraLogros'
 import { BarraMeta } from './componentes/BarraMeta'
 import { Confeti } from './componentes/Confeti'
@@ -34,6 +35,7 @@ export default function App() {
     <>
       {conSesion ? <Caja avisar={avisar} /> : <Login onEntrar={() => setConSesion(true)} />}
       {toast}
+      <AvisoActualizacion />
     </>
   )
 }

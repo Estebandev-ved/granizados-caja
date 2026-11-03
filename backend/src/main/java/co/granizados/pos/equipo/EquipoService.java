@@ -3,6 +3,8 @@ package co.granizados.pos.equipo;
 import co.granizados.pos.ajustes.AjustesService;
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.comun.Pesos;
+import co.granizados.pos.negocio.TenantContext;
 import co.granizados.pos.producto.Producto;
 import co.granizados.pos.producto.ProductoRepository;
 import co.granizados.pos.venta.Venta;
@@ -26,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,6 +80,14 @@ public class EquipoService {
     public record MetaEquipo(int unidades, long premio, int vendidas, int racha) {
     }
 
+    /** Lo que ve el trabajador al cerrar su turno: lo que debe entregar y lo que devuelve. */
+    public record CierreTurno(int unidades, long total, long efectivo, long nequi, long comision, long bonos, long entregar,
+                              List<FilaCarga> devuelve) {
+    }
+
+    /** Cuando a un trabajador le quedan este número de granizados (o menos) de un sabor, el dueño recibe un aviso. */
+    public static final int POCOS = 2;
+
     /** Cuántos días atrás se mira la racha. */
     static final int DIAS_RACHA = 30;
 
@@ -87,11 +98,13 @@ public class EquipoService {
     private final AjustesService ajustes;
     private final AppProperties props;
     private final Clock clock;
+    private final ApplicationEventPublisher eventos;
     private final ZoneId zona;
     private final BCryptPasswordEncoder hash = new BCryptPasswordEncoder();
 
     public EquipoService(VendedorRepository vendedores, CargaVendedorRepository cargas, ProductoRepository productos,
-                         VentaRepository ventas, AjustesService ajustes, AppProperties props, Clock clock) {
+                         VentaRepository ventas, AjustesService ajustes, AppProperties props, Clock clock,
+                         ApplicationEventPublisher eventos) {
         this.vendedores = vendedores;
         this.cargas = cargas;
         this.productos = productos;
@@ -99,6 +112,7 @@ public class EquipoService {
         this.ajustes = ajustes;
         this.props = props;
         this.clock = clock;
+        this.eventos = eventos;
         this.zona = props.zoneId();
     }
 
@@ -214,6 +228,55 @@ public class EquipoService {
         Map<Long, Integer> queda = new HashMap<>();
         for (FilaCarga f : filasDe(vendedorId, dia, delDia)) queda.put(f.productoId(), f.queda());
         return queda;
+    }
+
+    /**
+     * Avisa al dueño si esta venta dejó al trabajador con pocos de ese sabor (solo al cruzar el límite, no en cada venta).
+     * Se llama después de guardar la venta, así `queda` ya la descuenta.
+     */
+    @Transactional(readOnly = true)
+    public void revisarPocos(Long vendedorId, Long productoId, String sabor, int vendidos) {
+        LocalDate dia = hoy();
+        int despues = queda(vendedorId, dia, ventasDelDia(dia)).getOrDefault(productoId, 0);
+        int antes = despues + vendidos;
+        if (antes <= POCOS || despues > POCOS) return;
+        String quien = vendedores.findById(vendedorId).map(Vendedor::getNombre).orElse("Un trabajador");
+        eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "📦 A " + quien + " le quedan pocos",
+                "A " + quien + " le " + (despues == 1 ? "queda 1" : "quedan " + despues) + " de " + sabor
+                        + (despues == 0 ? " (se le acabó)" : "") + ". Llévale más si lo necesita."));
+    }
+
+    /** El trabajador termina su día: cuánto entrega y qué devuelve. El dueño recibe el resumen por Telegram. */
+    @Transactional
+    public CierreTurno cerrarTurno(Long vendedorId) {
+        Vendedor v = vendedores.findById(vendedorId).orElseThrow(() -> new NoEncontradoException("Trabajador no encontrado: " + vendedorId));
+        LocalDate dia = hoy();
+        List<Venta> delDia = ventasDelDia(dia);
+        int unidades = 0;
+        long total = 0, efectivo = 0, nequi = 0;
+        for (Venta x : delDia) {
+            if (!vendedorId.equals(x.getVendedorId())) continue;
+            unidades += x.getCantidad();
+            total += x.getTotal();
+            efectivo += x.efectivo();
+            nequi += x.nequi();
+        }
+        long comision = total * v.getComisionPct() / 100;
+        int meta = AjustesService.entero(ajustes.mapa(), "META_EQUIPO", 0);
+        long premio = AjustesService.entero(ajustes.mapa(), "PREMIO_EQUIPO", 0);
+        long bonos = meta > 0 && unidades >= meta ? premio : 0;
+        long entregar = efectivo - comision - bonos;
+        List<FilaCarga> devuelve = filasDe(vendedorId, dia, delDia).stream().filter(f -> f.queda() > 0).toList();
+
+        StringBuilder t = new StringBuilder(v.getNombre() + " cerró su día: " + unidades + " vendidos, " + Pesos.formato(total)
+                + "\n• Efectivo: " + Pesos.formato(efectivo) + "\n• Nequi: " + Pesos.formato(nequi));
+        if (comision > 0) t.append("\n• Su comisión: ").append(Pesos.formato(comision));
+        if (bonos > 0) t.append("\n• Premio por meta: ").append(Pesos.formato(bonos));
+        t.append(entregar >= 0 ? "\nTe entrega " + Pesos.formato(entregar) : "\nTú le debes " + Pesos.formato(-entregar));
+        if (devuelve.isEmpty()) t.append("\nNo devuelve nada.");
+        else t.append("\nDevuelve: ").append(String.join(", ", devuelve.stream().map(f -> f.queda() + " " + f.nombre()).toList()));
+        eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "🧾 " + v.getNombre() + " cerró su día", t.toString()));
+        return new CierreTurno(unidades, total, efectivo, nequi, comision, bonos, entregar, devuelve);
     }
 
     // ------------------------------------------------------------------ vistas del dueño

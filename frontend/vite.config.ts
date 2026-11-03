@@ -7,7 +7,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // Se avisa en la app y se actualiza con un toque (AvisoActualizacion), así no se recarga en medio de una venta
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icono.svg'],
       manifest: {
         name: 'Antigravity Caja',

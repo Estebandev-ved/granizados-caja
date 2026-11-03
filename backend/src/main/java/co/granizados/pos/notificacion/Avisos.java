@@ -1,6 +1,7 @@
 package co.granizados.pos.notificacion;
 
 import co.granizados.pos.comun.AppProperties;
+import co.granizados.pos.equipo.AvisoEquipo;
 import co.granizados.pos.venta.StockBajo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,13 @@ public class Avisos {
         } catch (Exception e) {
             log.warn("No se pudo armar el aviso de stock bajo", e);
         }
+    }
+
+    @Async
+    @TransactionalEventListener
+    public void alPasarAlgoConElEquipo(AvisoEquipo evento) {
+        if (evento.negocioId() != null && evento.negocioId() != negocioPrincipal) return;
+        notificador.enviar(evento.asunto(), evento.texto());
     }
 
     void enviar(Reportes.Aviso aviso) {

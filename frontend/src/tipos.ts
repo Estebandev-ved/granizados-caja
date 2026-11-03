@@ -79,6 +79,18 @@ export interface Trabajador {
   carga: FilaCargaEquipo[]
 }
 
+/** Lo que ve el trabajador al cerrar su día. `entregar` negativo = el dueño le debe. */
+export interface CierreTurno {
+  unidades: number
+  total: number
+  efectivo: number
+  nequi: number
+  comision: number
+  bonos: number
+  entregar: number
+  devuelve: FilaCargaEquipo[]
+}
+
 /** Cuentas de un trabajador. `saldo` = efectivo − comisión: positivo, te debe entregar; negativo, le debes. */
 export interface Liquidacion {
   vendedorId: number

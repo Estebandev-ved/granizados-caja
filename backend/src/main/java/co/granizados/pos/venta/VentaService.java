@@ -2,6 +2,7 @@ package co.granizados.pos.venta;
 
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.equipo.EquipoService;
 import co.granizados.pos.equipo.Sesion;
 import co.granizados.pos.fiado.Deuda;
 import co.granizados.pos.fiado.DeudaRepository;
@@ -82,15 +83,17 @@ public class VentaService {
     private final DeudaRepository deudas;
     private final ProductoRepository productos;
     private final ApplicationEventPublisher eventos;
+    private final EquipoService equipo;
     private final Clock clock;
     private final ZoneId zona;
 
     public VentaService(VentaRepository ventas, DeudaRepository deudas, ProductoRepository productos,
-                        ApplicationEventPublisher eventos, Clock clock, AppProperties props) {
+                        ApplicationEventPublisher eventos, Clock clock, AppProperties props, EquipoService equipo) {
         this.ventas = ventas;
         this.deudas = deudas;
         this.productos = productos;
         this.eventos = eventos;
+        this.equipo = equipo;
         this.clock = clock;
         this.zona = props.zoneId();
     }
@@ -144,6 +147,7 @@ public class VentaService {
         if (antes > minimo && despues <= minimo) {
             eventos.publishEvent(new StockBajo(TenantContext.actual(), p.getId(), nombre, despues, minimo));
         }
+        if (vendedor != null) equipo.revisarPocos(vendedor, p.getId(), nombre, v.cantidad());
         return Resultado.REGISTRADA;
     }
 

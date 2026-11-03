@@ -1,6 +1,6 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
-  CategoriaGasto, ClienteConocido, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  CategoriaGasto, CierreTurno, ClienteConocido, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
@@ -165,6 +165,8 @@ export const api = {
     pedir<FilaCargaEquipo[]>('PUT', '/api/equipo/' + id + '/carga', { items }),
   liquidacionEquipo: (desde: string, hasta: string) =>
     pedir<Liquidacion[]>('GET', '/api/equipo/liquidacion?desde=' + desde + '&hasta=' + hasta),
+  /** El trabajador cierra su día: devuelve lo que entrega y lo que devuelve, y el dueño recibe el resumen. */
+  cerrarTurno: () => pedir<CierreTurno>('POST', '/api/mi-turno/cierre'),
   venta: (v: VentaApi) => pedir<RespuestaVenta>('POST', '/api/ventas', v),
   lote: (ventas: VentaApi[]) => pedir<RespuestaVenta[]>('POST', '/api/ventas/lote', { ventas }),
   deshacer: (clientUid: string) => pedir<void>('DELETE', '/api/ventas/' + encodeURIComponent(clientUid)),

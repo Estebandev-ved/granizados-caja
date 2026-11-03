@@ -40,6 +40,13 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-03
+- **Mi día del trabajador** muestra lo que llevó, vendió y le queda por sabor (antes solo "lo que me queda").
+- **Aviso de versión nueva** (PWA con `registerType: 'prompt'`, `AvisoActualizacion`): sale "Hay una versión nueva · Actualizar", busca cada 30 min y al volver a abrir la app.
+- **Cierre del día del trabajador**: botón "Terminé mi día" (`POST /api/mi-turno/cierre`) le dice cuánto entrega y qué devuelve, y al dueño le llega el resumen por Telegram (`AvisoEquipo`).
+- **Aviso de pocos**: cuando a un trabajador le quedan 2 o menos de un sabor, Telegram al dueño (una vez al cruzar el límite) y la tarjeta se marca en bajo.
+- Pruebas: 149 backend y 83 frontend en verde.
+
 ### 2026-10-28
 - **Números sin bugs**: `CampoNumero` (puntos de miles mientras escribes, solo dígitos, sin ceros de más, con tope de largo; el PIN conserva ceros) en todos los campos de plata y cantidades. `pesos()` ya no da `$NaN` ni `-$0`. Un sabor no se puede guardar con precio vacío o 0 y avisa si vendes bajo el costo. Comisión máx. 100 %. Los ajustes numéricos se validan según su tipo.
 - **Ajustes ordenados**: menú por temas (Sabores y precios, Promoción, Metas y premios, Equipo, Pedido al proveedor, Cobro de fiados, Seguridad, Datos y celular) con subpantallas y botón "‹ Ajustes". Cada ajuste con nombre en español y valor legible ($20.000, "Apagada", "4 días").

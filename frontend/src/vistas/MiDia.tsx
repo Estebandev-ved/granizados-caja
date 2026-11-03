@@ -1,16 +1,31 @@
 import { useState } from 'react'
-import { sesion } from '../api'
+import { api, sesion } from '../api'
 import { vendidasHoy } from '../carga'
 import { Icono } from '../componentes/Icono'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
 import { pesos } from '../formato'
-import type { Estado, VentaReciente } from '../tipos'
+import type { CierreTurno, Estado, VentaReciente } from '../tipos'
 
 /** El día de un trabajador: lo suyo y nada más (sin costos, ganancia ni lo de los demás). */
 export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: VentaReciente) => Promise<void> }) {
   const h = estado.hoy
   const [borrar, setBorrar] = useState<VentaReciente | null>(null)
+  const [cierre, setCierre] = useState<CierreTurno | null>(null)
+  const [cerrando, setCerrando] = useState(false)
+  const [errorCierre, setErrorCierre] = useState('')
+
+  const cerrarDia = async () => {
+    setCerrando(true)
+    setErrorCierre('')
+    try {
+      setCierre(await api.cerrarTurno())
+    } catch {
+      setErrorCierre('No se pudo cerrar. Revisa la señal e intenta otra vez.')
+    } finally {
+      setCerrando(false)
+    }
+  }
   // Su "stock" es lo que le queda de la carga; lo que llevó = lo que le queda + lo que ya vendió
   const filas = estado.productos
     .map(p => {
@@ -78,8 +93,32 @@ export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: 
       ) : <div className="vacio"><Personaje nombre="sofia" />Aún no has vendido hoy</div>}
 
       <div className="acciones">
+        <button className="big" onClick={() => void cerrarDia()} disabled={cerrando}>{cerrando ? 'Cerrando…' : 'Terminé mi día'}</button>
+        {errorCierre && <p className="aviso" style={{ textAlign: 'center' }}>{errorCierre}</p>}
         <button className="big peligro" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
       </div>
+
+      <Sheet abierto={!!cierre} onCerrar={() => setCierre(null)}>
+        {cierre && (
+          <>
+            <h2>{cierre.entregar >= 0 ? 'Entrega ' + pesos(cierre.entregar) : 'Te deben ' + pesos(-cierre.entregar)}</h2>
+            <p>
+              Vendiste {cierre.unidades} ({pesos(cierre.total)}): {pesos(cierre.efectivo)} en efectivo y {pesos(cierre.nequi)} por Nequi.
+              {cierre.comision > 0 && <> Tu comisión es {pesos(cierre.comision)}.</>}
+              {cierre.bonos > 0 && <> Ganaste {pesos(cierre.bonos)} por la meta.</>}
+            </p>
+            <p>
+              {cierre.devuelve.length
+                ? 'Devuelve: ' + cierre.devuelve.map(f => f.queda + ' ' + f.nombre).join(', ')
+                : 'No devuelves nada.'}
+            </p>
+            <p className="mut">Ya le avisamos al dueño.</p>
+            <div className="acciones">
+              <button className="big" onClick={() => setCierre(null)}>Listo</button>
+            </div>
+          </>
+        )}
+      </Sheet>
 
       <Sheet abierto={!!borrar} onCerrar={() => setBorrar(null)}>
         {borrar && (

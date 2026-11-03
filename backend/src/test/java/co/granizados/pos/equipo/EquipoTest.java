@@ -20,10 +20,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /** Trabajadores dentro de la misma caja: PIN propio, solo venden, carga en el servidor y cuentas por persona. */
 @AutoConfigureMockMvc
+@RecordApplicationEvents
 class EquipoTest extends PruebaIntegracion {
 
     @Autowired
@@ -34,6 +37,9 @@ class EquipoTest extends PruebaIntegracion {
 
     @Autowired
     MockMvc mvc;
+
+    @Autowired
+    ApplicationEvents eventos;
 
     private String entrar(String pin) throws Exception {
         String cuerpo = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"pin\":\"" + pin + "\"}"))
@@ -279,5 +285,43 @@ class EquipoTest extends PruebaIntegracion {
         assertThat(l.diasMeta()).isEqualTo(1);
         assertThat(l.bonos()).isEqualTo(2000);
         assertThat(l.saldo()).isEqualTo(18000 - 1800 - 2000);
+    }
+
+    @Test
+    void alBajarASuLimiteElDuenoRecibeUnSoloAvisoDeQueLeQuedanPocos() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        equipo.cargar(juan.id(), new Carga(List.of(new ItemCarga(idDe("Smirnoff"), 4))));
+        String token = entrar("1111");
+
+        mvc.perform(con(token, post("/api/ventas")).content(venta("p-1", "EFECTIVO", 1, ""))).andExpect(status().isOk());
+        assertThat(eventos.stream(AvisoEquipo.class).count()).isZero(); // le quedan 3
+
+        mvc.perform(con(token, post("/api/ventas")).content(venta("p-2", "EFECTIVO", 1, ""))).andExpect(status().isOk());
+        assertThat(eventos.stream(AvisoEquipo.class).map(AvisoEquipo::texto).toList())
+                .singleElement().asString().contains("Juan").contains("Smirnoff"); // le quedan 2
+
+        mvc.perform(con(token, post("/api/ventas")).content(venta("p-3", "EFECTIVO", 1, ""))).andExpect(status().isOk());
+        assertThat(eventos.stream(AvisoEquipo.class).count()).isEqualTo(1); // no repite
+    }
+
+    @Test
+    void elTrabajadorCierraSuDiaYElDuenoRecibeElResumen() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        equipo.cargar(juan.id(), new Carga(List.of(new ItemCarga(idDe("Smirnoff"), 5))));
+        String token = entrar("1111");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("c-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        mvc.perform(con(token, post("/api/mi-turno/cierre")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unidades").value(2))
+                .andExpect(jsonPath("$.devuelve[0].queda").value(3));
+
+        assertThat(eventos.stream(AvisoEquipo.class).map(AvisoEquipo::asunto).toList())
+                .anyMatch(a -> a.contains("Juan") && a.contains("cerró"));
+    }
+
+    @Test
+    void elDuenoNoCierraElDiaDeUnTrabajador() throws Exception {
+        mvc.perform(con(entrar("4321"), post("/api/mi-turno/cierre"))).andExpect(status().isForbidden());
     }
 }

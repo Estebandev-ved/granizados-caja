@@ -142,7 +142,7 @@ public class EstadoService {
         Map<Long, Integer> queda = equipo.queda(vendedor, dia, delDia);
         List<ProductoDto> suyos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream()
                 .map(p -> new ProductoDto(p.getId(), p.getSabor(), p.getTipo(), p.nombre(), p.getPrecio(), 0,
-                        queda.getOrDefault(p.getId(), 0), 0, true, p.getOrden()))
+                        queda.getOrDefault(p.getId(), 0), EquipoService.POCOS, true, p.getOrden()))
                 .toList();
         List<VentaReciente> ultimas = mias.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
