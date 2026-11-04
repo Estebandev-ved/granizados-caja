@@ -46,6 +46,7 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 - **Comisión en promo** ($700 por granizado cuando se vende 2 x $10.000, sembrada para Dopamina) y **elegir cada cuánto cobrar** (diario, semanal o quincenal) al entrar, V21; Equipo suma el rango de 15 días.
 - **Promo en el servidor** (V22): ya no vive en el celular del dueño; llega a todos los celulares con el estado y puede correr ciertos días (Dopamina arranca con 2 x $10.000 en Normales todos los miércoles).
 - **Premios más bajos en día de promo** ($5.000 menos por escalón, V23, sembrado para Dopamina) y los términos ya no escriben los montos de los premios.
+- **Equipo más fácil de editar** (`TarifasEquipo`): barras con −/+ para las comisiones, un renglón por escalón de premio (agregar y quitar) con lo que pagan en promo, y un solo botón de guardar. **Barra de premios del trabajador** nueva: se llena por tramos, el próximo escalón late y Sofía le dice cuánto falta.
 - Pruebas: 165 backend y 87 frontend en verde.
 
 ### 2026-11-03

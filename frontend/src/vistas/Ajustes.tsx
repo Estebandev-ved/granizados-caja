@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { api, sesion, type ImportarResultado, type PasskeyInfo } from '../api'
 import { CampoNumero } from '../componentes/CampoNumero'
 import { Equipo } from '../componentes/Equipo'
+import { TarifasEquipo } from '../componentes/TarifasEquipo'
 import { Icono } from '../componentes/Icono'
 import { PromoAjustes } from '../componentes/PromoAjustes'
 import { IconoFaceId, type ModoFaceId } from '../componentes/IconoFaceId'
@@ -94,6 +95,17 @@ export function Ajustes({ avisar, onCambio }: Props) {
       else await api.crearProducto(d)
       setPanel(null)
       avisar('✓ Guardado')
+      await cargar()
+      await onCambio()
+    } catch (e) {
+      avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo guardar'))
+    }
+  }
+
+  const guardarTarifas = async (cambios: Record<string, string>) => {
+    try {
+      for (const [clave, valor] of Object.entries(cambios)) await api.guardarConfig(clave, valor)
+      avisar('✓ Guardado, vale para las ventas nuevas')
       await cargar()
       await onCambio()
     } catch (e) {
@@ -232,12 +244,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
     titulo = 'Equipo'
     cuerpo = (
       <>
-        <div className="list">
-          <h3><Icono nombre="moneda" /> Comisión por granizado</h3>
-          <p className="ayuda">Lo que gana cada trabajador por cada granizado que vende, según el tipo. Con todas en 0 gana su porcentaje. Si cambias una tarifa, solo vale para las ventas nuevas.</p>
-          <p className="ayuda">Los premios por escalón se escriben así: 12:2000,15:4000 (granizados:pesos en total). Los días de promo cada premio baja lo que pongas en la rebaja. Si cambias una tarifa, el equipo tiene que aceptar los términos otra vez (los premios no están en los términos: pueden variar).</p>
-          {filas(CLAVES.comisiones).map(filaParam)}
-        </div>
+        <TarifasEquipo params={params} onGuardar={guardarTarifas} />
         <Equipo productos={productos} avisar={avisar} />
       </>
     )
