@@ -77,7 +77,9 @@ public class EstadoService {
                          /** Solo para un trabajador: su meta de unidades del día (null si está apagada). */
                          EquipoService.MetaEquipo metaEquipo,
                          /** Solo para un trabajador: lo que lleva ganado hoy (comisión y premios por escalón). */
-                         EquipoService.PremiosDia premios) {
+                         EquipoService.PremiosDia premios,
+                         /** La promoción del negocio tal como la guardó el dueño (JSON); vacía si no hay. Le llega a todos los celulares. */
+                         String promo) {
     }
 
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("h:mm a", Locale.US);
@@ -132,7 +134,7 @@ public class EstadoService {
                 .toList();
         List<ProductoDto> activos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream().map(ProductoDto::de).toList();
         ResumenDia resumen = resumenDe(dia, delDia);
-        return new Estado(activos, resumen, ultimas, dia, pedidos.enCamino(), metaDe(dia), null, null);
+        return new Estado(activos, resumen, ultimas, dia, pedidos.enCamino(), metaDe(dia), null, null, promoDe());
     }
 
     /**
@@ -154,7 +156,12 @@ public class EstadoService {
         ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades(), r.porSabor(), 0, 0, 0,
                 r.total(), 0, r.porSabor(), r.cerveza());
         return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0), equipo.metaDe(vendedor, dia),
-                equipo.premiosDe(vendedor, mias));
+                equipo.premiosDe(vendedor, mias), promoDe());
+    }
+
+    private String promoDe() {
+        String promo = ajustes.mapa().get("PROMO");
+        return promo == null || promo.isBlank() ? null : promo;
     }
 
     /** La meta puesta en Ajustes, más la racha. Con 0 la meta está apagada y no hay racha. */

@@ -9,7 +9,7 @@ import { Sheet } from '../componentes/Sheet'
 import { activarFaceId, esCancelacion, esErrorDeDominio, faceIdActivado, olvidarFaceId, soportaFaceId } from '../faceid'
 import { aEntero, pesos } from '../formato'
 import { useInstalarPWA } from '../instalarPwa'
-import { leerPromo, nombrePromo, promoVigente } from '../promo'
+import { leerPromo, nombrePromo, promoVigente, textoDias } from '../promo'
 import type { DatosProducto, Param, Producto, Tipo } from '../tipos'
 
 const PRECIO_POR_TIPO: Record<Tipo, number> = { NORMAL: 6000, CREMOSO: 7000, GRANDE: 10000, CERVEZA: 5000 }
@@ -43,7 +43,8 @@ const metaDe = (clave: string): Meta =>
 
 type SeccionId = 'sabores' | 'metas' | 'pedido' | 'cobros' | 'promo' | 'equipo' | 'seguridad' | 'datos'
 
-const CLAVES: Record<'metas' | 'comisiones' | 'pedido' | 'cobros', string[]> = {
+const CLAVES: Record<'metas' | 'comisiones' | 'pedido' | 'cobros' | 'promo', string[]> = {
+  promo: ['PROMO'],
   metas: ['META_DIARIA', 'META_EQUIPO', 'PREMIO_EQUIPO'],
   comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'COMISION_PROMO', 'PREMIOS_ESCALONES', 'GRANIZADOS_GRATIS'],
   pedido: ['NOMBRE', 'PROVEEDOR_WHATSAPP', 'DIAS_COBERTURA', 'DIAS_HISTORIAL'],
@@ -131,7 +132,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
   const conocidas = new Set(Object.values(CLAVES).flat())
   const otras = params.filter(p => !conocidas.has(p.clave))
 
-  const promo = leerPromo()
+  const promo = leerPromo(param('PROMO')?.valor)
   const activos = productos.filter(p => p.activo).length
   const metaDiaria = aEntero(param('META_DIARIA')?.valor ?? '')
 
@@ -156,7 +157,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
         <div className="menu">
           <h3>Mi negocio</h3>
           <Entrada icono="vaso" titulo="Sabores y precios" detalle={`${activos} en la caja`} onClick={() => abrir('sabores')} />
-          <Entrada icono="ticket" titulo="Promoción" detalle={promoVigente(promo) ? nombrePromo(promo, pesos) : 'Apagada'} onClick={() => abrir('promo')} />
+          <Entrada icono="ticket" titulo="Promoción" detalle={promoVigente(promo) ? nombrePromo(promo, pesos) : promo.activa && promo.dias.length ? nombrePromo(promo, pesos) + ' · los ' + textoDias(promo.dias) : 'Apagada'} onClick={() => abrir('promo')} />
           <Entrada icono="trofeo" titulo="Metas y premios" detalle={metaDiaria ? 'Meta ' + pesos(metaDiaria) : 'Sin meta'} onClick={() => abrir('metas')} />
           <Entrada icono="cara" titulo="Equipo" detalle="Trabajadores, PIN y cargas" onClick={() => abrir('equipo')} />
         </div>
@@ -222,7 +223,10 @@ export function Ajustes({ avisar, onCambio }: Props) {
     )
   } else if (seccion === 'promo') {
     titulo = 'Promoción'
-    cuerpo = <PromoAjustes avisar={avisar} />
+    cuerpo = (
+      <PromoAjustes valor={param('PROMO')?.valor ?? ''} avisar={avisar}
+        onGuardar={async json => { await api.guardarConfig('PROMO', json); await cargar(); await onCambio() }} />
+    )
   } else if (seccion === 'equipo') {
     titulo = 'Equipo'
     cuerpo = (

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, sesion } from './api'
 import { AvisoActualizacion } from './componentes/AvisoActualizacion'
 import { BarraLogros } from './componentes/BarraLogros'
@@ -14,6 +14,7 @@ import { nivelAlcanzado } from './logros'
 import { hitoNuevo } from './ritmo'
 import { useToast, type AccionToast } from './componentes/Toast'
 import { pesos, vibrar } from './formato'
+import { leerPromo, promoVigente } from './promo'
 import type { Terminos } from './tipos'
 import { useCaja, type EstadoSync } from './useCaja'
 import { Ajustes } from './vistas/Ajustes'
@@ -150,6 +151,14 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     return () => document.removeEventListener('visibilitychange', alVolver)
   }, [trabajador])
 
+  // La promo que corre hoy: viene del servidor, así el dueño la prende desde Ajustes y la venden todos
+  const textoPromo = estado?.promo
+  const diaEstado = estado?.dia
+  const promo = useMemo(() => {
+    const p = leerPromo(textoPromo)
+    return diaEstado && promoVigente(p, diaEstado) ? p : null
+  }, [textoPromo, diaEstado])
+
   let contenido: ReactNode
   if (!estado) {
     contenido = <div className="vacio">
@@ -157,7 +166,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       {sync === 'sin-senal' ? 'La primera vez necesitas señal para cargar los sabores.' : 'Cargando…'}
     </div>
   } else if (vista === 'vender') {
-    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} onVender={(lineas, metodo, fiado) => {
+    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promo={promo} onVender={(lineas, metodo, fiado) => {
       const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado, l.efectivo))
       const detalle = lineas.map(l => (l.cantidad > 1 ? l.cantidad + ' ' : '') + l.p.nombre).join(' + ')
       avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'MIXTO' ? 'Efectivo + Nequi' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),

@@ -487,4 +487,17 @@ class EquipoTest extends PruebaIntegracion {
         mvc.perform(con(entrar("4321"), post("/api/mi-turno/pago")).content("{\"frecuencia\":\"SEMANAL\"}"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void laPromoDelDuenoLeLlegaALosCelularesDeLosTrabajadores() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        String token = entrar("1111");
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.promo").doesNotExist());
+
+        String promo = "{\"activa\":true,\"cantidad\":2,\"precio\":10000,\"tipos\":[\"NORMAL\"],\"soloHoy\":false,\"dia\":\"\",\"dias\":[3]}";
+        ajustes.actualizar("PROMO", promo);
+
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.promo").value(promo));
+        mvc.perform(con(entrar("4321"), get("/api/estado"))).andExpect(jsonPath("$.promo").value(promo));
+    }
 }

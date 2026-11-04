@@ -1,11 +1,40 @@
 import { describe, expect, it } from 'vitest'
-import { aplicaPromo, PROMO_INICIAL, promoVigente, repartirEfectivo, repartirTotal, totalConPromo, totalMezclado, type Promo } from './promo'
+import { aplicaPromo, diaSemana, leerPromo, PROMO_INICIAL, promoVigente, serializarPromo, textoDias, repartirEfectivo, repartirTotal, totalConPromo, totalMezclado, type Promo } from './promo'
 import type { Producto } from './tipos'
 
 const prod = (tipo: Producto['tipo'], precio: number): Producto =>
   ({ id: 1, sabor: 'Smirnoff', tipo, nombre: 'Smirnoff', precio, costo: 0, stock: 10, stockMinimo: 2, activo: true, orden: 1 })
 
 const dosPorDiez: Promo = { ...PROMO_INICIAL, activa: true, dia: '2026-10-08' }
+
+describe('promo por días de la semana', () => {
+  const miercoles: Promo = { ...PROMO_INICIAL, activa: true, soloHoy: false, dias: [3] }
+
+  it('sabe qué día de la semana es cada fecha', () => {
+    expect(diaSemana('2026-11-04')).toBe(3) // miércoles
+    expect(diaSemana('2026-11-08')).toBe(7) // domingo
+    expect(diaSemana('2026-11-02')).toBe(1) // lunes
+  })
+
+  it('corre solo los días escogidos', () => {
+    expect(promoVigente(miercoles, '2026-11-04')).toBe(true)
+    expect(promoVigente(miercoles, '2026-11-05')).toBe(false)
+    expect(promoVigente({ ...miercoles, activa: false }, '2026-11-04')).toBe(false)
+  })
+
+  it('se lee y se guarda sin perder los días, y descarta días raros', () => {
+    expect(leerPromo(serializarPromo(miercoles)).dias).toEqual([3])
+    expect(leerPromo('{"activa":true,"dias":[3,9,"x"]}').dias).toEqual([3])
+    expect(leerPromo('').activa).toBe(false)
+    expect(leerPromo('no es json').activa).toBe(false)
+  })
+
+  it('dice los días en español', () => {
+    expect(textoDias([3])).toBe('miércoles')
+    expect(textoDias([5, 1])).toBe('lunes y viernes')
+    expect(textoDias([1, 3, 5])).toBe('lunes, miércoles y viernes')
+  })
+})
 
 describe('promo 2 x $10.000', () => {
   it('cobra el combo por cada par y precio normal por la que sobra', () => {

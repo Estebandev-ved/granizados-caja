@@ -7,7 +7,7 @@ import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { CampoNumero } from '../componentes/CampoNumero'
 import { aEntero, pesos, vibrar } from '../formato'
-import { aplicaPromo, leerPromo, nombrePromo, promoVigente, repartirEfectivo, repartirTotal, totalMezclado, type Promo } from '../promo'
+import { aplicaPromo, nombrePromo, repartirEfectivo, repartirTotal, totalMezclado, type Promo } from '../promo'
 import type { Metodo, PorSabor, Producto, Tipo } from '../tipos'
 
 interface Props {
@@ -16,6 +16,8 @@ interface Props {
   porSabor: PorSabor[]
   /** Un trabajador no arma su carga (se la da el dueño), no fía y lo que ve como stock es lo que le queda. */
   trabajador?: boolean
+  /** La promoción que está corriendo hoy (viene del servidor, igual para todos), o null. */
+  promo: Promo | null
   /** Una línea por sabor. `total` solo viene cuando hubo promo (lo realmente cobrado en esa línea). */
   onVender: (lineas: { p: Producto; cantidad: number; total?: number; efectivo?: number }[], metodo: Metodo, fiado?: { cliente: string; telefono: string }) => void
 }
@@ -23,11 +25,10 @@ interface Props {
 type Filtro = 'todos' | Tipo
 const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande', CERVEZA: 'Cerveza' }
 
-export function Vender({ productos, porSabor, trabajador = false, onVender }: Props) {
+export function Vender({ productos, porSabor, trabajador = false, promo, onVender }: Props) {
   const [elegido, setElegido] = useState<Producto | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('todos')
-  // La promo se configura en Ajustes; aquí solo se aplica
-  const [promo] = useState<Promo | null>(() => { const p = leerPromo(); return promoVigente(p) ? p : null })
+  // La promo se configura en Ajustes y viene del servidor; aquí solo se aplica
   const hayPromo = !!promo && productos.some(p => aplicaPromo(promo, p))
   // Lo que llevo hoy: cuántos de cada sabor saqué a vender
   const [cargaGuardada, setCarga] = useState(() => (trabajador ? null : leerCarga()))

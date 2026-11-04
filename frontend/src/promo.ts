@@ -1,10 +1,8 @@
 import { diaBogota } from './estadoLocal'
 import type { Producto, Tipo } from './tipos'
 
-// Promoción tipo "2 x $10.000". Se configura en Ajustes y se vende desde Vender.
-// Vive en el celular (localStorage), igual que el aviso de la meta: es una conveniencia de venta, no un dato del negocio.
-
-const CLAVE = 'gz_promo'
+// Promoción tipo "2 x $10.000". Se configura en Ajustes, se guarda en el servidor (ajuste PROMO) y le llega a todos los
+// celulares con el estado, así los trabajadores la venden igual que el dueño. Puede correr ciertos días de la semana.
 
 export interface Promo {
   activa: boolean
@@ -18,14 +16,30 @@ export interface Promo {
   soloHoy: boolean
   /** Día en que se prendió (para el modo "solo hoy"). */
   dia: string
+  /** Días de la semana en que corre (1 = lunes ... 7 = domingo). Vacío = no hay horario y mandan `soloHoy` y `dia`. */
+  dias: number[]
 }
 
-export const PROMO_INICIAL: Promo = { activa: false, cantidad: 2, precio: 10000, tipos: ['NORMAL'], soloHoy: true, dia: '' }
+export const PROMO_INICIAL: Promo = { activa: false, cantidad: 2, precio: 10000, tipos: ['NORMAL'], soloHoy: true, dia: '', dias: [] }
 
-/** Lee la promo guardada; lo que falte o venga raro se rellena con lo de siempre (2 x $10.000 en normales). */
-export function leerPromo(): Promo {
+export const NOMBRES_DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo']
+
+/** Día de la semana de una fecha "2026-11-04": 1 = lunes ... 7 = domingo. */
+export function diaSemana(dia: string): number {
+  const d = new Date(dia + 'T12:00:00Z').getUTCDay()
+  return d === 0 ? 7 : d
+}
+
+/** "miércoles", "lunes y miércoles", "lunes, martes y viernes". */
+export function textoDias(dias: number[]): string {
+  const nombres = [...dias].sort((a, b) => a - b).map(d => NOMBRES_DIAS[d - 1])
+  return nombres.length > 1 ? nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1] : (nombres[0] ?? '')
+}
+
+/** Lee la promo que viene del servidor; lo que falte o venga raro se rellena con lo de siempre (2 x $10.000 en normales). */
+export function leerPromo(texto?: string | null): Promo {
   try {
-    const g = JSON.parse(localStorage.getItem(CLAVE) ?? 'null') as Partial<Promo> | null
+    const g = JSON.parse(texto || 'null') as Partial<Promo> | null
     if (!g) return PROMO_INICIAL
     const cantidad = Number.isInteger(g.cantidad) && g.cantidad! >= 2 && g.cantidad! <= 10 ? g.cantidad! : PROMO_INICIAL.cantidad
     const precio = Number.isFinite(g.precio) && g.precio! > 0 ? Math.round(g.precio!) : PROMO_INICIAL.precio
@@ -36,17 +50,21 @@ export function leerPromo(): Promo {
       cantidad, precio, tipos,
       soloHoy: g.soloHoy ?? true,
       dia: typeof g.dia === 'string' ? g.dia : '',
+      dias: Array.isArray(g.dias) ? g.dias.filter(d => Number.isInteger(d) && d >= 1 && d <= 7) : [],
     }
   } catch { return PROMO_INICIAL }
 }
 
-export function guardarPromo(p: Promo) {
-  try { localStorage.setItem(CLAVE, JSON.stringify(p)) } catch { /* sin almacenamiento */ }
+/** Lo que se guarda en el servidor. */
+export function serializarPromo(p: Promo): string {
+  return JSON.stringify(p)
 }
 
-/** ¿Está corriendo ahora mismo? */
+/** ¿Está corriendo ahora mismo? Con días de la semana manda el calendario; si no, `soloHoy` y el día en que se prendió. */
 export function promoVigente(p: Promo, hoy = diaBogota()): boolean {
-  return p.activa && (!p.soloHoy || p.dia === hoy)
+  if (!p.activa) return false
+  if (p.dias.length) return p.dias.includes(diaSemana(hoy))
+  return !p.soloHoy || p.dia === hoy
 }
 
 /** Aplica si el tipo está elegido y el combo de verdad sale más barato que llevarlos sueltos. */

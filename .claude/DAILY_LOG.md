@@ -44,7 +44,8 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 - **Comisión por granizado** para el equipo: tarifas por tipo en Ajustes → Equipo (`COMISION_*`, migración V19), congeladas en cada venta; sin tarifas sigue el %. Liquidación y cierre del día la usan. Pendiente de Esteban: poner $1.000 Normal y $1.500 Cremoso en Ajustes y decidir Grande y Cerveza.
 - **Premios por escalón + términos del trabajo** (V20): premio del día acumulado (12/15/20/25/30 → $2.000/$4.000/$8.000/$12.000/$17.000, ya sembrado para Dopamina junto con $1.000 Normal y $1.500 Cremoso), barra de premios y “lo que llevas ganado hoy” para el trabajador, mensaje del granizado gratis por día y términos que se aceptan antes de empezar (constancia guardada). Pendiente: cobrar los granizados extra desde la app y definir Grande/Cerveza.
 - **Comisión en promo** ($700 por granizado cuando se vende 2 x $10.000, sembrada para Dopamina) y **elegir cada cuánto cobrar** (diario, semanal o quincenal) al entrar, V21; Equipo suma el rango de 15 días.
-- Pruebas: 162 backend y 83 frontend en verde.
+- **Promo en el servidor** (V22): ya no vive en el celular del dueño; llega a todos los celulares con el estado y puede correr ciertos días (Dopamina arranca con 2 x $10.000 en Normales todos los miércoles).
+- Pruebas: 163 backend y 87 frontend en verde.
 
 ### 2026-11-03
 - **Mi día del trabajador** muestra lo que llevó, vendió y le queda por sabor (antes solo "lo que me queda").

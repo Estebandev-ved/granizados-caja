@@ -168,6 +168,8 @@ export interface Estado {
   metaEquipo?: MetaEquipo | null
   /** Solo para un trabajador: lo que lleva ganado hoy y sus escalones de premio. */
   premios?: PremiosDia | null
+  /** La promoción del negocio (JSON), para que la vendan todos los celulares. Ausente = no hay. */
+  promo?: string | null
 }
 
 export interface Meta {
