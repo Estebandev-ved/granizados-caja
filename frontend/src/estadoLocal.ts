@@ -102,7 +102,8 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
   p.stock -= op.cantidad
   if (diaBogota(op.creadaEn) !== hoy) return
 
-  const total = op.total ?? p.precio * op.cantidad
+  // Un regalo no cobra nada, pero igual baja el stock y cuenta el costo
+  const total = op.metodo === 'REGALO' ? 0 : op.total ?? p.precio * op.cantidad
   e.hoy.total += total
   e.hoy.costo += p.costo * op.cantidad
   e.hoy.unidades += op.cantidad

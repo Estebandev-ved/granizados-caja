@@ -1,7 +1,7 @@
 // Tipos que devuelve la API del backend (Spring Boot).
 
 export type Tipo = 'NORMAL' | 'CREMOSO' | 'GRANDE' | 'CERVEZA'
-export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO' | 'MIXTO'
+export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO' | 'MIXTO' | 'REGALO'
 export type TipoMovimiento = 'ENTRADA' | 'CONTEO' | 'MERMA'
 export type MotivoMerma = 'DANADO' | 'REGALADO' | 'VENCIDO'
 export type EstadoPedido = 'ENVIADO' | 'RECIBIDO' | 'CANCELADO'

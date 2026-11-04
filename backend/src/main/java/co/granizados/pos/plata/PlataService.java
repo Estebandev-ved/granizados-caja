@@ -276,7 +276,7 @@ public class PlataService {
                 a.total() + b.total(), a.unidades() + b.unidades());
         Map<String, Acum> porDiaYMetodo = new LinkedHashMap<>();
         for (Venta v : ventas.entre(desde, hasta)) {
-            if (v.getMetodo() == MetodoPago.FIADO) continue; // no movió plata: entra al cobrarlo
+            if (v.getMetodo() == MetodoPago.FIADO || v.getMetodo() == MetodoPago.REGALO) continue; // no movió plata: entra al cobrarlo
             String dia = DIA.format(v.getCreadaEn().atZone(zona));
             // Las unidades de una venta mixta se cuentan una sola vez, del lado que puso más plata
             boolean unidadesEnEfectivo = v.efectivo() >= v.nequi();

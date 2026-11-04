@@ -81,6 +81,18 @@ describe('estadoVisible', () => {
     expect(e.hoy.total).toBe(13000)
   })
 
+  it('un regalo baja el stock y cuenta la unidad, pero no suma plata', () => {
+    const op: Operacion = { tipo: 'venta', clientUid: 'r1', productoId: 2, metodo: 'REGALO', cantidad: 1, creadaEn: HOY_3PM, total: 0 }
+    const e = estadoVisible(base(), [], [op], '2026-09-25')!
+
+    expect(e.productos[1].stock).toBe(3)
+    expect(e.hoy.total).toBe(6000) // lo mismo que ya traía el servidor
+    expect(e.hoy.nequi).toBe(6000)
+    expect(e.hoy.efectivo).toBe(0)
+    expect(e.hoy.unidades).toBe(2)
+    expect(e.hoy.costo).toBe(3000 + 4000)
+  })
+
   it('suma las ventas pendientes encima del estado del servidor', () => {
     const e = estadoVisible(base(), [], [venta('p1', 2, 2)], '2026-09-25')!
 

@@ -112,7 +112,9 @@ public class VentaService {
         int minimo = p.getStockMinimo();
 
         long normal = p.getPrecio() * v.cantidad();
-        long cobrado = v.total() == null ? normal : Math.min(v.total(), normal); // promo: solo puede bajar el precio
+        boolean regalo = v.metodo() == MetodoPago.REGALO;
+        // promo: solo puede bajar el precio; un regalo no cobra nada
+        long cobrado = regalo ? 0 : v.total() == null ? normal : Math.min(v.total(), normal);
         Instant cuando = cuando(v.creadaEn());
         Venta venta = new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando, cobrado);
         if (v.metodo() == MetodoPago.MIXTO) {
@@ -123,11 +125,12 @@ public class VentaService {
             venta.mixto(v.efectivo());
         }
         // Una venta en promoción (se cobró menos que precio × cantidad) paga la tarifa de promo y baja los premios del día
-        boolean enPromo = venta.getTotal() < normal;
+        boolean enPromo = !regalo && venta.getTotal() < normal;
         venta.enPromo(enPromo);
         Long vendedor = Sesion.vendedorId();
         if (vendedor != null) {
             if (v.metodo() == MetodoPago.FIADO) throw new IllegalArgumentException("Los trabajadores no pueden fiar");
+            if (regalo) throw new IllegalArgumentException("Los trabajadores no pueden regalar");
             venta.porVendedor(vendedor).conComision(equipo.comisionPorGranizado(p.getTipo(), enPromo));
         }
         ventas.saveAndFlush(venta);

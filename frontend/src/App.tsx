@@ -169,7 +169,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promo={promo} onVender={(lineas, metodo, fiado) => {
       const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado, l.efectivo))
       const detalle = lineas.map(l => (l.cantidad > 1 ? l.cantidad + ' ' : '') + l.p.nombre).join(' + ')
-      avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'MIXTO' ? 'Efectivo + Nequi' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
+      avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'MIXTO' ? 'Efectivo + Nequi' : metodo === 'REGALO' ? 'Regalo 🎁' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
         { texto: 'Deshacer', alTocar: () => uids.forEach(clientUid => void caja.deshacer({ clientUid })) })
     }} />
   } else if (vista === 'inventario') {

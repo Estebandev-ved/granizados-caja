@@ -156,7 +156,7 @@ public class ReporteService {
                     .append(v.getPrecioUnitario()).append(';')
                     .append(v.getTotal()).append(';')
                     .append((long) v.getCostoUnitario() * v.getCantidad()).append(';')
-                    .append(switch (v.getMetodo()) { case EFECTIVO -> "Efectivo"; case NEQUI -> "Nequi"; case FIADO -> "Fiado";
+                    .append(switch (v.getMetodo()) { case EFECTIVO -> "Efectivo"; case NEQUI -> "Nequi"; case FIADO -> "Fiado"; case REGALO -> "Regalo";
                         case MIXTO -> "Mixto (efectivo " + v.efectivo() + " / Nequi " + v.nequi() + ")"; }).append('\n');
         }
         return sb.toString();

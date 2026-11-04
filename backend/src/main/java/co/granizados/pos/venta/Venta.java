@@ -101,7 +101,7 @@ public class Venta {
         return switch (metodo) {
             case EFECTIVO -> total;
             case MIXTO -> montoEfectivo == null ? 0 : montoEfectivo;
-            case NEQUI, FIADO -> 0;
+            case NEQUI, FIADO, REGALO -> 0;
         };
     }
 
@@ -110,7 +110,7 @@ public class Venta {
         return switch (metodo) {
             case NEQUI -> total;
             case MIXTO -> total - efectivo();
-            case EFECTIVO, FIADO -> 0;
+            case EFECTIVO, FIADO, REGALO -> 0;
         };
     }
 

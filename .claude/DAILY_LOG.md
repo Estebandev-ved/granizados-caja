@@ -41,6 +41,7 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 ## Cambios
 
 ### 2026-11-04
+- **Regalos** (V24): método `REGALO` para cuando un cliente gana el sello de fidelidad y hay que regalarle un granizado. Baja el stock y cuenta el costo, no entra plata. Link «Regalo» en Vender (solo dueño). Backend 170 y frontend 88 pruebas.
 - **Comisión por granizado** para el equipo: tarifas por tipo en Ajustes → Equipo (`COMISION_*`, migración V19), congeladas en cada venta; sin tarifas sigue el %. Liquidación y cierre del día la usan. Pendiente de Esteban: poner $1.000 Normal y $1.500 Cremoso en Ajustes y decidir Grande y Cerveza.
 - **Premios por escalón + términos del trabajo** (V20): premio del día acumulado (12/15/20/25/30 → $2.000/$4.000/$8.000/$12.000/$17.000, ya sembrado para Dopamina junto con $1.000 Normal y $1.500 Cremoso), barra de premios y “lo que llevas ganado hoy” para el trabajador, mensaje del granizado gratis por día y términos que se aceptan antes de empezar (constancia guardada). Pendiente: cobrar los granizados extra desde la app y definir Grande/Cerveza.
 - **Comisión en promo** ($700 por granizado cuando se vende 2 x $10.000, sembrada para Dopamina) y **elegir cada cuánto cobrar** (diario, semanal o quincenal) al entrar, V21; Equipo suma el rango de 15 días.

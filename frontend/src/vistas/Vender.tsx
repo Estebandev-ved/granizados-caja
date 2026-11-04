@@ -159,11 +159,11 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
     pagado.current = true
     vibrar()
     // Si mezcló sabores, el total del combo se reparte entre las líneas (la API guarda una venta por sabor)
-    const partes = repartirTotal(lineas, total)
+    const partes = m === 'REGALO' ? lineas.map(() => 0) : repartirTotal(lineas, total)
     // Pago dividido: lo pagado en efectivo se reparte igual entre las líneas, el resto de cada una es Nequi
     const efectivos = m === 'MIXTO' && enEfectivo !== undefined ? repartirEfectivo(partes, enEfectivo) : []
     onPagar(m, lineas.map((l, i) => ({
-      p: l.p, cantidad: l.cantidad, total: promo && partes[i] < l.p.precio * l.cantidad ? partes[i] : undefined,
+      p: l.p, cantidad: l.cantidad, total: m === 'REGALO' ? 0 : promo && partes[i] < l.p.precio * l.cantidad ? partes[i] : undefined,
       efectivo: m === 'MIXTO' ? efectivos[i] : undefined,
     })), fiado)
   }
@@ -289,6 +289,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
           </div>
           <button type="button" className="link fiado-boton" onClick={() => setMixto(true)}>Pagó mitad y mitad (efectivo + Nequi)</button>
           {!trabajador && <button type="button" className="link fiado-boton" onClick={() => setFiando(true)}>Fiado (paga después)</button>}
+          {!trabajador && <button type="button" className="link fiado-boton" onClick={() => pagar('REGALO')}>🎁 Regalo (sello de fidelidad)</button>}
         </>
       )}
     </>
