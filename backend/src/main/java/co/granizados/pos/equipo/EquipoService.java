@@ -464,7 +464,9 @@ public class EquipoService {
         List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
         long rebaja = promo ? AjustesService.entero(cfg, "PREMIO_REBAJA_PROMO", 0) : 0;
         if (rebaja <= 0) return escalones;
-        return escalones.stream().map(e -> new Escalones.Escalon(e.granizados(), Math.max(0, e.total() - rebaja))).toList();
+        // Un escalón que queda en $0 ya no paga nada: no se muestra
+        return escalones.stream().map(e -> new Escalones.Escalon(e.granizados(), Math.max(0, e.total() - rebaja)))
+                .filter(e -> e.total() > 0).toList();
     }
 
     private Terminos terminos(Vendedor v) {
