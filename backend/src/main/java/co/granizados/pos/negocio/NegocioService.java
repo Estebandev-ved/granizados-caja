@@ -28,6 +28,7 @@ public class NegocioService {
             new Ajuste("COMISION_GRANDE", "0", "Pesos que gana el trabajador por cada granizado Grande"),
             new Ajuste("COMISION_CERVEZA", "0", "Pesos que gana el trabajador por cada cerveza"),
             new Ajuste("PROMO", "", "Promoción (la edita Ajustes → Promoción)"),
+            new Ajuste("PREMIO_REBAJA_PROMO", "0", "Pesos que bajan los premios por escalón los días de promoción. 0 = no bajan"),
             new Ajuste("COMISION_PROMO", "0", "Pesos que gana el trabajador por cada granizado vendido en promoción. 0 = gana la tarifa normal"),
             new Ajuste("PREMIOS_ESCALONES", "", "Premio del día por escalón, acumulado. Ej: 12:2000,15:4000 = con 12 granizados ganas $2.000 y con 15, $4.000 en total"),
             new Ajuste("GRANIZADOS_GRATIS", "1", "Granizados que el trabajador puede tomarse gratis por día de trabajo"),

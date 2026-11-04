@@ -53,9 +53,8 @@ final class TerminosTrabajo {
         }
         List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
         if (!escalones.isEmpty()) {
-            ganas.add("Además hay premios del día que se van sumando mientras más vendes. Llevas en total: "
-                    + String.join("; ", escalones.stream()
-                    .map(e -> "con " + e.granizados() + " granizados, " + Pesos.formato(e.total())).toList()) + ".");
+            ganas.add("Además hay premios del día: mientras más granizados vendes, más ganas. Los montos pueden variar"
+                    + " (por ejemplo, los días de promoción son un poco menores) y siempre los ves en la barra de premios de la app.");
             ganas.add("El premio es por día y cuenta solo lo que vendes tú.");
         }
         ganas.add("Lo que ganas se descuenta del efectivo que entregas al cerrar el día. Lo ves en Mi día.");

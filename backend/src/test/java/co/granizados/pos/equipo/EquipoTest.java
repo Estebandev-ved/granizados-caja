@@ -431,8 +431,10 @@ class EquipoTest extends PruebaIntegracion {
         String token = entrar("1111");
 
         String texto = mvc.perform(con(token, get("/api/mi-turno/terminos"))).andReturn().getResponse().getContentAsString();
-        assertThat(texto).contains("Normal $1.000").contains("Cremoso $1.500").contains("12 granizados, $2.000")
-                .contains("1 granizado por d");
+        assertThat(texto).contains("Normal $1.000").contains("Cremoso $1.500").contains("1 granizado por d")
+                .contains("Los montos pueden variar")
+                // Los premios no se escriben en los t\u00e9rminos: cambian y se ven en la barra de la app
+                .doesNotContain("$2.000");
     }
 
     @Test
@@ -499,5 +501,41 @@ class EquipoTest extends PruebaIntegracion {
 
         mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.promo").value(promo));
         mvc.perform(con(entrar("4321"), get("/api/estado"))).andExpect(jsonPath("$.promo").value(promo));
+    }
+
+    @Test
+    void losDiasDePromoLosPremiosBajanYElTrabajadorVeLosMontosDeHoy() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        ajustes.actualizar("PREMIOS_ESCALONES", "2:2000,5:6000");
+        ajustes.actualizar("PREMIO_REBAJA_PROMO", "1500");
+        // 2026-09-25 es viernes (5): la promo corre los viernes
+        ajustes.actualizar("PROMO", "{\"activa\":true,\"cantidad\":2,\"precio\":10000,\"tipos\":[\"NORMAL\"],\"soloHoy\":false,\"dia\":\"\",\"dias\":[5]}");
+        String token = entrar("1111");
+
+        mvc.perform(con(token, get("/api/estado")))
+                .andExpect(jsonPath("$.premios.diaPromo").value(true))
+                .andExpect(jsonPath("$.premios.escalones[0].total").value(500))
+                .andExpect(jsonPath("$.premios.escalones[1].total").value(4500));
+
+        mvc.perform(con(token, post("/api/ventas")).content(venta("rp-1", "EFECTIVO", 5, ",\"total\":25000"))).andExpect(status().isOk());
+        var l = equipo.liquidar(java.time.LocalDate.of(2026, 9, 25), java.time.LocalDate.of(2026, 9, 25)).getFirst();
+        assertThat(l.bonos()).isEqualTo(4500); // 6.000 menos 1.500 por ser d\u00eda de promo
+    }
+
+    @Test
+    void unDiaSinPromoLosPremiosNoBajan() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        ajustes.actualizar("PREMIOS_ESCALONES", "2:2000,5:6000");
+        ajustes.actualizar("PREMIO_REBAJA_PROMO", "1500");
+        // La promo es de los mi\u00e9rcoles (3) y hoy es viernes
+        ajustes.actualizar("PROMO", "{\"activa\":true,\"cantidad\":2,\"precio\":10000,\"tipos\":[\"NORMAL\"],\"soloHoy\":false,\"dia\":\"\",\"dias\":[3]}");
+        String token = entrar("1111");
+
+        mvc.perform(con(token, get("/api/estado")))
+                .andExpect(jsonPath("$.premios.diaPromo").value(false))
+                .andExpect(jsonPath("$.premios.escalones[1].total").value(6000));
+        mvc.perform(con(token, post("/api/ventas")).content(venta("np-1", "EFECTIVO", 5, ""))).andExpect(status().isOk());
+        var l = equipo.liquidar(java.time.LocalDate.of(2026, 9, 25), java.time.LocalDate.of(2026, 9, 25)).getFirst();
+        assertThat(l.bonos()).isEqualTo(6000);
     }
 }

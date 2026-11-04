@@ -25,9 +25,11 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Optional;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -76,7 +78,7 @@ public class EquipoService {
      * `gratis` son los granizados que puede tomarse sin pagar.
      */
     public record PremiosDia(int vendidas, long comision, long premio, List<Escalones.Escalon> escalones,
-                             Escalones.Escalon siguiente, int gratis) {
+                             Escalones.Escalon siguiente, int gratis, boolean diaPromo) {
     }
 
     public record SeccionTerminos(String titulo, List<String> lineas) {
@@ -285,8 +287,10 @@ public class EquipoService {
         }
         int meta = AjustesService.entero(ajustes.mapa(), "META_EQUIPO", 0);
         long premio = AjustesService.entero(ajustes.mapa(), "PREMIO_EQUIPO", 0);
+        boolean diaPromo = delDia.stream().anyMatch(x -> vendedorId.equals(x.getVendedorId()) && x.isEnPromo())
+                || PromoCalendario.vigente(ajustes.mapa().get("PROMO"), dia);
         long bonos = (meta > 0 && unidades >= meta ? premio : 0)
-                + Escalones.premioDe(Escalones.leer(ajustes.mapa().get("PREMIOS_ESCALONES")), unidades);
+                + Escalones.premioDe(escalonesDelDia(ajustes.mapa(), diaPromo), unidades);
         long entregar = efectivo - comision - bonos;
         List<FilaCarga> devuelve = filasDe(vendedorId, dia, delDia).stream().filter(f -> f.queda() > 0).toList();
 
@@ -358,6 +362,9 @@ public class EquipoService {
         int meta = AjustesService.entero(cfg, "META_EQUIPO", 0);
         long premio = AjustesService.entero(cfg, "PREMIO_EQUIPO", 0);
         List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
+        List<Escalones.Escalon> rebajados = escalonesDelDia(cfg, true);
+        LocalDate hoy = hoy();
+        boolean promoHoy = PromoCalendario.vigente(cfg.get("PROMO"), hoy);
         for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
             long total = 0, efectivo = 0, nequi = 0, comision = 0;
             int unidades = 0;
@@ -374,9 +381,18 @@ public class EquipoService {
             int diasMeta = 0;
             long premiosEscalon = 0;
             if (meta > 0 || !escalones.isEmpty()) {
-                for (int unidadesDia : unidadesPorDia(v.getId(), desde, hasta).values()) {
-                    if (meta > 0 && unidadesDia >= meta) diasMeta++;
-                    premiosEscalon += Escalones.premioDe(escalones, unidadesDia);
+                Map<LocalDate, Integer> porDia = new HashMap<>();
+                Set<LocalDate> diasPromo = new HashSet<>();
+                for (Venta x : delRango) {
+                    if (!v.getId().equals(x.getVendedorId())) continue;
+                    LocalDate d = x.getCreadaEn().atZone(zona).toLocalDate();
+                    porDia.merge(d, x.getCantidad(), Integer::sum);
+                    if (x.isEnPromo()) diasPromo.add(d);
+                }
+                for (Map.Entry<LocalDate, Integer> e : porDia.entrySet()) {
+                    if (meta > 0 && e.getValue() >= meta) diasMeta++;
+                    boolean promo = diasPromo.contains(e.getKey()) || (promoHoy && e.getKey().equals(hoy));
+                    premiosEscalon += Escalones.premioDe(promo ? rebajados : escalones, e.getValue());
                 }
             }
             long bonos = diasMeta * premio + premiosEscalon;
@@ -436,8 +452,19 @@ public class EquipoService {
         } catch (NumberFormatException e) {
             // se queda en 1
         }
-        return new PremiosDia(vendidas, comision, Escalones.premioDe(escalones, vendidas), escalones,
-                Escalones.siguiente(escalones, vendidas), gratis);
+        // Los días de promoción los premios bajan; el trabajador ve ya los montos de hoy
+        boolean diaPromo = mias.stream().anyMatch(Venta::isEnPromo) || PromoCalendario.vigente(cfg.get("PROMO"), hoy());
+        List<Escalones.Escalon> deHoy = escalonesDelDia(cfg, diaPromo);
+        return new PremiosDia(vendidas, comision, Escalones.premioDe(deHoy, vendidas), deHoy,
+                Escalones.siguiente(deHoy, vendidas), gratis, diaPromo);
+    }
+
+    /** Los escalones de premio de un día: los días de promoción cada uno baja `PREMIO_REBAJA_PROMO` (sin pasar de 0). */
+    private static List<Escalones.Escalon> escalonesDelDia(Map<String, String> cfg, boolean promo) {
+        List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
+        long rebaja = promo ? AjustesService.entero(cfg, "PREMIO_REBAJA_PROMO", 0) : 0;
+        if (rebaja <= 0) return escalones;
+        return escalones.stream().map(e -> new Escalones.Escalon(e.granizados(), Math.max(0, e.total() - rebaja))).toList();
     }
 
     private Terminos terminos(Vendedor v) {

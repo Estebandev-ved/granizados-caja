@@ -52,6 +52,9 @@ public class Venta {
     /** Lo que gana el trabajador por cada unidad de esta venta, congelado al vender. null = se liquida con su porcentaje. */
     private Long comisionUnitaria;
 
+    /** Se cobró por debajo del precio normal (promoción): ese día los premios del trabajador bajan. */
+    private boolean enPromo;
+
     private Instant creadaEn;
 
     /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
@@ -116,6 +119,11 @@ public class Venta {
         return this;
     }
 
+    public Venta enPromo(boolean enPromo) {
+        this.enPromo = enPromo;
+        return this;
+    }
+
     public Venta conComision(Long comisionUnitaria) {
         this.comisionUnitaria = comisionUnitaria;
         return this;
@@ -123,6 +131,7 @@ public class Venta {
 
     public Long getId() { return id; }
     public Long getComisionUnitaria() { return comisionUnitaria; }
+    public boolean isEnPromo() { return enPromo; }
     public Long getVendedorId() { return vendedorId; }
     public String getClientUid() { return clientUid; }
     public Producto getProducto() { return producto; }

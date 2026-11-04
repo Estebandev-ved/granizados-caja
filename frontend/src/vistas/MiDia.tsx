@@ -71,6 +71,11 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
             <div className="row"><span>Premio del día</span><b>{pesos(premios.premio)}</b></div>
           )}
           <div className="row"><span><b>Total ganado</b></span><b>{pesos(premios.comision + premios.premio)}</b></div>
+          {premios.diaPromo && premios.escalones.length > 0 && (
+            <p className="mut" style={{ margin: '6px 0 0' }}>
+              Hoy es día de promo: se vende más barato, así que los premios son un poco menores que en un día normal.
+            </p>
+          )}
           {premios.siguiente && (
             <p className="mut" style={{ margin: '6px 0 0' }}>
               Te faltan {premios.siguiente.granizados - premios.vendidas} granizados para ganar {pesos(premios.siguiente.total)} de premio.

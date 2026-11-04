@@ -28,6 +28,7 @@ const META_PARAM: Record<string, Meta> = {
   COMISION_CERVEZA: { titulo: 'Comisión por cerveza', icono: 'moneda', clase: 'dinero', apagable: true },
   COMISION_PROMO: { titulo: 'Comisión por granizado en promo', icono: 'ticket', clase: 'dinero', apagable: true },
   PREMIOS_ESCALONES: { titulo: 'Premios por escalón del día', icono: 'trofeo', clase: 'texto' },
+  PREMIO_REBAJA_PROMO: { titulo: 'Rebaja de premios en días de promo', icono: 'ticket', clase: 'dinero', apagable: true },
   GRANIZADOS_GRATIS: { titulo: 'Granizados gratis por día', icono: 'vaso', clase: 'entero', unidad: 'granizado', max: 2 },
   PROVEEDOR_WHATSAPP: { titulo: 'WhatsApp del proveedor', icono: 'celular', clase: 'telefono' },
   NOMBRE: { titulo: 'Tu nombre en el pedido', icono: 'cara', clase: 'texto' },
@@ -46,7 +47,7 @@ type SeccionId = 'sabores' | 'metas' | 'pedido' | 'cobros' | 'promo' | 'equipo' 
 const CLAVES: Record<'metas' | 'comisiones' | 'pedido' | 'cobros' | 'promo', string[]> = {
   promo: ['PROMO'],
   metas: ['META_DIARIA', 'META_EQUIPO', 'PREMIO_EQUIPO'],
-  comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'COMISION_PROMO', 'PREMIOS_ESCALONES', 'GRANIZADOS_GRATIS'],
+  comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'COMISION_PROMO', 'PREMIOS_ESCALONES', 'PREMIO_REBAJA_PROMO', 'GRANIZADOS_GRATIS'],
   pedido: ['NOMBRE', 'PROVEEDOR_WHATSAPP', 'DIAS_COBERTURA', 'DIAS_HISTORIAL'],
   cobros: ['PAGO_NEQUI', 'PAGO_BREB', 'PAGO_PRESENCIAL'],
 }
@@ -234,7 +235,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
         <div className="list">
           <h3><Icono nombre="moneda" /> Comisión por granizado</h3>
           <p className="ayuda">Lo que gana cada trabajador por cada granizado que vende, según el tipo. Con todas en 0 gana su porcentaje. Si cambias una tarifa, solo vale para las ventas nuevas.</p>
-          <p className="ayuda">Los premios por escalón se escriben así: 12:2000,15:4000 (granizados:pesos en total). Cada vez que cambies tarifas o premios, el equipo tiene que aceptar los términos otra vez.</p>
+          <p className="ayuda">Los premios por escalón se escriben así: 12:2000,15:4000 (granizados:pesos en total). Los días de promo cada premio baja lo que pongas en la rebaja. Si cambias una tarifa, el equipo tiene que aceptar los términos otra vez (los premios no están en los términos: pueden variar).</p>
           {filas(CLAVES.comisiones).map(filaParam)}
         </div>
         <Equipo productos={productos} avisar={avisar} />

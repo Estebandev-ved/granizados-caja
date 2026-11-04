@@ -86,6 +86,8 @@ export interface PremiosDia {
   escalones: Escalon[]
   siguiente: Escalon | null
   gratis: number
+  /** Hoy corre la promo: los premios ya vienen con la rebaja. */
+  diaPromo: boolean
 }
 
 export interface SeccionTerminos {

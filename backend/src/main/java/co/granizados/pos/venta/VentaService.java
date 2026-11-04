@@ -122,11 +122,12 @@ public class VentaService {
             }
             venta.mixto(v.efectivo());
         }
+        // Una venta en promoción (se cobró menos que precio × cantidad) paga la tarifa de promo y baja los premios del día
+        boolean enPromo = venta.getTotal() < normal;
+        venta.enPromo(enPromo);
         Long vendedor = Sesion.vendedorId();
         if (vendedor != null) {
             if (v.metodo() == MetodoPago.FIADO) throw new IllegalArgumentException("Los trabajadores no pueden fiar");
-            // Una venta en promoción (se cobró menos que precio × cantidad) paga la tarifa de promo
-            boolean enPromo = venta.getTotal() < p.getPrecio() * v.cantidad();
             venta.porVendedor(vendedor).conComision(equipo.comisionPorGranizado(p.getTipo(), enPromo));
         }
         ventas.saveAndFlush(venta);
