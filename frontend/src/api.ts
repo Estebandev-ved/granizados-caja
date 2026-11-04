@@ -1,6 +1,6 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
-  CategoriaGasto, CierreTurno, ClienteConocido, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  CategoriaGasto, CierreTurno, ClienteConocido, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
@@ -169,6 +169,7 @@ export const api = {
   cerrarTurno: () => pedir<CierreTurno>('POST', '/api/mi-turno/cierre'),
   /** Los términos del trabajo con las tarifas de hoy. */
   terminos: () => pedir<Terminos>('GET', '/api/mi-turno/terminos'),
+  elegirPago: (frecuencia: FrecuenciaPago) => pedir<Terminos>('POST', '/api/mi-turno/pago', { frecuencia }),
   aceptarTerminos: (version: string) => pedir<Terminos>('POST', '/api/mi-turno/terminos/aceptar', { version }),
   venta: (v: VentaApi) => pedir<RespuestaVenta>('POST', '/api/ventas', v),
   lote: (ventas: VentaApi[]) => pedir<RespuestaVenta[]>('POST', '/api/ventas/lote', { ventas }),

@@ -4,6 +4,8 @@ import { AvisoActualizacion } from './componentes/AvisoActualizacion'
 import { BarraLogros } from './componentes/BarraLogros'
 import { BarraMeta } from './componentes/BarraMeta'
 import { BarraPremios } from './componentes/BarraPremios'
+import { PagoPreferido } from './componentes/PagoPreferido'
+import { NOMBRE_PAGO } from './pagos'
 import { TerminosTrabajo } from './componentes/TerminosTrabajo'
 import { Confeti } from './componentes/Confeti'
 import { Marca } from './componentes/Marca'
@@ -174,7 +176,15 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       onCancelar={caja.cancelarPedido}
       avisar={avisar} />
   } else if (vista === 'hoy' && trabajador) {
-    contenido = <MiDia estado={estado} onDeshacer={caja.deshacer} />
+    contenido = <MiDia estado={estado} pago={terminos?.frecuenciaPago ?? null} onDeshacer={caja.deshacer}
+      onElegirPago={async f => {
+        try {
+          setTerminos(await api.elegirPago(f))
+          avisar('✓ Listo, te pagamos ' + NOMBRE_PAGO[f])
+        } catch (e) {
+          avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo guardar'))
+        }
+      }} />
   } else if (vista === 'hoy') {
     contenido = <Hoy estado={estado} onDeshacer={caja.deshacer} onRecargar={caja.recargar}
       onLlego={(pedidoId, items, pagoLugar) => {
@@ -201,6 +211,20 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
           } catch (e) {
             avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo guardar'))
             api.terminos().then(setTerminos).catch(() => { /* sin señal */ })
+          }
+        }} />
+      </main>
+    )
+  }
+
+  if (trabajador && terminos && terminos.aceptadaEn && !terminos.frecuenciaPago) {
+    return (
+      <main style={{ padding: '0 16px' }}>
+        <PagoPreferido actual={null} onElegir={async f => {
+          try {
+            setTerminos(await api.elegirPago(f))
+          } catch (e) {
+            avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo guardar'))
           }
         }} />
       </main>

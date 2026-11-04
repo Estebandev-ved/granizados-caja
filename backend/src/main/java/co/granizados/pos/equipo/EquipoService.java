@@ -67,7 +67,8 @@ public class EquipoService {
 
     /** `terminosAceptadosEn` es null mientras no haya aceptado la versión actual de los términos. */
     public record VendedorDto(Long id, String nombre, int comisionPct, boolean activo, int unidadesHoy, long totalHoy,
-                              List<FilaCarga> carga, Instant terminosAceptadosEn) {
+                              List<FilaCarga> carga, Instant terminosAceptadosEn,
+                              FrecuenciaPago frecuenciaPago) {
     }
 
     /**
@@ -82,7 +83,8 @@ public class EquipoService {
     }
 
     /** Los términos vigentes. `aceptadaEn` es null si este trabajador todavía no aceptó esta versión. */
-    public record Terminos(String version, String titulo, List<SeccionTerminos> secciones, Instant aceptadaEn) {
+    public record Terminos(String version, String titulo, List<SeccionTerminos> secciones, Instant aceptadaEn,
+                           FrecuenciaPago frecuenciaPago) {
     }
 
     /**
@@ -314,19 +316,22 @@ public class EquipoService {
      * trabajador sigue ganando su porcentaje. Se congela en cada venta, así cambiarla no reescribe lo ya pagado.
      */
     @Transactional(readOnly = true)
-    public Long comisionPorGranizado(TipoProducto tipo) {
+    public Long comisionPorGranizado(TipoProducto tipo, boolean promo) {
         Map<String, String> cfg = ajustes.mapa();
         long normal = AjustesService.entero(cfg, "COMISION_NORMAL", 0);
         long cremoso = AjustesService.entero(cfg, "COMISION_CREMOSO", 0);
         long grande = AjustesService.entero(cfg, "COMISION_GRANDE", 0);
         long cerveza = AjustesService.entero(cfg, "COMISION_CERVEZA", 0);
         if (normal + cremoso + grande + cerveza == 0) return null;
-        return switch (tipo) {
+        long base = switch (tipo) {
             case NORMAL -> normal;
             case CREMOSO -> cremoso;
             case GRANDE -> grande;
             case CERVEZA -> cerveza;
         };
+        // En promoción el margen es menor: gana la tarifa de promo si el dueño la puso
+        long enPromo = AjustesService.entero(cfg, "COMISION_PROMO", 0);
+        return promo && enPromo > 0 ? enPromo : base;
     }
 
     // ------------------------------------------------------------------ vistas del dueño
@@ -412,7 +417,7 @@ public class EquipoService {
     private VendedorDto dto(Vendedor v, List<Venta> mias, List<FilaCarga> carga) {
         return new VendedorDto(v.getId(), v.getNombre(), v.getComisionPct(), v.isActivo(),
                 mias.stream().mapToInt(Venta::getCantidad).sum(), mias.stream().mapToLong(Venta::getTotal).sum(), carga,
-                terminos(v).aceptadaEn());
+                terminos(v).aceptadaEn(), v.getFrecuenciaPago());
     }
 
     // ------------------------------------------------------------------ premios del día y términos
@@ -441,7 +446,7 @@ public class EquipoService {
         Instant aceptada = aceptaciones.findFirstByVendedorIdAndVersion(v.getId(), version)
                 .map(AceptacionTerminos::getAceptadaEn).orElse(null);
         return new Terminos(version, "Términos del trabajo",
-                secciones.stream().map(s -> new SeccionTerminos(s.titulo(), s.lineas())).toList(), aceptada);
+                secciones.stream().map(s -> new SeccionTerminos(s.titulo(), s.lineas())).toList(), aceptada, v.getFrecuenciaPago());
     }
 
     /** Los términos que ve el trabajador, y si ya aceptó la versión de hoy. */
@@ -449,6 +454,15 @@ public class EquipoService {
     public Terminos terminos(Long vendedorId) {
         return terminos(vendedores.findById(vendedorId)
                 .orElseThrow(() -> new NoEncontradoException("Trabajador no encontrado: " + vendedorId)));
+    }
+
+    /** El trabajador escoge cada cuánto prefiere cobrar. */
+    @Transactional
+    public Terminos elegirFrecuencia(Long vendedorId, FrecuenciaPago frecuencia) {
+        Vendedor v = vendedores.findById(vendedorId)
+                .orElseThrow(() -> new NoEncontradoException("Trabajador no encontrado: " + vendedorId));
+        v.elegirFrecuencia(frecuencia);
+        return terminos(vendedores.save(v));
     }
 
     /** Guarda la constancia: el texto exacto, su huella y la hora. Solo vale la versión vigente. */

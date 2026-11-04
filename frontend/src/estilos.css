@@ -489,6 +489,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .terminos-pie { position: sticky; bottom: 0; background: var(--bg); padding: 12px 0 calc(12px + var(--safe-b)); display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--line) }
 .terminos-check { display: flex; align-items: flex-start; gap: 10px; font-weight: 600 }
 .terminos-check input { width: 22px; height: 22px; margin-top: 1px; flex: none }
+.pago-opciones { display: flex; flex-direction: column; gap: 10px; margin-top: 12px }
+.pago-opcion { text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 16px; background: var(--card); color: var(--txt);
+  border: 2px solid var(--line); border-radius: var(--r-lg); font: inherit; cursor: pointer }
+.pago-opcion b { font-size: 17px }
+.pago-opcion span { color: var(--mut); font-size: 14px; line-height: 1.4 }
+.pago-opcion.on { border-color: var(--primario) }
+.pago-opcion:disabled { opacity: .6 }
 .regalo { background: var(--primario-bg); border-radius: var(--r-lg); padding: 14px 16px; line-height: 1.45 }
 .regalo b { color: var(--primario-txt) }
 

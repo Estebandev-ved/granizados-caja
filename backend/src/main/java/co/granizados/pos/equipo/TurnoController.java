@@ -2,6 +2,7 @@ package co.granizados.pos.equipo;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,6 +25,15 @@ public class TurnoController {
     }
 
     public record Aceptar(@NotBlank @Size(max = 64) String version) {
+    }
+
+    public record Pago(@NotNull FrecuenciaPago frecuencia) {
+    }
+
+    /** El trabajador escoge cada cuánto prefiere cobrar. */
+    @PostMapping("/pago")
+    public EquipoService.Terminos pago(@Valid @RequestBody Pago cuerpo) {
+        return servicio.elegirFrecuencia(vendedor(), cuerpo.frecuencia());
     }
 
     /** Los términos del trabajo con las tarifas de hoy, y si ya los aceptó. */

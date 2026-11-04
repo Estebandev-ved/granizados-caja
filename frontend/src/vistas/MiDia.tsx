@@ -5,17 +5,25 @@ import { Icono } from '../componentes/Icono'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
 import { pesos } from '../formato'
+import { PagoPreferido } from '../componentes/PagoPreferido'
+import { NOMBRE_PAGO } from '../pagos'
 import { TerminosTrabajo } from '../componentes/TerminosTrabajo'
-import type { CierreTurno, Estado, Terminos, VentaReciente } from '../tipos'
+import type { CierreTurno, Estado, FrecuenciaPago, Terminos, VentaReciente } from '../tipos'
 
 /** El día de un trabajador: lo suyo y nada más (sin costos, ganancia ni lo de los demás). */
-export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: VentaReciente) => Promise<void> }) {
+export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
+  estado: Estado
+  pago: FrecuenciaPago | null
+  onElegirPago: (f: FrecuenciaPago) => Promise<void>
+  onDeshacer: (v: VentaReciente) => Promise<void>
+}) {
   const h = estado.hoy
   const [borrar, setBorrar] = useState<VentaReciente | null>(null)
   const [cierre, setCierre] = useState<CierreTurno | null>(null)
   const [cerrando, setCerrando] = useState(false)
   const [errorCierre, setErrorCierre] = useState('')
   const [terminos, setTerminos] = useState<Terminos | null>(null)
+  const [cambiandoPago, setCambiandoPago] = useState(false)
   const premios = estado.premios
 
   const verTerminos = () => { api.terminos().then(setTerminos).catch(() => setErrorCierre('No se pudieron traer los términos, revisa la señal.')) }
@@ -124,9 +132,16 @@ export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: 
       <div className="acciones">
         <button className="big" onClick={() => void cerrarDia()} disabled={cerrando}>{cerrando ? 'Cerrando…' : 'Terminé mi día'}</button>
         {errorCierre && <p className="aviso" style={{ textAlign: 'center' }}>{errorCierre}</p>}
+        <button className="big ghost" onClick={() => setCambiandoPago(true)}>
+          {pago ? 'Me pagan ' + NOMBRE_PAGO[pago] + ' · cambiar' : 'Escoger cada cuánto me pagan'}
+        </button>
         <button className="big ghost" onClick={verTerminos}>Ver mis términos del trabajo</button>
         <button className="big peligro" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
       </div>
+
+      <Sheet abierto={cambiandoPago} onCerrar={() => setCambiandoPago(false)}>
+        <PagoPreferido actual={pago} onElegir={async f => { await onElegirPago(f); setCambiandoPago(false) }} />
+      </Sheet>
 
       <Sheet abierto={!!terminos} onCerrar={() => setTerminos(null)}>
         {terminos && <TerminosTrabajo terminos={terminos} />}

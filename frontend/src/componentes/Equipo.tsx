@@ -5,6 +5,7 @@ import { diaBogota } from '../estadoLocal'
 import { pesos } from '../formato'
 import type { Liquidacion, Producto, Trabajador } from '../tipos'
 import { CargaDelDia } from './CargaDelDia'
+import { NOMBRE_PAGO } from '../pagos'
 import { CampoNumero } from './CampoNumero'
 import { Icono } from './Icono'
 import { Sheet } from './Sheet'
@@ -142,7 +143,7 @@ function PanelTrabajador({ t, onCarga, onCambiar }: {
   onCarga: () => void
   onCambiar: (d: { nombre?: string; pin?: string; comisionPct?: number; activo?: boolean }, mensaje: string) => Promise<void>
 }) {
-  const [rango, setRango] = useState<'hoy' | 'semana'>('hoy')
+  const [rango, setRango] = useState<'hoy' | 'semana' | 'quincena'>('hoy')
   const [cuentas, setCuentas] = useState<Liquidacion | null | 'error'>(null)
   const [editando, setEditando] = useState(false)
   const [nombre, setNombre] = useState(t.nombre)
@@ -152,7 +153,7 @@ function PanelTrabajador({ t, onCarga, onCambiar }: {
   useEffect(() => {
     let vivo = true
     const hoy = diaBogota()
-    const desde = rango === 'hoy' ? hoy : diaBogota(Date.now() - 6 * 86_400_000)
+    const desde = rango === 'hoy' ? hoy : diaBogota(Date.now() - (rango === 'semana' ? 6 : 14) * 86_400_000)
     api.liquidacionEquipo(desde, hoy)
       .then(l => { if (vivo) setCuentas(l.find(x => x.vendedorId === t.id) ?? null) })
       .catch(() => { if (vivo) setCuentas('error') })
@@ -164,6 +165,9 @@ function PanelTrabajador({ t, onCarga, onCambiar }: {
       <h2>{t.nombre}</h2>
       <p>{t.activo ? 'Comisión ' + t.comisionPct + '%' : 'Desactivado: ya no puede entrar'}</p>
       <p className="mut">
+        {t.frecuenciaPago ? 'Prefiere que le pagues ' + NOMBRE_PAGO[t.frecuenciaPago] + '.' : 'Todavía no escogió cada cuánto cobrar.'}
+      </p>
+      <p className="mut">
         {t.terminosAceptadosEn
           ? '✓ Aceptó los términos el ' + new Date(t.terminosAceptadosEn).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', timeZone: 'America/Bogota' })
           : 'Todavía no ha aceptado los términos del trabajo'}
@@ -172,6 +176,7 @@ function PanelTrabajador({ t, onCarga, onCambiar }: {
       <div className="chips">
         <button className={rango === 'hoy' ? 'on' : ''} onClick={() => setRango('hoy')}>Hoy</button>
         <button className={rango === 'semana' ? 'on' : ''} onClick={() => setRango('semana')}>Últimos 7 días</button>
+        <button className={rango === 'quincena' ? 'on' : ''} onClick={() => setRango('quincena')}>Últimos 15 días</button>
       </div>
 
       {cuentas === 'error' && <p className="aviso">No se pudieron traer las cuentas, revisa la señal.</p>}

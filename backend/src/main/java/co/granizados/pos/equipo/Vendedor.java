@@ -2,6 +2,8 @@ package co.granizados.pos.equipo;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -29,6 +31,10 @@ public class Vendedor {
 
     private Instant creadoEn;
 
+    /** Cada cuánto prefiere cobrar; null mientras no lo haya escogido. */
+    @Enumerated(EnumType.STRING)
+    private FrecuenciaPago frecuenciaPago;
+
     /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
     @TenantId
     @Column(name = "negocio_id", updatable = false)
@@ -51,6 +57,11 @@ public class Vendedor {
         if (activo != null) this.activo = activo;
     }
 
+    public void elegirFrecuencia(FrecuenciaPago frecuenciaPago) {
+        this.frecuenciaPago = frecuenciaPago;
+    }
+
+    public FrecuenciaPago getFrecuenciaPago() { return frecuenciaPago; }
     public Long getId() { return id; }
     public String getNombre() { return nombre; }
     public String getPinHash() { return pinHash; }

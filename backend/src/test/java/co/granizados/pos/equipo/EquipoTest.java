@@ -439,4 +439,52 @@ class EquipoTest extends PruebaIntegracion {
     void elDuenoNoVeLosTerminosDeUnTrabajador() throws Exception {
         mvc.perform(con(entrar("4321"), get("/api/mi-turno/terminos"))).andExpect(status().isForbidden());
     }
+
+    @Test
+    void enPromocionGanaLaTarifaDePromoYFueraDeEllaLaNormal() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        ajustes.actualizar("COMISION_NORMAL", "1000");
+        ajustes.actualizar("COMISION_PROMO", "700");
+        String token = entrar("1111");
+
+        // 2 x $10.000 con el precio en $6.000: se cobr\u00f3 menos que precio x cantidad, es promo
+        mvc.perform(con(token, post("/api/ventas")).content(venta("pr-1", "EFECTIVO", 2, ",\"total\":10000"))).andExpect(status().isOk());
+        // Dos m\u00e1s a precio completo
+        mvc.perform(con(token, post("/api/ventas")).content(venta("pr-2", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        var l = equipo.liquidar(java.time.LocalDate.of(2026, 9, 25), java.time.LocalDate.of(2026, 9, 25)).getFirst();
+        assertThat(l.comision()).isEqualTo(2 * 700 + 2 * 1000);
+    }
+
+    @Test
+    void laTarifaDePromoSolaNoApagaElPorcentaje() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        ajustes.actualizar("COMISION_PROMO", "700");
+        String token = entrar("1111");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("pp-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        var l = equipo.liquidar(java.time.LocalDate.of(2026, 9, 25), java.time.LocalDate.of(2026, 9, 25)).getFirst();
+        assertThat(l.comision()).isEqualTo(l.total() / 10);
+    }
+
+    @Test
+    void elTrabajadorEscogeCadaCuantoCobraYElDuenoLoVe() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        String token = entrar("1111");
+        mvc.perform(con(token, get("/api/mi-turno/terminos"))).andExpect(jsonPath("$.frecuenciaPago").doesNotExist());
+
+        mvc.perform(con(token, post("/api/mi-turno/pago")).content("{\"frecuencia\":\"QUINCENAL\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.frecuenciaPago").value("QUINCENAL"));
+        mvc.perform(con(token, post("/api/mi-turno/pago")).content("{\"frecuencia\":\"CADA_RATO\"}"))
+                .andExpect(status().isBadRequest());
+
+        assertThat(equipo.listar().getFirst().frecuenciaPago()).isEqualTo(FrecuenciaPago.QUINCENAL);
+    }
+
+    @Test
+    void elDuenoNoEscogeElPagoDeUnTrabajador() throws Exception {
+        mvc.perform(con(entrar("4321"), post("/api/mi-turno/pago")).content("{\"frecuencia\":\"SEMANAL\"}"))
+                .andExpect(status().isForbidden());
+    }
 }

@@ -26,6 +26,7 @@ const META_PARAM: Record<string, Meta> = {
   COMISION_CREMOSO: { titulo: 'Comisión por granizado Cremoso', icono: 'moneda', clase: 'dinero', apagable: true },
   COMISION_GRANDE: { titulo: 'Comisión por granizado Grande', icono: 'moneda', clase: 'dinero', apagable: true },
   COMISION_CERVEZA: { titulo: 'Comisión por cerveza', icono: 'moneda', clase: 'dinero', apagable: true },
+  COMISION_PROMO: { titulo: 'Comisión por granizado en promo', icono: 'ticket', clase: 'dinero', apagable: true },
   PREMIOS_ESCALONES: { titulo: 'Premios por escalón del día', icono: 'trofeo', clase: 'texto' },
   GRANIZADOS_GRATIS: { titulo: 'Granizados gratis por día', icono: 'vaso', clase: 'entero', unidad: 'granizado', max: 2 },
   PROVEEDOR_WHATSAPP: { titulo: 'WhatsApp del proveedor', icono: 'celular', clase: 'telefono' },
@@ -44,7 +45,7 @@ type SeccionId = 'sabores' | 'metas' | 'pedido' | 'cobros' | 'promo' | 'equipo' 
 
 const CLAVES: Record<'metas' | 'comisiones' | 'pedido' | 'cobros', string[]> = {
   metas: ['META_DIARIA', 'META_EQUIPO', 'PREMIO_EQUIPO'],
-  comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'PREMIOS_ESCALONES', 'GRANIZADOS_GRATIS'],
+  comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'COMISION_PROMO', 'PREMIOS_ESCALONES', 'GRANIZADOS_GRATIS'],
   pedido: ['NOMBRE', 'PROVEEDOR_WHATSAPP', 'DIAS_COBERTURA', 'DIAS_HISTORIAL'],
   cobros: ['PAGO_NEQUI', 'PAGO_BREB', 'PAGO_PRESENCIAL'],
 }

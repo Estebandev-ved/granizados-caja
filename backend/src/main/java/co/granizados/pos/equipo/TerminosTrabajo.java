@@ -32,6 +32,7 @@ final class TerminosTrabajo {
                 "Vendes los granizados que te entregan y registras cada venta en la app en el momento en que la haces.",
                 "Los sabores con licor se venden solo a mayores de edad. Si dudas, pide el documento.",
                 "No se fía: cada venta se paga en el momento, en efectivo o por Nequi.",
+                "Trabajas tu día en el puesto y ganas por lo que vendes tú, no por lo que vende otra persona.",
                 "Cuida el producto y el puesto: de eso vivimos todos.")));
 
         List<String> ganas = new ArrayList<>();
@@ -45,6 +46,11 @@ final class TerminosTrabajo {
         } else {
             ganas.add("Por cada granizado que vendes ganas: " + String.join(", ", tarifas) + ".");
         }
+        int enPromo = numero(cfg.get("COMISION_PROMO"), 0);
+        if (enPromo > 0 && !tarifas.isEmpty()) {
+            ganas.add("Los días de promoción (por ejemplo, 2 por $10.000) ganas " + Pesos.formato(enPromo)
+                    + " por cada granizado que vendes en la promo, porque ese día el margen es menor.");
+        }
         List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
         if (!escalones.isEmpty()) {
             ganas.add("Además hay premios del día que se van sumando mientras más vendes. Llevas en total: "
@@ -53,6 +59,7 @@ final class TerminosTrabajo {
             ganas.add("El premio es por día y cuenta solo lo que vendes tú.");
         }
         ganas.add("Lo que ganas se descuenta del efectivo que entregas al cerrar el día. Lo ves en Mi día.");
+        ganas.add("Tú escoges cada cuánto te pagamos: cada día, cada semana o cada quincena. Lo puedes cambiar hablando con el dueño.");
         secciones.add(new Seccion("Lo que ganas", ganas));
 
         secciones.add(new Seccion("El efectivo y el producto", List.of(

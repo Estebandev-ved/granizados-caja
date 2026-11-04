@@ -69,6 +69,9 @@ export interface FilaCargaEquipo {
   queda: number
 }
 
+/** Cada cuánto prefiere cobrar un trabajador. */
+export type FrecuenciaPago = 'DIARIO' | 'SEMANAL' | 'QUINCENAL'
+
 /** Un escalón de premio: con tantos granizados en el día ganas ese total (no se suma al anterior). */
 export interface Escalon {
   granizados: number
@@ -96,6 +99,8 @@ export interface Terminos {
   titulo: string
   secciones: SeccionTerminos[]
   aceptadaEn: string | null
+  /** Cada cuánto prefiere cobrar (null = todavía no escogió). */
+  frecuenciaPago: FrecuenciaPago | null
 }
 
 export interface Trabajador {
@@ -108,6 +113,7 @@ export interface Trabajador {
   carga: FilaCargaEquipo[]
   /** Cuándo aceptó la versión actual de los términos (null = todavía no). */
   terminosAceptadosEn?: string | null
+  frecuenciaPago?: FrecuenciaPago | null
 }
 
 /** Lo que ve el trabajador al cerrar su día. `entregar` negativo = el dueño le debe. */
