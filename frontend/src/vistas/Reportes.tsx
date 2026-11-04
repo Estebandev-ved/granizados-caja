@@ -117,6 +117,8 @@ export function Reportes({ avisar }: Props) {
               <div className="desglose">
                 <span>nequi {pesos(t.nequi)}</span>
                 <span>efectivo {pesos(t.efectivo)}</span>
+                {datos.fiados.cobrado > 0 && <span>fiado cobrado {pesos(datos.fiados.cobrado)}</span>}
+                {datos.fiados.pendiente > 0 && <span className="falta">por cobrar {pesos(datos.fiados.pendiente)}</span>}
                 {vVentas && <span className={vVentas.clase}>{vVentas.texto}</span>}
               </div>
             </div>
@@ -182,6 +184,8 @@ export function Reportes({ avisar }: Props) {
             <p className="mut">{textoPico(datos.porDiaSemana, 'de', 'día')}</p>
           </section>
 
+          <Analisis a={datos.analisis} />
+
           <section className="bloque">
             <h2><Icono nombre="trofeo" /> Lo que mejor se va</h2>
             <ol className="ranking">
@@ -217,6 +221,65 @@ export function Reportes({ avisar }: Props) {
         </>
         )
       })()}
+    </section>
+  )
+}
+
+const NOMBRE_TIPO: Record<string, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande', CERVEZA: 'Cerveza' }
+
+/** Cómo compran, qué tipo deja más y cuánto se rebajó: lo que sirve para decidir cómo vender más. */
+function Analisis({ a }: { a: Reporte['analisis'] }) {
+  if (a.compras === 0) return null
+  const variadas = Math.round(a.comprasDeVarios / a.compras * 100)
+  const unidades = a.porTipo.reduce((s, t) => s + t.unidades, 0)
+  const sinVenta = a.diasDelPeriodo - a.diasConVenta
+  return (
+    <section className="bloque">
+      <h2><Icono nombre="grafico" /> Cómo compran</h2>
+      <div className="cards">
+        <div className="card">
+          <div className="k">Compras</div>
+          <div className="v">{a.compras}</div>
+        </div>
+        <div className="card">
+          <div className="k">Ticket promedio</div>
+          <div className="v">{pesos(a.ticketPromedio)}</div>
+        </div>
+        <div className="card">
+          <div className="k">Por compra</div>
+          <div className="v">{String(a.unidadesPorCompra).replace('.', ',')}</div>
+          <div className="desglose"><span>{variadas}% llevan 2 o más</span></div>
+        </div>
+        <div className="card">
+          <div className="k">Días con ventas</div>
+          <div className="v">{a.diasConVenta}<small> de {a.diasDelPeriodo}</small></div>
+          {sinVenta > 0 && <div className="desglose"><span>{sinVenta} sin vender</span></div>}
+        </div>
+      </div>
+      <p className="mut">Una compra son las ventas del mismo minuto (la venta no guarda quién compró).</p>
+
+      {a.porTipo.length > 1 && (
+        <>
+          <h2 style={{ marginTop: 18 }}><Icono nombre="vaso" /> Qué tipo deja más</h2>
+          <ul className="ranking">
+            {a.porTipo.map(t => (
+              <li key={t.tipo}>
+                <span className="sabor">{NOMBRE_TIPO[t.tipo] ?? t.tipo}</span>
+                <span className="n">
+                  {t.unidades} ({Math.round(t.unidades / Math.max(unidades, 1) * 100)}%) · {pesos(t.ventas)} · deja {pesos(t.ganancia)}
+                  {t.unidades > 0 ? ' · ' + pesos(Math.round(t.ganancia / t.unidades)) + ' c/u' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {a.unidadesConDescuento > 0 && (
+        <p className="mut" style={{ marginTop: 10 }}>
+          {a.unidadesConDescuento} granizado{a.unidadesConDescuento === 1 ? '' : 's'} se vendieron con descuento: dejaste de cobrar {pesos(a.descuento)} frente al precio normal.
+        </p>
+      )}
     </section>
   )
 }

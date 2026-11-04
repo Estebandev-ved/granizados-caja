@@ -318,6 +318,34 @@ export interface ReporteComparacion {
   gastos: number
 }
 
+/** Lo fiado en el periodo: cuánto ya se cobró y cuánto sigue sin entrar. */
+export interface ReporteFiados {
+  cobrado: number
+  pendiente: number
+  unidadesCobradas: number
+  unidadesPendientes: number
+}
+
+export interface ReporteTipo {
+  tipo: 'NORMAL' | 'CREMOSO' | 'GRANDE' | 'CERVEZA'
+  unidades: number
+  ventas: number
+  ganancia: number
+}
+
+/** Cómo compran. Una compra son las ventas del mismo minuto; `descuento` es lo que se dejó de cobrar frente al precio de lista. */
+export interface ReporteAnalisis {
+  compras: number
+  comprasDeVarios: number
+  unidadesPorCompra: number
+  ticketPromedio: number
+  diasConVenta: number
+  diasDelPeriodo: number
+  unidadesConDescuento: number
+  descuento: number
+  porTipo: ReporteTipo[]
+}
+
 /** Lo que responde `GET /api/reportes`. */
 export interface Reporte {
   desde: string
@@ -334,6 +362,8 @@ export interface Reporte {
   gastosDetalle: ReporteGasto[]
   gastosPorDia: ReporteDiaGasto[]
   anterior: ReporteComparacion
+  fiados: ReporteFiados
+  analisis: ReporteAnalisis
 }
 
 /** Un cierre de caja: `diferencia` negativa = faltó plata. */

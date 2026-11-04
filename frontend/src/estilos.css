@@ -579,3 +579,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .premios-pie .personaje { width: 36px; margin: 0; flex: none }
 .premios-pie p { margin: 0; font-size: 14px; font-weight: 600 }
 @media (prefers-reduced-motion: reduce) { .premios-relleno { transition: none } .premios-hito.sig { animation: none } }
+
+/* Reportes: lo fiado por cobrar y los datos de "Cómo compran" */
+.desglose .falta { color: var(--bad-txt); font-weight: 600 }
+.card .v small { font-size: 13px; font-weight: 600; color: var(--mut); letter-spacing: 0 }

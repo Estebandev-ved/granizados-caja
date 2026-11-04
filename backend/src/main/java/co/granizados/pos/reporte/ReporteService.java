@@ -2,6 +2,8 @@ package co.granizados.pos.reporte;
 
 import co.granizados.pos.caja.ArqueoService;
 import co.granizados.pos.comun.AppProperties;
+import co.granizados.pos.fiado.Deuda;
+import co.granizados.pos.fiado.DeudaRepository;
 import co.granizados.pos.gasto.CategoriaGasto;
 import co.granizados.pos.gasto.Gasto;
 import co.granizados.pos.gasto.GastoRepository;
@@ -22,11 +24,14 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,12 +79,30 @@ public class ReporteService {
     public record Comparacion(long ventas, int unidades, long ganancia, long gastos) {
     }
 
+    /** Lo fiado en el periodo: cuánto ya se cobró y cuánto sigue sin entrar. */
+    public record Fiados(long cobrado, long pendiente, int unidadesCobradas, int unidadesPendientes) {
+    }
+
+    /** Normal, cremoso, grande o cerveza: lo que vendió y dejó cada tipo. */
+    public record PorTipo(String tipo, int unidades, long ventas, long ganancia) {
+    }
+
+    /**
+     * Cómo compran: una compra son las ventas del mismo minuto (es lo más cercano a un cliente, porque la venta no guarda
+     * quién compró). `descuento` es lo que se dejó de cobrar frente al precio de lista actual (promos).
+     */
+    public record Analisis(int compras, int comprasDeVarios, double unidadesPorCompra, long ticketPromedio,
+                           int diasConVenta, int diasDelPeriodo, int unidadesConDescuento, long descuento,
+                           List<PorTipo> porTipo) {
+    }
+
     public record Reporte(String desde, String hasta, Totales totales, List<PorDia> porDia,
                           List<PorEtiqueta> porHora, List<PorEtiqueta> porDiaSemana,
                           List<PorSabor> porSabor, List<PedidoService.PedidoDto> pedidos,
                           List<CierreCaja> arqueos, List<PorCategoriaGasto> porCategoriaGasto,
                           List<PorCategoriaGasto> porCategoriaGastoAnterior,
-                          List<GastoDetalle> gastosDetalle, List<PorDiaGasto> gastosPorDia, Comparacion anterior) {
+                          List<GastoDetalle> gastosDetalle, List<PorDiaGasto> gastosPorDia, Comparacion anterior,
+                          Fiados fiados, Analisis analisis) {
     }
 
     private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE;
@@ -87,6 +110,7 @@ public class ReporteService {
     private static final String[] DIAS = {"lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"};
 
     private final VentaRepository ventas;
+    private final DeudaRepository deudas;
     private final GastoRepository gastos;
     private final EntradaInventarioRepository movimientos;
     private final IngresoRepository ingresosExtra;
@@ -94,10 +118,11 @@ public class ReporteService {
     private final ArqueoService arqueos;
     private final ZoneId zona;
 
-    public ReporteService(VentaRepository ventas, GastoRepository gastos,
+    public ReporteService(VentaRepository ventas, DeudaRepository deudas, GastoRepository gastos,
                           EntradaInventarioRepository movimientos, IngresoRepository ingresosExtra, PedidoService pedidos,
                           ArqueoService arqueos, Clock clock, AppProperties props) {
         this.ventas = ventas;
+        this.deudas = deudas;
         this.gastos = gastos;
         this.movimientos = movimientos;
         this.ingresosExtra = ingresosExtra;
@@ -130,7 +155,9 @@ public class ReporteService {
                 porCategoriaGasto(gastosAnteriores(desde, hasta)),
                 gastosDetalle(gastosLista),
                 gastosPorDia(gastosLista),
-                comparacionAnterior(desde, hasta));
+                comparacionAnterior(desde, hasta),
+                fiados(lista),
+                analisis(lista, desde, hasta));
     }
 
     /** CSV de las ventas del periodo: punto y coma y BOM para que Excel en Colombia lo abra bien. */
@@ -143,6 +170,7 @@ public class ReporteService {
 
         List<Venta> lista = new ArrayList<>(ventas.entre(inicio, fin));
         lista.sort(Comparator.comparing(Venta::getCreadaEn).thenComparing(Venta::getId));
+        Set<String> cobradas = fiadosCobrados(lista);
 
         // "sep=;" en la primera línea: sin esto, Excel usa el separador de listas de Windows
         // (coma en inglés) y mete todo en una sola columna aunque el archivo use ";".
@@ -156,13 +184,76 @@ public class ReporteService {
                     .append(v.getPrecioUnitario()).append(';')
                     .append(v.getTotal()).append(';')
                     .append((long) v.getCostoUnitario() * v.getCantidad()).append(';')
-                    .append(switch (v.getMetodo()) { case EFECTIVO -> "Efectivo"; case NEQUI -> "Nequi"; case FIADO -> "Fiado"; case REGALO -> "Regalo";
+                    .append(switch (v.getMetodo()) { case EFECTIVO -> "Efectivo"; case NEQUI -> "Nequi"; case FIADO -> cobradas.contains(v.getClientUid()) ? "Fiado (cobrado)" : "Fiado (debe)"; case REGALO -> "Regalo";
                         case MIXTO -> "Mixto (efectivo " + v.efectivo() + " / Nequi " + v.nequi() + ")"; }).append('\n');
         }
         return sb.toString();
     }
 
     // ------------------------------------------------------------------ cortes
+
+    /** Los client_uid de las ventas fiadas de la lista cuya deuda ya se cobró. */
+    private Set<String> fiadosCobrados(List<Venta> lista) {
+        List<String> uids = lista.stream().filter(v -> v.getMetodo() == MetodoPago.FIADO).map(Venta::getClientUid).toList();
+        Set<String> cobradas = new HashSet<>();
+        if (uids.isEmpty()) return cobradas;
+        for (Deuda d : deudas.findByVentaUidIn(uids)) if (d.estaPagada()) cobradas.add(d.getVentaUid());
+        return cobradas;
+    }
+
+    private Fiados fiados(List<Venta> lista) {
+        Set<String> cobradas = fiadosCobrados(lista);
+        long cobrado = 0, pendiente = 0;
+        int uCobradas = 0, uPendientes = 0;
+        for (Venta v : lista) {
+            if (v.getMetodo() != MetodoPago.FIADO) continue;
+            if (cobradas.contains(v.getClientUid())) {
+                cobrado += v.getTotal();
+                uCobradas += v.getCantidad();
+            } else {
+                pendiente += v.getTotal();
+                uPendientes += v.getCantidad();
+            }
+        }
+        return new Fiados(cobrado, pendiente, uCobradas, uPendientes);
+    }
+
+    private Analisis analisis(List<Venta> lista, LocalDate desde, LocalDate hasta) {
+        // Una compra = lo vendido en el mismo minuto
+        Map<Long, int[]> compras = new HashMap<>(); // minuto -> {unidades, total}
+        Set<String> dias = new HashSet<>();
+        int conDescuento = 0;
+        long descuento = 0;
+        Map<String, long[]> tipos = new LinkedHashMap<>(); // tipo -> {unidades, ventas, costo}
+        for (Venta v : lista) {
+            long minuto = v.getCreadaEn().getEpochSecond() / 60;
+            int[] c = compras.computeIfAbsent(minuto, k -> new int[2]);
+            c[0] += v.getCantidad();
+            c[1] += (int) v.getTotal();
+            dias.add(dia(v.getCreadaEn()));
+            if (v.getMetodo() != MetodoPago.REGALO) {
+                long deLista = v.getProducto().getPrecio() * v.getCantidad();
+                if (v.getTotal() < deLista) {
+                    conDescuento += v.getCantidad();
+                    descuento += deLista - v.getTotal();
+                }
+            }
+            long[] t = tipos.computeIfAbsent(v.getProducto().getTipo().name(), k -> new long[3]);
+            t[0] += v.getCantidad();
+            t[1] += v.getTotal();
+            t[2] += (long) v.getCostoUnitario() * v.getCantidad();
+        }
+        int unidades = compras.values().stream().mapToInt(c -> c[0]).sum();
+        long total = compras.values().stream().mapToLong(c -> c[1]).sum();
+        int n = compras.size();
+        int variadas = (int) compras.values().stream().filter(c -> c[0] >= 2).count();
+        List<PorTipo> porTipo = tipos.entrySet().stream()
+                .map(e -> new PorTipo(e.getKey(), (int) e.getValue()[0], e.getValue()[1], e.getValue()[1] - e.getValue()[2]))
+                .sorted(Comparator.comparingLong(PorTipo::ventas).reversed())
+                .toList();
+        return new Analisis(n, variadas, n == 0 ? 0 : Math.round(unidades * 10.0 / n) / 10.0, n == 0 ? 0 : total / n,
+                dias.size(), (int) ChronoUnit.DAYS.between(desde, hasta) + 1, conDescuento, descuento, porTipo);
+    }
 
     private static long montoIngresos(List<Ingreso> lista) {
         return lista.stream().mapToLong(Ingreso::getMonto).sum();
