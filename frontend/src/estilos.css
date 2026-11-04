@@ -510,6 +510,14 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .mi-hero-pie { font-size: 14px; color: var(--mut) }
 .mi-hero-sig { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--ok-txt) }
 .mi-hero .personaje { width: 84px; margin: 0; flex: none }
+/* Lo ganado por el trabajador pesa más que lo recaudado para el dueño */
+.list.ganado { border: 1px solid var(--primario); background: var(--primario-bg) }
+.list.ganado .row:last-of-type b { font-family: var(--font-head); font-size: 20px; color: var(--primario-txt) }
+.list.recaudo { background: transparent; box-shadow: none; border: 1px dashed var(--line); padding-top: 10px; padding-bottom: 10px }
+.list.recaudo h3 { font-size: 13px; color: var(--mut); font-weight: 600 }
+.recaudo-fila { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--mut); margin-bottom: 4px }
+.recaudo p { font-size: 12px }
+.recaudo-cierre { font-size: 13px; color: var(--mut) }
 
 /* Términos y pago: Nova o Sofía arriba y apartados en tarjetas */
 .terminos .terminos-hero { display: flex; align-items: center; gap: 14px; margin: 8px 0 16px; padding: 16px;

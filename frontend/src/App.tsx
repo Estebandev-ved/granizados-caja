@@ -244,8 +244,10 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     <>
       <header>
         <div className="hoy-mini">
-          {pesos(estado?.hoy.total ?? 0)}
-          <small>hoy · {estado?.hoy.unidades ?? 0} vendido{estado?.hoy.unidades === 1 ? '' : 's'}</small>
+          {trabajador && premios ? pesos(premios.comision + premios.premio) : pesos(estado?.hoy.total ?? 0)}
+          <small>
+            {trabajador && premios ? 'ganado hoy' : 'hoy'} · {estado?.hoy.unidades ?? 0} vendido{estado?.hoy.unidades === 1 ? '' : 's'}
+          </small>
         </div>
         <div className="derecha">
           <Marca compacta />

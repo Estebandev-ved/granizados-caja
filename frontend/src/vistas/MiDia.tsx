@@ -65,20 +65,8 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
         <Personaje nombre="sofia" libre />
       </div>
 
-      <div className="list">
-        <h3><Icono nombre="cara" /> Lo que vendiste</h3>
-        <div className="carga-totales">
-          <div><b>{h.unidades}</b><span>vendí</span></div>
-          <div><b>{pesos(h.efectivo)}</b><span>efectivo</span></div>
-          <div><b>{pesos(h.nequi)}</b><span>Nequi</span></div>
-        </div>
-        <p className="mut" style={{ margin: 0 }}>
-          Total {pesos(h.total)}. El efectivo es lo que le entregas al dueño; el Nequi ya le llegó a él.
-        </p>
-      </div>
-
       {premios && (
-        <div className="list">
+        <div className="list ganado">
           <h3><Icono nombre="moneda" /> Lo que llevas ganado hoy</h3>
           <div className="row"><span>Comisión por tus {premios.vendidas} granizados</span><b>{pesos(premios.comision)}</b></div>
           {premios.escalones.length > 0 && (
@@ -92,6 +80,18 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
           )}
         </div>
       )}
+
+      <div className="list recaudo">
+        <h3><Icono nombre="cara" /> Lo que recaudaste</h3>
+        <div className="recaudo-fila">
+          <span>{h.unidades} granizado{h.unidades === 1 ? '' : 's'}</span>
+          <span>{pesos(h.efectivo)} efectivo</span>
+          <span>{pesos(h.nequi)} Nequi</span>
+        </div>
+        <p className="mut" style={{ margin: 0 }}>
+          Total {pesos(h.total)}. El efectivo se lo entregas al dueño; el Nequi ya le llegó a él.
+        </p>
+      </div>
 
       {premios && (
         <div className="regalo">
@@ -168,12 +168,19 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
         {cierre && (
           <>
             <Personaje nombre="exito" />
-            <h2>{cierre.entregar >= 0 ? 'Entrega ' + pesos(cierre.entregar) : 'Te deben ' + pesos(-cierre.entregar)}</h2>
+            {cierre.comision + cierre.bonos > 0
+              ? <h2>Hoy ganaste {pesos(cierre.comision + cierre.bonos)}</h2>
+              : <h2>{cierre.entregar >= 0 ? 'Entrega ' + pesos(cierre.entregar) : 'Te deben ' + pesos(-cierre.entregar)}</h2>}
             <p>
-              Vendiste {cierre.unidades} ({pesos(cierre.total)}): {pesos(cierre.efectivo)} en efectivo y {pesos(cierre.nequi)} por Nequi.
-              {cierre.comision > 0 && <> Tu comisión es {pesos(cierre.comision)}.</>}
-              {cierre.bonos > 0 && <> Ganaste {pesos(cierre.bonos)} por la meta.</>}
+              Vendiste {cierre.unidades}: {pesos(cierre.comision)} de comisión
+              {cierre.bonos > 0 && <> y {pesos(cierre.bonos)} de premio por la meta</>}.
             </p>
+            {cierre.comision + cierre.bonos > 0 && (
+              <p className="recaudo-cierre">
+                {cierre.entregar >= 0 ? 'Entrega ' + pesos(cierre.entregar) : 'Te deben ' + pesos(-cierre.entregar)}
+                {' '}({pesos(cierre.efectivo)} en efectivo y {pesos(cierre.nequi)} por Nequi, {pesos(cierre.total)} en total).
+              </p>
+            )}
             <p>
               {cierre.devuelve.length
                 ? 'Devuelve: ' + cierre.devuelve.map(f => f.queda + ' ' + f.nombre).join(', ')
