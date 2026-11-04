@@ -26,6 +26,8 @@ const META_PARAM: Record<string, Meta> = {
   COMISION_CREMOSO: { titulo: 'Comisión por granizado Cremoso', icono: 'moneda', clase: 'dinero', apagable: true },
   COMISION_GRANDE: { titulo: 'Comisión por granizado Grande', icono: 'moneda', clase: 'dinero', apagable: true },
   COMISION_CERVEZA: { titulo: 'Comisión por cerveza', icono: 'moneda', clase: 'dinero', apagable: true },
+  PREMIOS_ESCALONES: { titulo: 'Premios por escalón del día', icono: 'trofeo', clase: 'texto' },
+  GRANIZADOS_GRATIS: { titulo: 'Granizados gratis por día', icono: 'vaso', clase: 'entero', unidad: 'granizado', max: 2 },
   PROVEEDOR_WHATSAPP: { titulo: 'WhatsApp del proveedor', icono: 'celular', clase: 'telefono' },
   NOMBRE: { titulo: 'Tu nombre en el pedido', icono: 'cara', clase: 'texto' },
   DIAS_COBERTURA: { titulo: 'Días que debe alcanzar el pedido', icono: 'caja', clase: 'entero', unidad: 'días', max: 2 },
@@ -42,7 +44,7 @@ type SeccionId = 'sabores' | 'metas' | 'pedido' | 'cobros' | 'promo' | 'equipo' 
 
 const CLAVES: Record<'metas' | 'comisiones' | 'pedido' | 'cobros', string[]> = {
   metas: ['META_DIARIA', 'META_EQUIPO', 'PREMIO_EQUIPO'],
-  comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA'],
+  comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'PREMIOS_ESCALONES', 'GRANIZADOS_GRATIS'],
   pedido: ['NOMBRE', 'PROVEEDOR_WHATSAPP', 'DIAS_COBERTURA', 'DIAS_HISTORIAL'],
   cobros: ['PAGO_NEQUI', 'PAGO_BREB', 'PAGO_PRESENCIAL'],
 }
@@ -56,6 +58,7 @@ function valorBonito(c: Param): string {
     if (m.apagable && n === 0) return 'Apagada'
     return m.clase === 'dinero' ? pesos(n) : n + (m.unidad ? ' ' + m.unidad.split(' ')[0] : '')
   }
+  if (c.clave === 'PREMIOS_ESCALONES') return v ? v.split(',').length + ' escalones' : 'Apagados'
   return v || 'Sin configurar'
 }
 
@@ -226,6 +229,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
         <div className="list">
           <h3><Icono nombre="moneda" /> Comisión por granizado</h3>
           <p className="ayuda">Lo que gana cada trabajador por cada granizado que vende, según el tipo. Con todas en 0 gana su porcentaje. Si cambias una tarifa, solo vale para las ventas nuevas.</p>
+          <p className="ayuda">Los premios por escalón se escriben así: 12:2000,15:4000 (granizados:pesos en total). Cada vez que cambies tarifas o premios, el equipo tiene que aceptar los términos otra vez.</p>
           {filas(CLAVES.comisiones).map(filaParam)}
         </div>
         <Equipo productos={productos} avisar={avisar} />

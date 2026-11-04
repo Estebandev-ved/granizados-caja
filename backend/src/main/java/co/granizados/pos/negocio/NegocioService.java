@@ -27,6 +27,8 @@ public class NegocioService {
             new Ajuste("COMISION_CREMOSO", "0", "Pesos que gana el trabajador por cada granizado Cremoso"),
             new Ajuste("COMISION_GRANDE", "0", "Pesos que gana el trabajador por cada granizado Grande"),
             new Ajuste("COMISION_CERVEZA", "0", "Pesos que gana el trabajador por cada cerveza"),
+            new Ajuste("PREMIOS_ESCALONES", "", "Premio del día por escalón, acumulado. Ej: 12:2000,15:4000 = con 12 granizados ganas $2.000 y con 15, $4.000 en total"),
+            new Ajuste("GRANIZADOS_GRATIS", "1", "Granizados que el trabajador puede tomarse gratis por día de trabajo"),
             new Ajuste("PAGO_NEQUI", "", "Tu número de Nequi para que te paguen lo fiado. Ej: 3001234567"),
             new Ajuste("PAGO_BREB", "", "Tu llave Bre-B para que te paguen lo fiado"),
             new Ajuste("PAGO_PRESENCIAL", "", "Dónde te pueden pagar en persona. Ej: en la U, bloque 4, en horas de almuerzo"));

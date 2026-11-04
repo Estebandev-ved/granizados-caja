@@ -5,7 +5,8 @@ import { Icono } from '../componentes/Icono'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
 import { pesos } from '../formato'
-import type { CierreTurno, Estado, VentaReciente } from '../tipos'
+import { TerminosTrabajo } from '../componentes/TerminosTrabajo'
+import type { CierreTurno, Estado, Terminos, VentaReciente } from '../tipos'
 
 /** El día de un trabajador: lo suyo y nada más (sin costos, ganancia ni lo de los demás). */
 export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: VentaReciente) => Promise<void> }) {
@@ -14,6 +15,10 @@ export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: 
   const [cierre, setCierre] = useState<CierreTurno | null>(null)
   const [cerrando, setCerrando] = useState(false)
   const [errorCierre, setErrorCierre] = useState('')
+  const [terminos, setTerminos] = useState<Terminos | null>(null)
+  const premios = estado.premios
+
+  const verTerminos = () => { api.terminos().then(setTerminos).catch(() => setErrorCierre('No se pudieron traer los términos, revisa la señal.')) }
 
   const cerrarDia = async () => {
     setCerrando(true)
@@ -49,6 +54,30 @@ export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: 
           Total {pesos(h.total)}. El efectivo es lo que le entregas al dueño; el Nequi ya le llegó a él.
         </p>
       </div>
+
+      {premios && (
+        <div className="list">
+          <h3><Icono nombre="moneda" /> Lo que llevas ganado hoy</h3>
+          <div className="row"><span>Comisión por tus {premios.vendidas} granizados</span><b>{pesos(premios.comision)}</b></div>
+          {premios.escalones.length > 0 && (
+            <div className="row"><span>Premio del día</span><b>{pesos(premios.premio)}</b></div>
+          )}
+          <div className="row"><span><b>Total ganado</b></span><b>{pesos(premios.comision + premios.premio)}</b></div>
+          {premios.siguiente && (
+            <p className="mut" style={{ margin: '6px 0 0' }}>
+              Te faltan {premios.siguiente.granizados - premios.vendidas} granizados para ganar {pesos(premios.siguiente.total)} de premio.
+            </p>
+          )}
+        </div>
+      )}
+
+      {premios && (
+        <div className="regalo">
+          {premios.gratis > 0
+            ? <>🍹 <b>Tu granizado del día:</b> tienes derecho a tomarte {premios.gratis === 1 ? '1' : premios.gratis} sin costo, te lo ganaste. Del siguiente en adelante se cobra al precio de venta.</>
+            : <>🍹 Los granizados del puesto son para vender. Si te tomas uno, se cobra al precio de venta.</>}
+        </div>
+      )}
 
       <div className="list">
         <h3><Icono nombre="caja" /> Lo que llevé hoy</h3>
@@ -95,8 +124,13 @@ export function MiDia({ estado, onDeshacer }: { estado: Estado; onDeshacer: (v: 
       <div className="acciones">
         <button className="big" onClick={() => void cerrarDia()} disabled={cerrando}>{cerrando ? 'Cerrando…' : 'Terminé mi día'}</button>
         {errorCierre && <p className="aviso" style={{ textAlign: 'center' }}>{errorCierre}</p>}
+        <button className="big ghost" onClick={verTerminos}>Ver mis términos del trabajo</button>
         <button className="big peligro" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
       </div>
+
+      <Sheet abierto={!!terminos} onCerrar={() => setTerminos(null)}>
+        {terminos && <TerminosTrabajo terminos={terminos} />}
+      </Sheet>
 
       <Sheet abierto={!!cierre} onCerrar={() => setCierre(null)}>
         {cierre && (

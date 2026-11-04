@@ -1,0 +1,114 @@
+package co.granizados.pos.equipo;
+
+import co.granizados.pos.comun.Pesos;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Los términos del trabajo, armados con las tarifas y premios que el dueño tiene hoy en Ajustes. Como el texto sale de
+ * esos valores, su huella (la versión) cambia cuando cambian, y el trabajador tiene que aceptarlos otra vez.
+ */
+final class TerminosTrabajo {
+
+    record Seccion(String titulo, List<String> lineas) {
+    }
+
+    private TerminosTrabajo() {
+    }
+
+    static List<Seccion> armar(Map<String, String> cfg, int comisionPct) {
+        String negocio = cfg.getOrDefault("NOMBRE", "").isBlank() ? "el negocio" : cfg.get("NOMBRE").trim();
+        List<Seccion> secciones = new ArrayList<>();
+
+        secciones.add(new Seccion("Antes de empezar", List.of(
+                "Este es el acuerdo para trabajar vendiendo granizados con " + negocio + ".",
+                "Léelo con calma. Al aceptarlo confirmas que lo leíste, que lo entendiste y que estás de acuerdo.")));
+
+        secciones.add(new Seccion("Tu trabajo", List.of(
+                "Vendes los granizados que te entregan y registras cada venta en la app en el momento en que la haces.",
+                "Los sabores con licor se venden solo a mayores de edad. Si dudas, pide el documento.",
+                "No se fía: cada venta se paga en el momento, en efectivo o por Nequi.",
+                "Cuida el producto y el puesto: de eso vivimos todos.")));
+
+        List<String> ganas = new ArrayList<>();
+        List<String> tarifas = new ArrayList<>();
+        tarifa(tarifas, "Normal", cfg.get("COMISION_NORMAL"));
+        tarifa(tarifas, "Cremoso", cfg.get("COMISION_CREMOSO"));
+        tarifa(tarifas, "Grande", cfg.get("COMISION_GRANDE"));
+        tarifa(tarifas, "cerveza", cfg.get("COMISION_CERVEZA"));
+        if (tarifas.isEmpty()) {
+            ganas.add("Ganas el " + comisionPct + " % de lo que vendes.");
+        } else {
+            ganas.add("Por cada granizado que vendes ganas: " + String.join(", ", tarifas) + ".");
+        }
+        List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
+        if (!escalones.isEmpty()) {
+            ganas.add("Además hay premios del día que se van sumando mientras más vendes. Llevas en total: "
+                    + String.join("; ", escalones.stream()
+                    .map(e -> "con " + e.granizados() + " granizados, " + Pesos.formato(e.total())).toList()) + ".");
+            ganas.add("El premio es por día y cuenta solo lo que vendes tú.");
+        }
+        ganas.add("Lo que ganas se descuenta del efectivo que entregas al cerrar el día. Lo ves en Mi día.");
+        secciones.add(new Seccion("Lo que ganas", ganas));
+
+        secciones.add(new Seccion("El efectivo y el producto", List.of(
+                "Cuenta lo que te entregan cuando lo recibes.",
+                "Al terminar tocas \"Terminé mi día\" y entregas el efectivo que te muestra la app. El Nequi entra directo a la cuenta del negocio.",
+                "Si algo falta o se daña, se habla contigo y se revisa con calma.")));
+
+        int gratis = numero(cfg.get("GRANIZADOS_GRATIS"), 1);
+        List<String> tuyo = new ArrayList<>();
+        if (gratis > 0) {
+            tuyo.add("Te lo ganaste: puedes tomarte " + (gratis == 1 ? "1 granizado" : gratis + " granizados")
+                    + " por día de trabajo, sin costo.");
+            tuyo.add("Del siguiente en adelante se cobra al precio de venta. Se anota y se descuenta al hacer cuentas.");
+        } else {
+            tuyo.add("Los granizados del puesto son para vender. Si te tomas uno, se cobra al precio de venta y se descuenta al hacer cuentas.");
+        }
+        secciones.add(new Seccion("Tu granizado", tuyo));
+
+        secciones.add(new Seccion("Cambios y salida", List.of(
+                "Si cambian las tarifas o los premios, te mostramos los términos nuevos y los aceptas otra vez. Lo que ya vendiste se paga con las tarifas con las que lo vendiste.",
+                "Cualquiera de los dos puede terminar este acuerdo avisando. Los días ya trabajados siempre se pagan.",
+                "Este acuerdo queda guardado con la fecha y la hora en que lo aceptas.")));
+        return secciones;
+    }
+
+    /** El texto plano, tal cual lo que se guarda como constancia. */
+    static String texto(List<Seccion> secciones) {
+        StringBuilder sb = new StringBuilder("TÉRMINOS DEL TRABAJO\n");
+        for (Seccion s : secciones) {
+            sb.append('\n').append(s.titulo().toUpperCase()).append('\n');
+            for (String linea : s.lineas()) sb.append("- ").append(linea).append('\n');
+        }
+        return sb.toString();
+    }
+
+    /** Huella corta del texto: dos textos distintos nunca comparten versión. */
+    static String version(String texto) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(texto.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash).substring(0, 16);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static void tarifa(List<String> tarifas, String tipo, String valor) {
+        int pesos = numero(valor, 0);
+        if (pesos > 0) tarifas.add(tipo + " " + Pesos.formato(pesos));
+    }
+
+    private static int numero(String valor, int defecto) {
+        try {
+            int n = Integer.parseInt(valor == null ? "" : valor.trim());
+            return n >= 0 ? n : defecto;
+        } catch (NumberFormatException e) {
+            return defecto;
+        }
+    }
+}

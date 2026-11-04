@@ -42,7 +42,8 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ### 2026-11-04
 - **Comisión por granizado** para el equipo: tarifas por tipo en Ajustes → Equipo (`COMISION_*`, migración V19), congeladas en cada venta; sin tarifas sigue el %. Liquidación y cierre del día la usan. Pendiente de Esteban: poner $1.000 Normal y $1.500 Cremoso en Ajustes y decidir Grande y Cerveza.
-- Pruebas: 152 backend en verde.
+- **Premios por escalón + términos del trabajo** (V20): premio del día acumulado (12/15/20/25/30 → $2.000/$4.000/$8.000/$12.000/$17.000, ya sembrado para Dopamina junto con $1.000 Normal y $1.500 Cremoso), barra de premios y “lo que llevas ganado hoy” para el trabajador, mensaje del granizado gratis por día y términos que se aceptan antes de empezar (constancia guardada). Pendiente: cobrar los granizados extra desde la app y definir Grande/Cerveza.
+- Pruebas: 158 backend y 83 frontend en verde.
 
 ### 2026-11-03
 - **Mi día del trabajador** muestra lo que llevó, vendió y le queda por sabor (antes solo "lo que me queda").

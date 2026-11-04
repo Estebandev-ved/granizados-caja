@@ -69,6 +69,35 @@ export interface FilaCargaEquipo {
   queda: number
 }
 
+/** Un escalón de premio: con tantos granizados en el día ganas ese total (no se suma al anterior). */
+export interface Escalon {
+  granizados: number
+  total: number
+}
+
+/** Lo que lleva ganado hoy un trabajador. `gratis` son los granizados que puede tomarse sin pagar. */
+export interface PremiosDia {
+  vendidas: number
+  comision: number
+  premio: number
+  escalones: Escalon[]
+  siguiente: Escalon | null
+  gratis: number
+}
+
+export interface SeccionTerminos {
+  titulo: string
+  lineas: string[]
+}
+
+/** Los términos del trabajo. `aceptadaEn` es null mientras el trabajador no acepte esta versión. */
+export interface Terminos {
+  version: string
+  titulo: string
+  secciones: SeccionTerminos[]
+  aceptadaEn: string | null
+}
+
 export interface Trabajador {
   id: number
   nombre: string
@@ -77,6 +106,8 @@ export interface Trabajador {
   unidadesHoy: number
   totalHoy: number
   carga: FilaCargaEquipo[]
+  /** Cuándo aceptó la versión actual de los términos (null = todavía no). */
+  terminosAceptadosEn?: string | null
 }
 
 /** Lo que ve el trabajador al cerrar su día. `entregar` negativo = el dueño le debe. */
@@ -129,6 +160,8 @@ export interface Estado {
   meta: Meta
   /** Solo para un trabajador: su meta de granizados del día (ausente o null = apagada). */
   metaEquipo?: MetaEquipo | null
+  /** Solo para un trabajador: lo que lleva ganado hoy y sus escalones de premio. */
+  premios?: PremiosDia | null
 }
 
 export interface Meta {

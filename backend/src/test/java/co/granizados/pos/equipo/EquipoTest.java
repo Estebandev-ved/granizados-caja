@@ -356,4 +356,87 @@ class EquipoTest extends PruebaIntegracion {
         assertThatThrownBy(() -> ajustes.actualizar("COMISION_CREMOSO", "mil")).isInstanceOf(IllegalArgumentException.class);
         assertThat(ajustes.actualizar("COMISION_CREMOSO", "1500").valor()).isEqualTo("1500");
     }
+
+    @Test
+    void elPremioDelDiaEsElDelEscalonMasAltoQueAlcanzoYSeSumaALaLiquidacion() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        ajustes.actualizar("PREMIOS_ESCALONES", "2:2000, 5:6000");
+        String token = entrar("1111");
+
+        mvc.perform(con(token, post("/api/ventas")).content(venta("e-1", "EFECTIVO", 1, ""))).andExpect(status().isOk());
+        mvc.perform(con(token, get("/api/estado"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.premios.premio").value(0))
+                .andExpect(jsonPath("$.premios.siguiente.granizados").value(2));
+
+        mvc.perform(con(token, post("/api/ventas")).content(venta("e-2", "EFECTIVO", 1, ""))).andExpect(status().isOk());
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.premios.premio").value(2000));
+
+        mvc.perform(con(token, post("/api/ventas")).content(venta("e-3", "EFECTIVO", 3, ""))).andExpect(status().isOk());
+        mvc.perform(con(token, get("/api/estado")))
+                .andExpect(jsonPath("$.premios.vendidas").value(5))
+                .andExpect(jsonPath("$.premios.premio").value(6000));
+
+        var l = equipo.liquidar(java.time.LocalDate.of(2026, 9, 25), java.time.LocalDate.of(2026, 9, 25)).getFirst();
+        assertThat(l.bonos()).isEqualTo(6000);
+        assertThat(l.saldo()).isEqualTo(l.efectivo() - l.comision() - 6000);
+    }
+
+    @Test
+    void losEscalonesMalEscritosSeRechazan() {
+        assertThatThrownBy(() -> ajustes.actualizar("PREMIOS_ESCALONES", "doce:2000")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ajustes.actualizar("PREMIOS_ESCALONES", "15:4000,12:2000")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ajustes.actualizar("PREMIOS_ESCALONES", "12:4000,15:2000")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ajustes.actualizar("PREMIOS_ESCALONES", "").valor()).isEmpty();
+    }
+
+    @Test
+    void elTrabajadorAceptaLosTerminosYSiCambianLasTarifasHayQueAceptarOtraVez() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        ajustes.actualizar("COMISION_NORMAL", "1000");
+        String token = entrar("1111");
+
+        String cuerpo = mvc.perform(con(token, get("/api/mi-turno/terminos")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aceptadaEn").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        String version = cuerpo.replaceAll(".*\"version\":\"([^\"]+)\".*", "$1");
+
+        mvc.perform(con(token, post("/api/mi-turno/terminos/aceptar")).content("{\"version\":\"otra\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(con(token, post("/api/mi-turno/terminos/aceptar")).content("{\"version\":\"" + version + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aceptadaEn").exists());
+        assertThat(contar("aceptacion_terminos")).isEqualTo(1);
+        assertThat(equipo.listar().getFirst().terminosAceptadosEn()).isNotNull();
+
+        // Aceptar dos veces no duplica la constancia
+        mvc.perform(con(token, post("/api/mi-turno/terminos/aceptar")).content("{\"version\":\"" + version + "\"}"))
+                .andExpect(status().isOk());
+        assertThat(contar("aceptacion_terminos")).isEqualTo(1);
+
+        // Al cambiar una tarifa cambia la versión y vuelve a quedar sin aceptar
+        ajustes.actualizar("COMISION_NORMAL", "1200");
+        mvc.perform(con(token, get("/api/mi-turno/terminos")))
+                .andExpect(jsonPath("$.aceptadaEn").doesNotExist());
+        assertThat(equipo.listar().getFirst().terminosAceptadosEn()).isNull();
+        assertThat(juan.id()).isNotNull();
+    }
+
+    @Test
+    void losTerminosDicenLoQueGanaYElGranizadoDeRegalo() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        ajustes.actualizar("COMISION_NORMAL", "1000");
+        ajustes.actualizar("COMISION_CREMOSO", "1500");
+        ajustes.actualizar("PREMIOS_ESCALONES", "12:2000");
+        String token = entrar("1111");
+
+        String texto = mvc.perform(con(token, get("/api/mi-turno/terminos"))).andReturn().getResponse().getContentAsString();
+        assertThat(texto).contains("Normal $1.000").contains("Cremoso $1.500").contains("12 granizados, $2.000")
+                .contains("1 granizado por d");
+    }
+
+    @Test
+    void elDuenoNoVeLosTerminosDeUnTrabajador() throws Exception {
+        mvc.perform(con(entrar("4321"), get("/api/mi-turno/terminos"))).andExpect(status().isForbidden());
+    }
 }

@@ -229,4 +229,15 @@ class AislamientoTest extends PruebaIntegracion {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.clave=='DIAS_COBERTURA')].valor").value("4"));
     }
+
+    @Test
+    void lasAceptacionesDeTerminosSonDeCadaNegocio() {
+        var juan = como(1, () -> equipo.crear(new co.granizados.pos.equipo.EquipoService.NuevoVendedor("Juan", "1111", 0)));
+        String version = como(1, () -> equipo.terminos(juan.id()).version());
+        como(1, () -> equipo.aceptar(juan.id(), version));
+
+        assertThat(como(1, () -> equipo.terminos(juan.id()).aceptadaEn())).isNotNull();
+        assertThatThrownBy(() -> como(2, () -> equipo.terminos(juan.id()))).isInstanceOf(NoEncontradoException.class);
+        assertThatThrownBy(() -> como(2, () -> equipo.aceptar(juan.id(), version))).isInstanceOf(NoEncontradoException.class);
+    }
 }

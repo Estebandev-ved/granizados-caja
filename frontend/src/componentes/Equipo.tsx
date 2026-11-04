@@ -163,6 +163,11 @@ function PanelTrabajador({ t, onCarga, onCambiar }: {
     <>
       <h2>{t.nombre}</h2>
       <p>{t.activo ? 'Comisión ' + t.comisionPct + '%' : 'Desactivado: ya no puede entrar'}</p>
+      <p className="mut">
+        {t.terminosAceptadosEn
+          ? '✓ Aceptó los términos el ' + new Date(t.terminosAceptadosEn).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', timeZone: 'America/Bogota' })
+          : 'Todavía no ha aceptado los términos del trabajo'}
+      </p>
 
       <div className="chips">
         <button className={rango === 'hoy' ? 'on' : ''} onClick={() => setRango('hoy')}>Hoy</button>

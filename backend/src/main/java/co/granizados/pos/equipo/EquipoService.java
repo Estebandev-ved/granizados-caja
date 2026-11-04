@@ -65,8 +65,24 @@ public class EquipoService {
     public record FilaCarga(Long productoId, String nombre, int llevo, int vendi, int queda) {
     }
 
+    /** `terminosAceptadosEn` es null mientras no haya aceptado la versión actual de los términos. */
     public record VendedorDto(Long id, String nombre, int comisionPct, boolean activo, int unidadesHoy, long totalHoy,
-                              List<FilaCarga> carga) {
+                              List<FilaCarga> carga, Instant terminosAceptadosEn) {
+    }
+
+    /**
+     * Lo que lleva ganado un trabajador hoy: comisión, premio del escalón alcanzado y el próximo por alcanzar.
+     * `gratis` son los granizados que puede tomarse sin pagar.
+     */
+    public record PremiosDia(int vendidas, long comision, long premio, List<Escalones.Escalon> escalones,
+                             Escalones.Escalon siguiente, int gratis) {
+    }
+
+    public record SeccionTerminos(String titulo, List<String> lineas) {
+    }
+
+    /** Los términos vigentes. `aceptadaEn` es null si este trabajador todavía no aceptó esta versión. */
+    public record Terminos(String version, String titulo, List<SeccionTerminos> secciones, Instant aceptadaEn) {
     }
 
     /**
@@ -100,12 +116,13 @@ public class EquipoService {
     private final AppProperties props;
     private final Clock clock;
     private final ApplicationEventPublisher eventos;
+    private final AceptacionTerminosRepository aceptaciones;
     private final ZoneId zona;
     private final BCryptPasswordEncoder hash = new BCryptPasswordEncoder();
 
     public EquipoService(VendedorRepository vendedores, CargaVendedorRepository cargas, ProductoRepository productos,
                          VentaRepository ventas, AjustesService ajustes, AppProperties props, Clock clock,
-                         ApplicationEventPublisher eventos) {
+                         ApplicationEventPublisher eventos, AceptacionTerminosRepository aceptaciones) {
         this.vendedores = vendedores;
         this.cargas = cargas;
         this.productos = productos;
@@ -114,6 +131,7 @@ public class EquipoService {
         this.props = props;
         this.clock = clock;
         this.eventos = eventos;
+        this.aceptaciones = aceptaciones;
         this.zona = props.zoneId();
     }
 
@@ -265,14 +283,15 @@ public class EquipoService {
         }
         int meta = AjustesService.entero(ajustes.mapa(), "META_EQUIPO", 0);
         long premio = AjustesService.entero(ajustes.mapa(), "PREMIO_EQUIPO", 0);
-        long bonos = meta > 0 && unidades >= meta ? premio : 0;
+        long bonos = (meta > 0 && unidades >= meta ? premio : 0)
+                + Escalones.premioDe(Escalones.leer(ajustes.mapa().get("PREMIOS_ESCALONES")), unidades);
         long entregar = efectivo - comision - bonos;
         List<FilaCarga> devuelve = filasDe(vendedorId, dia, delDia).stream().filter(f -> f.queda() > 0).toList();
 
         StringBuilder t = new StringBuilder(v.getNombre() + " cerró su día: " + unidades + " vendidos, " + Pesos.formato(total)
                 + "\n• Efectivo: " + Pesos.formato(efectivo) + "\n• Nequi: " + Pesos.formato(nequi));
         if (comision > 0) t.append("\n• Su comisión: ").append(Pesos.formato(comision));
-        if (bonos > 0) t.append("\n• Premio por meta: ").append(Pesos.formato(bonos));
+        if (bonos > 0) t.append("\n• Premios del día: ").append(Pesos.formato(bonos));
         t.append(entregar >= 0 ? "\nTe entrega " + Pesos.formato(entregar) : "\nTú le debes " + Pesos.formato(-entregar));
         if (devuelve.isEmpty()) t.append("\nNo devuelve nada.");
         else t.append("\nDevuelve: ").append(String.join(", ", devuelve.stream().map(f -> f.queda() + " " + f.nombre()).toList()));
@@ -333,6 +352,7 @@ public class EquipoService {
         Map<String, String> cfg = ajustes.mapa();
         int meta = AjustesService.entero(cfg, "META_EQUIPO", 0);
         long premio = AjustesService.entero(cfg, "PREMIO_EQUIPO", 0);
+        List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
         for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
             long total = 0, efectivo = 0, nequi = 0, comision = 0;
             int unidades = 0;
@@ -345,14 +365,16 @@ public class EquipoService {
                 comision += comisionDe(x, v);
             }
             if (!v.isActivo() && unidades == 0) continue;
-            // Un premio por cada día del rango en que cumplió la meta
+            // Un premio por cada día del rango en que cumplió la meta, más el del escalón que alcanzó cada día
             int diasMeta = 0;
-            if (meta > 0) {
+            long premiosEscalon = 0;
+            if (meta > 0 || !escalones.isEmpty()) {
                 for (int unidadesDia : unidadesPorDia(v.getId(), desde, hasta).values()) {
-                    if (unidadesDia >= meta) diasMeta++;
+                    if (meta > 0 && unidadesDia >= meta) diasMeta++;
+                    premiosEscalon += Escalones.premioDe(escalones, unidadesDia);
                 }
             }
-            long bonos = diasMeta * premio;
+            long bonos = diasMeta * premio + premiosEscalon;
             filas.add(new Liquidacion(v.getId(), v.getNombre(), v.getComisionPct(), unidades, total, efectivo, nequi,
                     comision, diasMeta, bonos, efectivo - comision - bonos));
         }
@@ -389,6 +411,59 @@ public class EquipoService {
 
     private VendedorDto dto(Vendedor v, List<Venta> mias, List<FilaCarga> carga) {
         return new VendedorDto(v.getId(), v.getNombre(), v.getComisionPct(), v.isActivo(),
-                mias.stream().mapToInt(Venta::getCantidad).sum(), mias.stream().mapToLong(Venta::getTotal).sum(), carga);
+                mias.stream().mapToInt(Venta::getCantidad).sum(), mias.stream().mapToLong(Venta::getTotal).sum(), carga,
+                terminos(v).aceptadaEn());
+    }
+
+    // ------------------------------------------------------------------ premios del día y términos
+
+    /** Lo que lleva ganado hoy el trabajador (`mias` son sus ventas del día). */
+    @Transactional(readOnly = true)
+    public PremiosDia premiosDe(Long vendedorId, List<Venta> mias) {
+        Map<String, String> cfg = ajustes.mapa();
+        List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
+        int vendidas = mias.stream().mapToInt(Venta::getCantidad).sum();
+        long comision = vendedores.findById(vendedorId)
+                .map(v -> mias.stream().mapToLong(x -> comisionDe(x, v)).sum()).orElse(0L);
+        int gratis = 1;
+        try {
+            gratis = Math.max(0, Integer.parseInt(cfg.getOrDefault("GRANIZADOS_GRATIS", "1").trim()));
+        } catch (NumberFormatException e) {
+            // se queda en 1
+        }
+        return new PremiosDia(vendidas, comision, Escalones.premioDe(escalones, vendidas), escalones,
+                Escalones.siguiente(escalones, vendidas), gratis);
+    }
+
+    private Terminos terminos(Vendedor v) {
+        List<TerminosTrabajo.Seccion> secciones = TerminosTrabajo.armar(ajustes.mapa(), v.getComisionPct());
+        String version = TerminosTrabajo.version(TerminosTrabajo.texto(secciones));
+        Instant aceptada = aceptaciones.findFirstByVendedorIdAndVersion(v.getId(), version)
+                .map(AceptacionTerminos::getAceptadaEn).orElse(null);
+        return new Terminos(version, "Términos del trabajo",
+                secciones.stream().map(s -> new SeccionTerminos(s.titulo(), s.lineas())).toList(), aceptada);
+    }
+
+    /** Los términos que ve el trabajador, y si ya aceptó la versión de hoy. */
+    @Transactional(readOnly = true)
+    public Terminos terminos(Long vendedorId) {
+        return terminos(vendedores.findById(vendedorId)
+                .orElseThrow(() -> new NoEncontradoException("Trabajador no encontrado: " + vendedorId)));
+    }
+
+    /** Guarda la constancia: el texto exacto, su huella y la hora. Solo vale la versión vigente. */
+    @Transactional
+    public Terminos aceptar(Long vendedorId, String version) {
+        Vendedor v = vendedores.findById(vendedorId)
+                .orElseThrow(() -> new NoEncontradoException("Trabajador no encontrado: " + vendedorId));
+        List<TerminosTrabajo.Seccion> secciones = TerminosTrabajo.armar(ajustes.mapa(), v.getComisionPct());
+        String texto = TerminosTrabajo.texto(secciones);
+        if (!TerminosTrabajo.version(texto).equals(version)) {
+            throw new IllegalArgumentException("Los términos cambiaron, léelos otra vez antes de aceptar");
+        }
+        if (aceptaciones.findFirstByVendedorIdAndVersion(vendedorId, version).isEmpty()) {
+            aceptaciones.saveAndFlush(new AceptacionTerminos(vendedorId, version, texto, clock.instant()));
+        }
+        return terminos(v);
     }
 }

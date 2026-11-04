@@ -44,7 +44,8 @@ public class RolFiltro extends OncePerRequestFilter {
     static boolean permitido(String metodo, String ruta) {
         if (metodo.equals("OPTIONS")) return true;
         if (ruta.equals("/api/estado")) return metodo.equals("GET");
-        if (ruta.equals("/api/mi-turno/cierre")) return metodo.equals("POST");
+        if (ruta.equals("/api/mi-turno/cierre") || ruta.equals("/api/mi-turno/terminos/aceptar")) return metodo.equals("POST");
+        if (ruta.equals("/api/mi-turno/terminos")) return metodo.equals("GET");
         if (ruta.equals("/api/ventas") || ruta.equals("/api/ventas/lote")) return metodo.equals("POST");
         // Deshacer una venta: DELETE /api/ventas/{uid} (el servicio revisa que sea suya)
         return ruta.startsWith("/api/ventas/") && !ruta.equals("/api/ventas/importar") && metodo.equals("DELETE");

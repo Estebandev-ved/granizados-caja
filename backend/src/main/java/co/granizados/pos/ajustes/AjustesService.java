@@ -1,6 +1,7 @@
 package co.granizados.pos.ajustes;
 
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.equipo.Escalones;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -68,7 +69,10 @@ public class AjustesService {
                 }
                 return valor;
             }
-            case "META_EQUIPO", "PREMIO_EQUIPO", "COMISION_NORMAL", "COMISION_CREMOSO", "COMISION_GRANDE", "COMISION_CERVEZA" -> {
+            case "PREMIOS_ESCALONES" -> {
+                return Escalones.validar(valor.replace(" ", ""));
+            }
+            case "META_EQUIPO", "PREMIO_EQUIPO", "GRANIZADOS_GRATIS", "COMISION_NORMAL", "COMISION_CREMOSO", "COMISION_GRANDE", "COMISION_CERVEZA" -> {
                 if (!valor.matches("\\d{1,7}")) {
                     throw new IllegalArgumentException(clave + " es un número sin decimales ni letras. 0 la apaga");
                 }

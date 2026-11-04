@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { sesion } from './api'
+import { api, sesion } from './api'
 import { AvisoActualizacion } from './componentes/AvisoActualizacion'
 import { BarraLogros } from './componentes/BarraLogros'
 import { BarraMeta } from './componentes/BarraMeta'
+import { BarraPremios } from './componentes/BarraPremios'
+import { TerminosTrabajo } from './componentes/TerminosTrabajo'
 import { Confeti } from './componentes/Confeti'
 import { Marca } from './componentes/Marca'
 import { Personaje } from './componentes/Personaje'
@@ -10,6 +12,7 @@ import { nivelAlcanzado } from './logros'
 import { hitoNuevo } from './ritmo'
 import { useToast, type AccionToast } from './componentes/Toast'
 import { pesos, vibrar } from './formato'
+import type { Terminos } from './tipos'
 import { useCaja, type EstadoSync } from './useCaja'
 import { Ajustes } from './vistas/Ajustes'
 import { Hoy } from './vistas/Hoy'
@@ -108,6 +111,43 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     return () => window.clearTimeout(arranque)
   }, [trabajador, metaEquipo, nivelEquipo, diaEquipo, avisar])
 
+  // Un trabajador celebra cada escalón de premio que alcanza, una sola vez por escalón y por día
+  const premios = estado?.premios ?? null
+  const escalonesAlcanzados = premios ? premios.escalones.filter(e => premios.vendidas >= e.granizados).length : 0
+  const premioDelDia = premios?.premio ?? 0
+  const escalonAnterior = useRef<number | null>(null)
+  useEffect(() => {
+    if (!trabajador || !diaEquipo) { escalonAnterior.current = null; return }
+    const antes = escalonAnterior.current
+    escalonAnterior.current = escalonesAlcanzados
+    if (antes === null || escalonesAlcanzados <= antes) return
+
+    const clave = 'gz_escalon'
+    let ya = ''
+    try { ya = localStorage.getItem(clave) ?? '' } catch { /* modo privado */ }
+    if (ya === diaEquipo + ':' + escalonesAlcanzados) return
+    try { localStorage.setItem(clave, diaEquipo + ':' + escalonesAlcanzados) } catch { /* modo privado */ }
+
+    vibrar()
+    const arranque = window.setTimeout(() => {
+      setCelebrando(true)
+      avisar('🎉 ¡Ganaste ' + pesos(premioDelDia) + ' de premio!')
+      window.setTimeout(() => setCelebrando(false), 2000)
+    }, 0)
+    return () => window.clearTimeout(arranque)
+  }, [trabajador, escalonesAlcanzados, premioDelDia, diaEquipo, avisar])
+
+  // Los términos del trabajo: tiene que aceptarlos para empezar, y otra vez si el dueño cambia tarifas o premios
+  const [terminos, setTerminos] = useState<Terminos | null>(null)
+  useEffect(() => {
+    if (!trabajador) return
+    const traer = () => { api.terminos().then(setTerminos).catch(() => { /* sin señal: se sigue trabajando */ }) }
+    traer()
+    const alVolver = () => { if (document.visibilityState === 'visible') traer() }
+    document.addEventListener('visibilitychange', alVolver)
+    return () => document.removeEventListener('visibilitychange', alVolver)
+  }, [trabajador])
+
   let contenido: ReactNode
   if (!estado) {
     contenido = <div className="vacio">
@@ -151,6 +191,22 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     contenido = <Ajustes avisar={avisar} onCambio={caja.recargar} />
   }
 
+  if (trabajador && terminos && !terminos.aceptadaEn) {
+    return (
+      <main style={{ padding: '0 16px' }}>
+        <TerminosTrabajo terminos={terminos} onAceptar={async () => {
+          try {
+            setTerminos(await api.aceptarTerminos(terminos.version))
+            avisar('✓ Listo, a vender')
+          } catch (e) {
+            avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo guardar'))
+            api.terminos().then(setTerminos).catch(() => { /* sin señal */ })
+          }
+        }} />
+      </main>
+    )
+  }
+
   return (
     <>
       <header>
@@ -171,6 +227,11 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       {estado && trabajador && metaEquipo && (
         <div className="meta-envoltorio">
           <BarraLogros meta={metaEquipo} />
+        </div>
+      )}
+      {estado && trabajador && premios && premios.escalones.length > 0 && (
+        <div className="meta-envoltorio">
+          <BarraPremios premios={premios} />
         </div>
       )}
       <main>{contenido}</main>

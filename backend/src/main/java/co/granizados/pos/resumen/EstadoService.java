@@ -75,7 +75,9 @@ public class EstadoService {
     public record Estado(List<ProductoDto> productos, ResumenDia hoy, List<VentaReciente> ultimas, LocalDate dia,
                          PedidoService.PedidoEnCamino pedido, Meta meta,
                          /** Solo para un trabajador: su meta de unidades del día (null si está apagada). */
-                         EquipoService.MetaEquipo metaEquipo) {
+                         EquipoService.MetaEquipo metaEquipo,
+                         /** Solo para un trabajador: lo que lleva ganado hoy (comisión y premios por escalón). */
+                         EquipoService.PremiosDia premios) {
     }
 
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("h:mm a", Locale.US);
@@ -130,7 +132,7 @@ public class EstadoService {
                 .toList();
         List<ProductoDto> activos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream().map(ProductoDto::de).toList();
         ResumenDia resumen = resumenDe(dia, delDia);
-        return new Estado(activos, resumen, ultimas, dia, pedidos.enCamino(), metaDe(dia), null);
+        return new Estado(activos, resumen, ultimas, dia, pedidos.enCamino(), metaDe(dia), null, null);
     }
 
     /**
@@ -151,7 +153,8 @@ public class EstadoService {
         ResumenDia r = resumir(mias, 0, 0, 0);
         ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades(), r.porSabor(), 0, 0, 0,
                 r.total(), 0, r.porSabor(), r.cerveza());
-        return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0), equipo.metaDe(vendedor, dia));
+        return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0), equipo.metaDe(vendedor, dia),
+                equipo.premiosDe(vendedor, mias));
     }
 
     /** La meta puesta en Ajustes, más la racha. Con 0 la meta está apagada y no hay racha. */

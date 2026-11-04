@@ -52,6 +52,7 @@ public abstract class PruebaIntegracion {
         jdbc.update("delete from conteo_plata");
         jdbc.update("delete from pago_proveedor");
         jdbc.update("delete from passkey");
+        jdbc.update("delete from aceptacion_terminos");
         jdbc.update("delete from carga_vendedor");
         jdbc.update("delete from vendedor");
         jdbc.update("delete from producto where orden > 11 or negocio_id <> 1");
@@ -63,6 +64,8 @@ public abstract class PruebaIntegracion {
         jdbc.update("update config set valor = '0' where clave = 'META_DIARIA'");
         jdbc.update("update config set valor = '0' where clave in ('META_EQUIPO', 'PREMIO_EQUIPO')");
         jdbc.update("update config set valor = '0' where clave like 'COMISION_%'");
+        jdbc.update("update config set valor = '' where clave = 'PREMIOS_ESCALONES'");
+        jdbc.update("update config set valor = '1' where clave = 'GRANIZADOS_GRATIS'");
     }
 
     protected long idDe(String sabor) {
