@@ -15,7 +15,7 @@ export function BarraPremios({ premios }: { premios: PremiosDia }) {
       aria-label={`${vendidas} de ${tope} granizados para el premio máximo de hoy`}>
       <div className="barra-meta-cabeza">
         <span className={'k' + (premio > 0 ? ' on' : '')}>
-          {premio > 0 ? 'Premio de hoy · ' + pesos(premio) : premios.diaPromo ? 'Premios del día de promo' : 'Premios de hoy'}
+          {premio > 0 ? 'Premio de hoy · ' + pesos(premio) : premios.diaPromo ? 'Premios de promo' : 'Premios de hoy'}
         </span>
         <span className="n">
           {vendidas}

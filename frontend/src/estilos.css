@@ -496,8 +496,37 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .pago-opcion span { color: var(--mut); font-size: 14px; line-height: 1.4 }
 .pago-opcion.on { border-color: var(--primario) }
 .pago-opcion:disabled { opacity: .6 }
-.regalo { background: var(--primario-bg); border-radius: var(--r-lg); padding: 14px 16px; line-height: 1.45 }
+.regalo { display: flex; align-items: center; gap: 12px; background: var(--primario-bg); border-radius: var(--r-lg); padding: 12px 16px 12px 12px; margin-bottom: 14px; line-height: 1.45 }
+.regalo p { margin: 0; flex: 1 }
+.regalo .personaje { width: 56px; margin: 0; flex: none }
 .regalo b { color: var(--primario-txt) }
+
+/* Mi día: lo ganado hoy, grande, con Sofía al lado */
+.mi-hero { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; padding: 16px 12px 16px 18px;
+  background: linear-gradient(135deg, var(--primario-bg), var(--card)); border: 1px solid var(--line); border-radius: var(--r-xl) }
+.mi-hero-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.mi-hero-saludo { font-size: 13px; font-weight: 700; color: var(--mut); text-transform: uppercase; letter-spacing: .6px }
+.mi-hero-monto { font-family: var(--font-head); font-size: 40px; line-height: 1.05; font-weight: 800; color: var(--primario-txt) }
+.mi-hero-pie { font-size: 14px; color: var(--mut) }
+.mi-hero-sig { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--ok-txt) }
+.mi-hero .personaje { width: 84px; margin: 0; flex: none }
+
+/* Términos y pago: Nova o Sofía arriba y apartados en tarjetas */
+.terminos .terminos-hero { display: flex; align-items: center; gap: 14px; margin: 8px 0 16px; padding: 16px;
+  background: linear-gradient(135deg, var(--primario-bg), var(--card)); border: 1px solid var(--line); border-radius: var(--r-xl) }
+.terminos .terminos-hero .personaje { width: 84px; margin: 0; flex: none }
+.terminos .terminos-hero h2 { margin: 0 0 4px; font-size: 20px; line-height: 1.2 }
+.terminos .terminos-hero p { margin: 0; color: var(--mut); font-size: 14px }
+.terminos .terminos-seccion { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 12px }
+.terminos .terminos-seccion h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 16px }
+.terminos-icono { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: none;
+  border-radius: var(--r-full); background: var(--primario-bg); color: var(--primario-txt) }
+.terminos-icono svg { width: 18px; height: 18px }
+.pago-opcion { flex-direction: row; align-items: center; gap: 14px }
+.pago-texto { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0 }
+.pago-opcion b { color: var(--txt) }
+.pago-check { width: 28px; height: 28px; border-radius: var(--r-full); background: var(--primario); color: #fff; font-weight: 800;
+  display: inline-flex; align-items: center; justify-content: center; flex: none }
 
 /* Aviso de versión nueva (PWA): flota sobre la barra de abajo */
 .aviso-actualizacion { position: fixed; left: 12px; right: 12px; bottom: calc(var(--safe-b, 0px) + 76px); z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 12px;

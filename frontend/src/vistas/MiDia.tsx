@@ -51,8 +51,22 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
 
   return (
     <section>
+      <div className="mi-hero">
+        <div className="mi-hero-texto">
+          <span className="mi-hero-saludo">{sesion.nombre ? 'Hola, ' + sesion.nombre : 'Mi día'}</span>
+          <b className="mi-hero-monto">{pesos(premios ? premios.comision + premios.premio : h.total)}</b>
+          <span className="mi-hero-pie">{premios ? 'ganado hoy' : 'vendido hoy'} · {h.unidades} granizado{h.unidades === 1 ? '' : 's'}</span>
+          {premios?.siguiente && (
+            <span className="mi-hero-sig">
+              Te faltan {premios.siguiente.granizados - premios.vendidas} para ganar {pesos(premios.siguiente.total)} de premio
+            </span>
+          )}
+        </div>
+        <Personaje nombre="sofia" libre />
+      </div>
+
       <div className="list">
-        <h3><Icono nombre="cara" /> {sesion.nombre ? 'Hola, ' + sesion.nombre : 'Mi día'}</h3>
+        <h3><Icono nombre="cara" /> Lo que vendiste</h3>
         <div className="carga-totales">
           <div><b>{h.unidades}</b><span>vendí</span></div>
           <div><b>{pesos(h.efectivo)}</b><span>efectivo</span></div>
@@ -76,19 +90,17 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
               Hoy es día de promo: se vende más barato, así que los premios son un poco menores que en un día normal.
             </p>
           )}
-          {premios.siguiente && (
-            <p className="mut" style={{ margin: '6px 0 0' }}>
-              Te faltan {premios.siguiente.granizados - premios.vendidas} granizados para ganar {pesos(premios.siguiente.total)} de premio.
-            </p>
-          )}
         </div>
       )}
 
       {premios && (
         <div className="regalo">
-          {premios.gratis > 0
-            ? <>🍹 <b>Tu granizado del día:</b> tienes derecho a tomarte {premios.gratis === 1 ? '1' : premios.gratis} sin costo, te lo ganaste. Del siguiente en adelante se cobra al precio de venta.</>
-            : <>🍹 Los granizados del puesto son para vender. Si te tomas uno, se cobra al precio de venta.</>}
+          <Personaje nombre="nova" libre />
+          <p>
+            {premios.gratis > 0
+              ? <><b>Tu granizado del día:</b> tienes derecho a tomarte {premios.gratis === 1 ? '1' : premios.gratis} sin costo, te lo ganaste. Del siguiente en adelante se cobra al precio de venta.</>
+              : <>Los granizados del puesto son para vender. Si te tomas uno, se cobra al precio de venta.</>}
+          </p>
         </div>
       )}
 
@@ -155,6 +167,7 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
       <Sheet abierto={!!cierre} onCerrar={() => setCierre(null)}>
         {cierre && (
           <>
+            <Personaje nombre="exito" />
             <h2>{cierre.entregar >= 0 ? 'Entrega ' + pesos(cierre.entregar) : 'Te deben ' + pesos(-cierre.entregar)}</h2>
             <p>
               Vendiste {cierre.unidades} ({pesos(cierre.total)}): {pesos(cierre.efectivo)} en efectivo y {pesos(cierre.nequi)} por Nequi.
