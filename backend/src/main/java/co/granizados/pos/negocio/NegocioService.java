@@ -23,6 +23,10 @@ public class NegocioService {
             new Ajuste("META_DIARIA", "0", "Lo que quieres vender al día en pesos. 0 la apaga"),
             new Ajuste("META_EQUIPO", "0", "Granizados que debe vender cada trabajador al día. 0 la apaga"),
             new Ajuste("PREMIO_EQUIPO", "0", "Pesos que gana el trabajador por cada día que cumple la meta. 0 = solo reconocimiento"),
+            new Ajuste("COMISION_NORMAL", "0", "Pesos que gana el trabajador por cada granizado Normal. Con todas en 0 se usa su porcentaje"),
+            new Ajuste("COMISION_CREMOSO", "0", "Pesos que gana el trabajador por cada granizado Cremoso"),
+            new Ajuste("COMISION_GRANDE", "0", "Pesos que gana el trabajador por cada granizado Grande"),
+            new Ajuste("COMISION_CERVEZA", "0", "Pesos que gana el trabajador por cada cerveza"),
             new Ajuste("PAGO_NEQUI", "", "Tu número de Nequi para que te paguen lo fiado. Ej: 3001234567"),
             new Ajuste("PAGO_BREB", "", "Tu llave Bre-B para que te paguen lo fiado"),
             new Ajuste("PAGO_PRESENCIAL", "", "Dónde te pueden pagar en persona. Ej: en la U, bloque 4, en horas de almuerzo"));

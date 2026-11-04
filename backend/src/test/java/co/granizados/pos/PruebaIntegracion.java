@@ -62,6 +62,7 @@ public abstract class PruebaIntegracion {
         jdbc.update("update config set valor = '14' where clave = 'DIAS_HISTORIAL'");
         jdbc.update("update config set valor = '0' where clave = 'META_DIARIA'");
         jdbc.update("update config set valor = '0' where clave in ('META_EQUIPO', 'PREMIO_EQUIPO')");
+        jdbc.update("update config set valor = '0' where clave like 'COMISION_%'");
     }
 
     protected long idDe(String sabor) {

@@ -125,7 +125,7 @@ public class VentaService {
         Long vendedor = Sesion.vendedorId();
         if (vendedor != null) {
             if (v.metodo() == MetodoPago.FIADO) throw new IllegalArgumentException("Los trabajadores no pueden fiar");
-            venta.porVendedor(vendedor);
+            venta.porVendedor(vendedor).conComision(equipo.comisionPorGranizado(p.getTipo()));
         }
         ventas.saveAndFlush(venta);
         if (v.metodo() == MetodoPago.FIADO) {

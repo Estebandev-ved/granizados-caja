@@ -22,6 +22,10 @@ const META_PARAM: Record<string, Meta> = {
   META_DIARIA: { titulo: 'Meta diaria de ventas', icono: 'trofeo', clase: 'dinero', apagable: true },
   META_EQUIPO: { titulo: 'Meta por trabajador', icono: 'trofeo', clase: 'entero', unidad: 'granizados al día', apagable: true, max: 4 },
   PREMIO_EQUIPO: { titulo: 'Premio por cumplir la meta', icono: 'moneda', clase: 'dinero', apagable: true },
+  COMISION_NORMAL: { titulo: 'Comisión por granizado Normal', icono: 'moneda', clase: 'dinero', apagable: true },
+  COMISION_CREMOSO: { titulo: 'Comisión por granizado Cremoso', icono: 'moneda', clase: 'dinero', apagable: true },
+  COMISION_GRANDE: { titulo: 'Comisión por granizado Grande', icono: 'moneda', clase: 'dinero', apagable: true },
+  COMISION_CERVEZA: { titulo: 'Comisión por cerveza', icono: 'moneda', clase: 'dinero', apagable: true },
   PROVEEDOR_WHATSAPP: { titulo: 'WhatsApp del proveedor', icono: 'celular', clase: 'telefono' },
   NOMBRE: { titulo: 'Tu nombre en el pedido', icono: 'cara', clase: 'texto' },
   DIAS_COBERTURA: { titulo: 'Días que debe alcanzar el pedido', icono: 'caja', clase: 'entero', unidad: 'días', max: 2 },
@@ -36,8 +40,9 @@ const metaDe = (clave: string): Meta =>
 
 type SeccionId = 'sabores' | 'metas' | 'pedido' | 'cobros' | 'promo' | 'equipo' | 'seguridad' | 'datos'
 
-const CLAVES: Record<'metas' | 'pedido' | 'cobros', string[]> = {
+const CLAVES: Record<'metas' | 'comisiones' | 'pedido' | 'cobros', string[]> = {
   metas: ['META_DIARIA', 'META_EQUIPO', 'PREMIO_EQUIPO'],
+  comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA'],
   pedido: ['NOMBRE', 'PROVEEDOR_WHATSAPP', 'DIAS_COBERTURA', 'DIAS_HISTORIAL'],
   cobros: ['PAGO_NEQUI', 'PAGO_BREB', 'PAGO_PRESENCIAL'],
 }
@@ -216,7 +221,16 @@ export function Ajustes({ avisar, onCambio }: Props) {
     cuerpo = <PromoAjustes avisar={avisar} />
   } else if (seccion === 'equipo') {
     titulo = 'Equipo'
-    cuerpo = <Equipo productos={productos} avisar={avisar} />
+    cuerpo = (
+      <>
+        <div className="list">
+          <h3><Icono nombre="moneda" /> Comisión por granizado</h3>
+          <p className="ayuda">Lo que gana cada trabajador por cada granizado que vende, según el tipo. Con todas en 0 gana su porcentaje. Si cambias una tarifa, solo vale para las ventas nuevas.</p>
+          {filas(CLAVES.comisiones).map(filaParam)}
+        </div>
+        <Equipo productos={productos} avisar={avisar} />
+      </>
+    )
   } else if (seccion === 'seguridad') {
     titulo = 'Seguridad'
     cuerpo = <SeccionFaceId avisar={avisar} />

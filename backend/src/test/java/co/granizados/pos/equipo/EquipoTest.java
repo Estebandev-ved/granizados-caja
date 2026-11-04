@@ -324,4 +324,36 @@ class EquipoTest extends PruebaIntegracion {
     void elDuenoNoCierraElDiaDeUnTrabajador() throws Exception {
         mvc.perform(con(entrar("4321"), post("/api/mi-turno/cierre"))).andExpect(status().isForbidden());
     }
+
+    @Test
+    void conTarifaPorGranizadoLaComisionEsPorUnidadYSeCongelaAlVender() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 50)); // el 50 % no cuenta mientras haya tarifas
+        ajustes.actualizar("COMISION_NORMAL", "1000");
+        String token = entrar("1111");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("t-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        // Subir la tarifa después no cambia lo que ya se vendió
+        ajustes.actualizar("COMISION_NORMAL", "2000");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("t-2", "NEQUI", 1, ""))).andExpect(status().isOk());
+
+        var l = equipo.liquidar(LocalDate.of(2026, 9, 25), LocalDate.of(2026, 9, 25)).getFirst();
+        assertThat(l.comision()).isEqualTo(2 * 1000 + 2000);
+        assertThat(l.saldo()).isEqualTo(l.efectivo() - l.comision());
+    }
+
+    @Test
+    void sinTarifasElTrabajadorSigueGanandoSuPorcentaje() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("p-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        var l = equipo.liquidar(LocalDate.of(2026, 9, 25), LocalDate.of(2026, 9, 25)).getFirst();
+        assertThat(l.comision()).isEqualTo(l.total() / 10);
+    }
+
+    @Test
+    void unaTarifaConLetrasOMuyLargaSeRechaza() {
+        assertThatThrownBy(() -> ajustes.actualizar("COMISION_CREMOSO", "mil")).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ajustes.actualizar("COMISION_CREMOSO", "1500").valor()).isEqualTo("1500");
+    }
 }

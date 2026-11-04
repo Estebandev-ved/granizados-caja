@@ -40,6 +40,10 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-04
+- **Comisión por granizado** para el equipo: tarifas por tipo en Ajustes → Equipo (`COMISION_*`, migración V19), congeladas en cada venta; sin tarifas sigue el %. Liquidación y cierre del día la usan. Pendiente de Esteban: poner $1.000 Normal y $1.500 Cremoso en Ajustes y decidir Grande y Cerveza.
+- Pruebas: 152 backend en verde.
+
 ### 2026-11-03
 - **Mi día del trabajador** muestra lo que llevó, vendió y le queda por sabor (antes solo "lo que me queda").
 - **Aviso de versión nueva** (PWA con `registerType: 'prompt'`, `AvisoActualizacion`): sale "Hay una versión nueva · Actualizar", busca cada 30 min y al volver a abrir la app.

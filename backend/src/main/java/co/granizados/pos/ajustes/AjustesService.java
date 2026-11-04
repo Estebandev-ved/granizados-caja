@@ -68,7 +68,7 @@ public class AjustesService {
                 }
                 return valor;
             }
-            case "META_EQUIPO", "PREMIO_EQUIPO" -> {
+            case "META_EQUIPO", "PREMIO_EQUIPO", "COMISION_NORMAL", "COMISION_CREMOSO", "COMISION_GRANDE", "COMISION_CERVEZA" -> {
                 if (!valor.matches("\\d{1,7}")) {
                     throw new IllegalArgumentException(clave + " es un número sin decimales ni letras. 0 la apaga");
                 }

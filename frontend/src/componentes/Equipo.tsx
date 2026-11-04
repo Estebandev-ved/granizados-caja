@@ -180,7 +180,7 @@ function PanelTrabajador({ t, onCarga, onCambiar }: {
           </div>
           <div className="list">
             <div className="row"><span>Total vendido</span><b>{pesos(cuentas.total)}</b></div>
-            <div className="row"><span>Su comisión ({cuentas.comisionPct}%)</span><b>{pesos(cuentas.comision)}</b></div>
+            <div className="row"><span>Su comisión</span><b>{pesos(cuentas.comision)}</b></div>
             {cuentas.diasMeta > 0 && (
               <div className="row">
                 <span>Premio por meta ({cuentas.diasMeta} día{cuentas.diasMeta === 1 ? '' : 's'})</span><b>{pesos(cuentas.bonos)}</b>

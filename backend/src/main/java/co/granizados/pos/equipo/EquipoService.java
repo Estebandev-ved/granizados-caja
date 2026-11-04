@@ -7,6 +7,7 @@ import co.granizados.pos.comun.Pesos;
 import co.granizados.pos.negocio.TenantContext;
 import co.granizados.pos.producto.Producto;
 import co.granizados.pos.producto.ProductoRepository;
+import co.granizados.pos.producto.TipoProducto;
 import co.granizados.pos.venta.Venta;
 import co.granizados.pos.venta.VentaRepository;
 import jakarta.validation.Valid;
@@ -253,15 +254,15 @@ public class EquipoService {
         LocalDate dia = hoy();
         List<Venta> delDia = ventasDelDia(dia);
         int unidades = 0;
-        long total = 0, efectivo = 0, nequi = 0;
+        long total = 0, efectivo = 0, nequi = 0, comision = 0;
         for (Venta x : delDia) {
             if (!vendedorId.equals(x.getVendedorId())) continue;
             unidades += x.getCantidad();
             total += x.getTotal();
             efectivo += x.efectivo();
             nequi += x.nequi();
+            comision += comisionDe(x, v);
         }
-        long comision = total * v.getComisionPct() / 100;
         int meta = AjustesService.entero(ajustes.mapa(), "META_EQUIPO", 0);
         long premio = AjustesService.entero(ajustes.mapa(), "PREMIO_EQUIPO", 0);
         long bonos = meta > 0 && unidades >= meta ? premio : 0;
@@ -277,6 +278,36 @@ public class EquipoService {
         else t.append("\nDevuelve: ").append(String.join(", ", devuelve.stream().map(f -> f.queda() + " " + f.nombre()).toList()));
         eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "🧾 " + v.getNombre() + " cerró su día", t.toString()));
         return new CierreTurno(unidades, total, efectivo, nequi, comision, bonos, entregar, devuelve);
+    }
+
+    /**
+     * Lo que gana el trabajador por una venta: la tarifa por granizado que quedó congelada al vender o, en las ventas
+     * de antes (o de un negocio sin tarifas), su porcentaje del total.
+     */
+    private static long comisionDe(Venta venta, Vendedor vendedor) {
+        Long porUnidad = venta.getComisionUnitaria();
+        if (porUnidad != null) return porUnidad * venta.getCantidad();
+        return venta.getTotal() * vendedor.getComisionPct() / 100;
+    }
+
+    /**
+     * Tarifa por granizado de ese tipo, en pesos. null si el dueño no puso ninguna (todas en 0): entonces el
+     * trabajador sigue ganando su porcentaje. Se congela en cada venta, así cambiarla no reescribe lo ya pagado.
+     */
+    @Transactional(readOnly = true)
+    public Long comisionPorGranizado(TipoProducto tipo) {
+        Map<String, String> cfg = ajustes.mapa();
+        long normal = AjustesService.entero(cfg, "COMISION_NORMAL", 0);
+        long cremoso = AjustesService.entero(cfg, "COMISION_CREMOSO", 0);
+        long grande = AjustesService.entero(cfg, "COMISION_GRANDE", 0);
+        long cerveza = AjustesService.entero(cfg, "COMISION_CERVEZA", 0);
+        if (normal + cremoso + grande + cerveza == 0) return null;
+        return switch (tipo) {
+            case NORMAL -> normal;
+            case CREMOSO -> cremoso;
+            case GRANDE -> grande;
+            case CERVEZA -> cerveza;
+        };
     }
 
     // ------------------------------------------------------------------ vistas del dueño
@@ -303,7 +334,7 @@ public class EquipoService {
         int meta = AjustesService.entero(cfg, "META_EQUIPO", 0);
         long premio = AjustesService.entero(cfg, "PREMIO_EQUIPO", 0);
         for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
-            long total = 0, efectivo = 0, nequi = 0;
+            long total = 0, efectivo = 0, nequi = 0, comision = 0;
             int unidades = 0;
             for (Venta x : delRango) {
                 if (!v.getId().equals(x.getVendedorId())) continue;
@@ -311,9 +342,9 @@ public class EquipoService {
                 total += x.getTotal();
                 efectivo += x.efectivo();
                 nequi += x.nequi();
+                comision += comisionDe(x, v);
             }
             if (!v.isActivo() && unidades == 0) continue;
-            long comision = total * v.getComisionPct() / 100;
             // Un premio por cada día del rango en que cumplió la meta
             int diasMeta = 0;
             if (meta > 0) {
