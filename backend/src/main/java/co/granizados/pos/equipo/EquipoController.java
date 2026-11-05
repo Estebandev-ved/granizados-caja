@@ -62,6 +62,22 @@ public class EquipoController {
         return servicio.pagar(id, nuevo.metodo(), nuevo.monto());
     }
 
+    /** Plata de la caja que le pasas para dar vueltos (se la devuelve al cerrar). */
+    @GetMapping("/{id}/base")
+    public EquipoService.BaseDia base(@PathVariable Long id) {
+        return servicio.baseDia(id);
+    }
+
+    @PostMapping("/{id}/base")
+    public EquipoService.BaseDia pasarBase(@PathVariable Long id, @Valid @RequestBody EquipoService.NuevaBase nueva) {
+        return servicio.pasarBase(id, nueva.monto());
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/base/{baseId}")
+    public EquipoService.BaseDia quitarBase(@PathVariable Long baseId) {
+        return servicio.quitarBase(baseId);
+    }
+
     @PostMapping("/pagos/{pagoId}/anular")
     public EquipoService.PagoDto anular(@PathVariable Long pagoId) {
         return servicio.anularPago(pagoId);

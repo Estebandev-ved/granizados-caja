@@ -55,6 +55,12 @@ public class TurnoController {
         return servicio.misPagos(vendedor());
     }
 
+    /** La base para vueltos que lleva hoy. */
+    @GetMapping("/base")
+    public EquipoService.BaseDia base() {
+        return servicio.baseDia(vendedor());
+    }
+
     @PostMapping("/pagos/{id}/responder")
     public EquipoService.PagoDto responder(@PathVariable Long id, @RequestBody EquipoService.RespuestaPago cuerpo) {
         return servicio.responderPago(vendedor(), id, cuerpo.recibido(), cuerpo.firma());

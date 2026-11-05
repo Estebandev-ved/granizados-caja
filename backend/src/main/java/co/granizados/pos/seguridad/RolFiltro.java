@@ -46,7 +46,8 @@ public class RolFiltro extends OncePerRequestFilter {
         if (ruta.equals("/api/estado")) return metodo.equals("GET");
         if (ruta.equals("/api/mi-turno/cierre") || ruta.equals("/api/mi-turno/terminos/aceptar")
                 || ruta.equals("/api/mi-turno/pago")) return metodo.equals("POST");
-        if (ruta.equals("/api/mi-turno/terminos") || ruta.equals("/api/mi-turno/pagos")) return metodo.equals("GET");
+        if (ruta.equals("/api/mi-turno/terminos") || ruta.equals("/api/mi-turno/pagos")
+                || ruta.equals("/api/mi-turno/base")) return metodo.equals("GET");
         if (ruta.matches("/api/mi-turno/pagos/\\d+/responder")) return metodo.equals("POST");
         if (ruta.equals("/api/ventas") || ruta.equals("/api/ventas/lote")) return metodo.equals("POST");
         // Deshacer una venta: DELETE /api/ventas/{uid} (el servicio revisa que sea suya)

@@ -27,11 +27,13 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
   const [cambiandoPago, setCambiandoPago] = useState(false)
   const premios = estado.premios
   const [pagos, setPagos] = useState<PagoEquipo[]>([])
+  const [base, setBase] = useState(0)
   const [confirmando, setConfirmando] = useState(false)
   const pagoPendiente = pagos.find(p => p.estado === 'PENDIENTE') ?? null
 
   useEffect(() => {
     let vivo = true
+    api.miBase().then(b => { if (vivo) setBase(b.total) }).catch(() => { /* se vuelve a pedir al abrir */ })
     api.misPagos().then(l => { if (vivo) setPagos(l) }).catch(() => { /* sin señal: se vuelve a pedir al abrir */ })
     return () => { vivo = false }
   }, [])
@@ -106,6 +108,12 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
               Hoy es día de promo: se vende más barato, así que los premios son un poco menores que en un día normal.
             </p>
           )}
+        </div>
+      )}
+
+      {base > 0 && (
+        <div className="pago-pendiente base-vueltos">
+          <span>Llevas {pesos(base)} de base para vueltos. Se la devuelves al dueño cuando termines.</span>
         </div>
       )}
 
@@ -210,7 +218,7 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
             {cierre.comision + cierre.bonos > 0 && (
               <p className="recaudo-cierre">
                 {cierre.entregar >= 0 ? 'Entrega ' + pesos(cierre.entregar) : 'Te deben ' + pesos(-cierre.entregar)}
-                {' '}({pesos(cierre.efectivo)} en efectivo y {pesos(cierre.nequi)} por Nequi, {pesos(cierre.total)} en total).
+                {' '}({pesos(cierre.efectivo)} en efectivo{cierre.base > 0 && <> más {pesos(cierre.base)} de tu base para vueltos</>} y {pesos(cierre.nequi)} por Nequi, {pesos(cierre.total)} en total).
               </p>
             )}
             <p>

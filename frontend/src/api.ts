@@ -1,6 +1,6 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
-  CategoriaGasto, CierreTurno, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  BaseVueltos, CategoriaGasto, CierreTurno, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
@@ -166,6 +166,10 @@ export const api = {
   /** Suma granizados a lo que el trabajador ya sacó hoy (cargarTrabajador lo reemplaza). */
   agregarCargaTrabajador: (id: number, items: { productoId: number; llevo: number }[]) =>
     pedir<FilaCargaEquipo[]>('POST', '/api/equipo/' + id + '/carga/agregar', { items }),
+  baseTrabajador: (id: number) => pedir<BaseVueltos>('GET', '/api/equipo/' + id + '/base'),
+  pasarBase: (id: number, monto: number) => pedir<BaseVueltos>('POST', '/api/equipo/' + id + '/base', { monto }),
+  quitarBase: (baseId: number) => pedir<BaseVueltos>('DELETE', '/api/equipo/base/' + baseId),
+  miBase: () => pedir<BaseVueltos>('GET', '/api/mi-turno/base'),
   cuentaTrabajador: (id: number) => pedir<CuentaEquipo>('GET', '/api/equipo/' + id + '/cuenta'),
   pagarTrabajador: (id: number, metodo: MetodoPagoEquipo, monto: number) =>
     pedir<PagoEquipo>('POST', '/api/equipo/' + id + '/pagos', { metodo, monto }),

@@ -9,6 +9,7 @@ import { CargaDelDia } from './CargaDelDia'
 import { ETIQUETA_PAGO, PagarTrabajador, fechaHora } from './PagoTrabajador'
 import { NOMBRE_PAGO } from '../pagos'
 import { CampoNumero } from './CampoNumero'
+import { BaseVueltosPanel } from './BaseVueltosPanel'
 import { Icono } from './Icono'
 import { Sheet } from './Sheet'
 
@@ -99,6 +100,7 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
             onCarga={() => setPanel({ tipo: 'carga', id: trabajador.id })}
             onAgregar={() => setPanel({ tipo: 'agregar', id: trabajador.id })}
             onPagar={() => setPanel({ tipo: 'pagar', id: trabajador.id })}
+            onCambioBase={() => void cargar()}
             onAnular={async pagoId => { await guardar(() => api.anularPagoTrabajador(pagoId), 'Pago anulado: sus cuentas volvieron') }}
             onCambiar={async (d, mensaje) => { await guardar(() => api.cambiarTrabajador(trabajador.id, d), mensaje) }} />
         )}
@@ -210,8 +212,9 @@ function PagarPanel({ t, guardar, volver }: {
   )
 }
 
-function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar }: {
+function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, onCambioBase }: {
   t: Trabajador
+  onCambioBase: () => void
   onCarga: () => void
   onAgregar: () => void
   onPagar: () => void
@@ -294,6 +297,8 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar }
           ))}
         </div>
       )}
+
+      <BaseVueltosPanel t={t} onCambio={onCambioBase} />
 
       <div className="list">
         <h3><Icono nombre="caja" /> Su carga de hoy</h3>

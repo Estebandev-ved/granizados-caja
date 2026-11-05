@@ -72,7 +72,7 @@ public class EquipoService {
     /** `terminosAceptadosEn` es null mientras no haya aceptado la versión actual de los términos. */
     public record VendedorDto(Long id, String nombre, int comisionPct, boolean activo, int unidadesHoy, long totalHoy,
                               List<FilaCarga> carga, Instant terminosAceptadosEn,
-                              FrecuenciaPago frecuenciaPago, long porPagar, PagoVendedor.Estado ultimoPago) {
+                              FrecuenciaPago frecuenciaPago, long porPagar, PagoVendedor.Estado ultimoPago, long baseHoy) {
     }
 
     /**
@@ -104,7 +104,7 @@ public class EquipoService {
     }
 
     /** Lo que ve el trabajador al cerrar su turno: lo que debe entregar y lo que devuelve. */
-    public record CierreTurno(int unidades, long total, long efectivo, long nequi, long comision, long bonos, long entregar,
+    public record CierreTurno(int unidades, long total, long efectivo, long nequi, long comision, long bonos, long base, long entregar,
                               List<FilaCarga> devuelve) {
     }
 
@@ -124,14 +124,16 @@ public class EquipoService {
     private final ApplicationEventPublisher eventos;
     private final AceptacionTerminosRepository aceptaciones;
     private final PagoVendedorRepository pagos;
+    private final BaseVendedorRepository bases;
     private final ZoneId zona;
     private final BCryptPasswordEncoder hash = new BCryptPasswordEncoder();
 
     public EquipoService(VendedorRepository vendedores, CargaVendedorRepository cargas, ProductoRepository productos,
                          VentaRepository ventas, AjustesService ajustes, AppProperties props, Clock clock,
                          ApplicationEventPublisher eventos, AceptacionTerminosRepository aceptaciones,
-                         PagoVendedorRepository pagos) {
+                         PagoVendedorRepository pagos, BaseVendedorRepository bases) {
         this.pagos = pagos;
+        this.bases = bases;
         this.vendedores = vendedores;
         this.cargas = cargas;
         this.productos = productos;
@@ -296,18 +298,20 @@ public class EquipoService {
                 || PromoCalendario.vigente(ajustes.mapa().get("PROMO"), dia);
         long bonos = (meta > 0 && unidades >= meta ? premio : 0)
                 + Escalones.premioDe(escalonesDelDia(ajustes.mapa(), diaPromo), unidades);
-        long entregar = efectivo - comision - bonos;
+        long base = baseDeHoy(vendedorId);
+        long entregar = efectivo + base - comision - bonos;
         List<FilaCarga> devuelve = filasDe(vendedorId, dia, delDia).stream().filter(f -> f.queda() > 0).toList();
 
         StringBuilder t = new StringBuilder(v.getNombre() + " cerró su día: " + unidades + " vendidos, " + Pesos.formato(total)
                 + "\n• Efectivo: " + Pesos.formato(efectivo) + "\n• Nequi: " + Pesos.formato(nequi));
+        if (base > 0) t.append("\n\u2022 Base para vueltos que le pasaste: ").append(Pesos.formato(base));
         if (comision > 0) t.append("\n• Su comisión: ").append(Pesos.formato(comision));
         if (bonos > 0) t.append("\n• Premios del día: ").append(Pesos.formato(bonos));
         t.append(entregar >= 0 ? "\nTe entrega " + Pesos.formato(entregar) : "\nTú le debes " + Pesos.formato(-entregar));
         if (devuelve.isEmpty()) t.append("\nNo devuelve nada.");
         else t.append("\nDevuelve: ").append(String.join(", ", devuelve.stream().map(f -> f.queda() + " " + f.nombre()).toList()));
         eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "🧾 " + v.getNombre() + " cerró su día", t.toString()));
-        return new CierreTurno(unidades, total, efectivo, nequi, comision, bonos, entregar, devuelve);
+        return new CierreTurno(unidades, total, efectivo, nequi, comision, bonos, base, entregar, devuelve);
     }
 
     /**
@@ -540,6 +544,48 @@ public class EquipoService {
         return pagoDto(pagos.save(p), vendedor(p.getVendedorId()).getNombre());
     }
 
+    // ------------------------------------------------------------------ base para vueltos
+
+    public record NuevaBase(@NotNull @Min(1) @Max(10_000_000) Long monto) {
+    }
+
+    /** La base que lleva hoy y cada entrega, por si hay que deshacer una. */
+    public record BaseDia(long total, List<EntregaBase> entregas) {
+    }
+
+    public record EntregaBase(Long id, long monto, Instant creadaEn) {
+    }
+
+    private long baseDeHoy(Long vendedorId) {
+        return bases.findByVendedorIdAndDiaOrderByCreadaEnAscIdAsc(vendedorId, hoy()).stream().mapToLong(BaseVendedor::getMonto).sum();
+    }
+
+    @Transactional(readOnly = true)
+    public BaseDia baseDia(Long vendedorId) {
+        List<EntregaBase> entregas = bases.findByVendedorIdAndDiaOrderByCreadaEnAscIdAsc(vendedorId, hoy()).stream()
+                .map(b -> new EntregaBase(b.getId(), b.getMonto(), b.getCreadaEn())).toList();
+        return new BaseDia(entregas.stream().mapToLong(EntregaBase::monto).sum(), entregas);
+    }
+
+    /** El dueño le pasa plata de la caja en efectivo para que tenga con qué dar vueltos. Se devuelve al cerrar el día. */
+    @Transactional
+    public BaseDia pasarBase(Long vendedorId, long monto) {
+        Vendedor v = vendedor(vendedorId);
+        if (!v.isActivo()) throw new IllegalArgumentException("Ese trabajador está desactivado");
+        bases.save(new BaseVendedor(vendedorId, hoy(), monto, clock.instant()));
+        return baseDia(vendedorId);
+    }
+
+    /** Deshace una entrega de base de hoy (por si te equivocaste de monto). */
+    @Transactional
+    public BaseDia quitarBase(Long baseId) {
+        BaseVendedor b = bases.findById(baseId).orElseThrow(() -> new NoEncontradoException("Entrega no encontrada: " + baseId));
+        if (!b.getDia().equals(hoy())) throw new IllegalArgumentException("Solo se deshace la base de hoy");
+        bases.delete(b);
+        bases.flush();
+        return baseDia(b.getVendedorId());
+    }
+
     // ------------------------------------------------------------------ carga adicional
 
     /** Suma más granizados a lo que el trabajador ya sacó hoy. Lo ya vendido sigue contando: cada sabor conserva su hora de entrega. */
@@ -603,7 +649,8 @@ public class EquipoService {
                 mias.stream().mapToInt(Venta::getCantidad).sum(), mias.stream().mapToLong(Venta::getTotal).sum(), carga,
                 terminos(v).aceptadaEn(), v.getFrecuenciaPago(), porPagarDe(v),
                 pagos.findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(v.getId()).stream()
-                        .map(PagoVendedor::getEstado).filter(e -> e != PagoVendedor.Estado.ANULADO).findFirst().orElse(null));
+                        .map(PagoVendedor::getEstado).filter(e -> e != PagoVendedor.Estado.ANULADO).findFirst().orElse(null),
+                baseDeHoy(v.getId()));
     }
 
     // ------------------------------------------------------------------ premios del día y términos

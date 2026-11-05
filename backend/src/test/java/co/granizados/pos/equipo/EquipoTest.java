@@ -621,6 +621,32 @@ class EquipoTest extends PruebaIntegracion {
     }
 
     @Test
+    void laBaseParaVueltosSeDevuelveAlCerrarElDiaYSePuedeDeshacer() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        String dueno = entrar("4321");
+        mvc.perform(con(dueno, post("/api/equipo/" + juan.id() + "/base")).content("{\"monto\":20000}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(20000));
+        mvc.perform(con(dueno, post("/api/equipo/" + juan.id() + "/base")).content("{\"monto\":0}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(con(token, post("/api/ventas")).content(venta("b-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        // El trabajador ve su base y no puede ponerse una
+        mvc.perform(con(token, get("/api/mi-turno/base"))).andExpect(jsonPath("$.total").value(20000));
+        mvc.perform(con(token, post("/api/equipo/" + juan.id() + "/base")).content("{\"monto\":5000}"))
+                .andExpect(status().isForbidden());
+
+        // Entrega = efectivo vendido (12.000) + base (20.000) - comisión (1.200)
+        mvc.perform(con(token, post("/api/mi-turno/cierre")))
+                .andExpect(jsonPath("$.base").value(20000))
+                .andExpect(jsonPath("$.entregar").value(12000 + 20000 - 1200));
+
+        String id = mvc.perform(con(dueno, get("/api/equipo/" + juan.id() + "/base"))).andReturn().getResponse()
+                .getContentAsString().replaceAll(".*\"entregas\":\\[\\{\"id\":(\\d+).*", "$1");
+        mvc.perform(con(dueno, delete("/api/equipo/base/" + id))).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
     void agregarCargaSumaAlaQueYaTieneYConservaLoVendido() throws Exception {
         var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 0));
         equipo.cargar(juan.id(), new Carga(List.of(new ItemCarga(idDe("Smirnoff"), 5))));

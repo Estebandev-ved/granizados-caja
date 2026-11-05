@@ -120,6 +120,13 @@ export interface Trabajador {
   porPagar?: number
   /** Estado de su último pago (null = nunca se le ha pagado). */
   ultimoPago?: EstadoPagoEquipo | null
+  /** Plata de la caja que se le pasó hoy para dar vueltos. */
+  baseHoy?: number
+}
+
+export interface BaseVueltos {
+  total: number
+  entregas: { id: number; monto: number; creadaEn: string }[]
 }
 
 export type MetodoPagoEquipo = 'EFECTIVO' | 'NEQUI'
@@ -161,6 +168,8 @@ export interface CierreTurno {
   nequi: number
   comision: number
   bonos: number
+  /** Base para vueltos que se le pasó y que devuelve junto con el efectivo. */
+  base: number
   entregar: number
   devuelve: FilaCargaEquipo[]
 }
