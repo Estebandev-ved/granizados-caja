@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { ConfirmarPago } from '../componentes/PagoTrabajador'
 import { api, sesion } from '../api'
 import { vendidasHoy } from '../carga'
+import { BotonRecargar } from '../componentes/BotonRecargar'
+import { EntregaAlDueno } from '../componentes/EntregaAlDueno'
 import { Icono } from '../componentes/Icono'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
@@ -163,6 +165,8 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
         ) : <p className="mut" style={{ margin: 0 }}>Nada cargado por ahora. Pídele al dueño que te anote lo que sacas a vender.</p>}
       </div>
 
+      <EntregaAlDueno />
+
       {estado.ultimas.length ? (
         <div className="list">
           <h3><Icono nombre="reloj" /> Mis ventas de hoy</h3>
@@ -189,6 +193,7 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
           {pago ? 'Me pagan ' + NOMBRE_PAGO[pago] + ' · cambiar' : 'Escoger cada cuánto me pagan'}
         </button>
         <button className="big ghost" onClick={verTerminos}>Ver mis términos del trabajo</button>
+        <BotonRecargar />
         <button className="big peligro" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
       </div>
 

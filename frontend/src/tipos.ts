@@ -122,6 +122,25 @@ export interface Trabajador {
   ultimoPago?: EstadoPagoEquipo | null
   /** Plata de la caja que se le pasó hoy para dar vueltos. */
   baseHoy?: number
+  /** Plata que dice haberte entregado y todavía no confirmas. */
+  entregaPendiente?: number
+  ultimaEntrega?: EstadoEntregaEquipo | null
+}
+
+export type EstadoEntregaEquipo = 'PENDIENTE' | 'RECIBIDA' | 'NO_RECIBIDA'
+
+/** Lo que el trabajador dice que le entregó al dueño, separado por cómo le pagaron. */
+export interface EntregaEquipo {
+  id: number
+  vendedorId: number
+  nombre: string
+  monto: number
+  efectivo: number
+  nequi: number
+  transferencia: number
+  estado: EstadoEntregaEquipo
+  creadaEn: string
+  respondidaEn: string | null
 }
 
 export interface BaseVueltos {

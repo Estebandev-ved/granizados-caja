@@ -1,6 +1,6 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
-  BaseVueltos, CategoriaGasto, CierreTurno, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  BaseVueltos, CategoriaGasto, CierreTurno, EntregaEquipo, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
@@ -169,6 +169,12 @@ export const api = {
   baseTrabajador: (id: number) => pedir<BaseVueltos>('GET', '/api/equipo/' + id + '/base'),
   pasarBase: (id: number, monto: number) => pedir<BaseVueltos>('POST', '/api/equipo/' + id + '/base', { monto }),
   quitarBase: (baseId: number) => pedir<BaseVueltos>('DELETE', '/api/equipo/base/' + baseId),
+  misEntregas: () => pedir<EntregaEquipo[]>('GET', '/api/mi-turno/entregas'),
+  entregarAlDueno: (efectivo: number, nequi: number, transferencia: number) =>
+    pedir<EntregaEquipo>('POST', '/api/mi-turno/entregas', { efectivo, nequi, transferencia }),
+  entregasTrabajador: (id: number) => pedir<EntregaEquipo[]>('GET', '/api/equipo/' + id + '/entregas'),
+  responderEntrega: (entregaId: number, recibida: boolean) =>
+    pedir<EntregaEquipo>('POST', '/api/equipo/entregas/' + entregaId + '/responder', { recibida }),
   miBase: () => pedir<BaseVueltos>('GET', '/api/mi-turno/base'),
   cuentaTrabajador: (id: number) => pedir<CuentaEquipo>('GET', '/api/equipo/' + id + '/cuenta'),
   pagarTrabajador: (id: number, metodo: MetodoPagoEquipo, monto: number) =>

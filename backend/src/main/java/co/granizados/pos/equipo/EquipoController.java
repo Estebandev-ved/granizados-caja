@@ -78,6 +78,17 @@ public class EquipoController {
         return servicio.quitarBase(baseId);
     }
 
+    /** Lo que el trabajador dice que te entregó, para que confirmes si es verdad. */
+    @GetMapping("/{id}/entregas")
+    public List<EquipoService.EntregaDto> entregas(@PathVariable Long id) {
+        return servicio.entregasDe(id);
+    }
+
+    @PostMapping("/entregas/{entregaId}/responder")
+    public EquipoService.EntregaDto responderEntrega(@PathVariable Long entregaId, @RequestBody EquipoService.RespuestaEntrega cuerpo) {
+        return servicio.responderEntrega(entregaId, cuerpo.recibida());
+    }
+
     @PostMapping("/pagos/{pagoId}/anular")
     public EquipoService.PagoDto anular(@PathVariable Long pagoId) {
         return servicio.anularPago(pagoId);

@@ -72,7 +72,8 @@ public class EquipoService {
     /** `terminosAceptadosEn` es null mientras no haya aceptado la versión actual de los términos. */
     public record VendedorDto(Long id, String nombre, int comisionPct, boolean activo, int unidadesHoy, long totalHoy,
                               List<FilaCarga> carga, Instant terminosAceptadosEn,
-                              FrecuenciaPago frecuenciaPago, long porPagar, PagoVendedor.Estado ultimoPago, long baseHoy) {
+                              FrecuenciaPago frecuenciaPago, long porPagar, PagoVendedor.Estado ultimoPago, long baseHoy,
+                              long entregaPendiente, EntregaVendedor.Estado ultimaEntrega) {
     }
 
     /**
@@ -125,13 +126,16 @@ public class EquipoService {
     private final AceptacionTerminosRepository aceptaciones;
     private final PagoVendedorRepository pagos;
     private final BaseVendedorRepository bases;
+    private final EntregaVendedorRepository entregas;
     private final ZoneId zona;
     private final BCryptPasswordEncoder hash = new BCryptPasswordEncoder();
 
     public EquipoService(VendedorRepository vendedores, CargaVendedorRepository cargas, ProductoRepository productos,
                          VentaRepository ventas, AjustesService ajustes, AppProperties props, Clock clock,
                          ApplicationEventPublisher eventos, AceptacionTerminosRepository aceptaciones,
-                         PagoVendedorRepository pagos, BaseVendedorRepository bases) {
+                         PagoVendedorRepository pagos, BaseVendedorRepository bases,
+                         EntregaVendedorRepository entregas) {
+        this.entregas = entregas;
         this.pagos = pagos;
         this.bases = bases;
         this.vendedores = vendedores;
@@ -586,6 +590,65 @@ public class EquipoService {
         return baseDia(b.getVendedorId());
     }
 
+    // ------------------------------------------------------------------ entregas al dueño
+
+    /** Lo que entrega el trabajador, separado por cómo le pagaron: efectivo, Nequi u otra transferencia. */
+    public record NuevaEntrega(@Min(0) @Max(10_000_000) long efectivo, @Min(0) @Max(10_000_000) long nequi,
+                               @Min(0) @Max(10_000_000) long transferencia) {
+    }
+
+    public record RespuestaEntrega(boolean recibida) {
+    }
+
+    /** Una entrega, tal cual la ven el trabajador y el dueño. */
+    public record EntregaDto(Long id, Long vendedorId, String nombre, long monto, long efectivo, long nequi, long transferencia,
+                             EntregaVendedor.Estado estado,
+                             Instant creadaEn, Instant respondidaEn) {
+    }
+
+    private EntregaDto entregaDto(EntregaVendedor e, String nombre) {
+        return new EntregaDto(e.getId(), e.getVendedorId(), nombre, e.getMonto(), e.getEfectivo(), e.getNequi(), e.getTransferencia(), e.getEstado(), e.getCreadaEn(), e.getRespondidaEn());
+    }
+
+    /** Las últimas entregas de un trabajador (la lista que ve él y la que ve el dueño). */
+    @Transactional(readOnly = true)
+    public List<EntregaDto> entregasDe(Long vendedorId) {
+        String nombre = vendedor(vendedorId).getNombre();
+        return entregas.findTop10ByVendedorIdOrderByCreadaEnDescIdDesc(vendedorId).stream().map(e -> entregaDto(e, nombre)).toList();
+    }
+
+    /** El trabajador dice cuánto le entregó al dueño. Queda pendiente hasta que el dueño confirme; le llega un aviso. */
+    @Transactional
+    public EntregaDto declararEntrega(Long vendedorId, long efectivo, long nequi, long transferencia) {
+        Vendedor v = vendedor(vendedorId);
+        long monto = efectivo + nequi + transferencia;
+        if (efectivo < 0 || nequi < 0 || transferencia < 0 || monto <= 0) throw new IllegalArgumentException("Escribe cuánto entregaste");
+        if (!entregas.findByVendedorIdAndEstado(vendedorId, EntregaVendedor.Estado.PENDIENTE).isEmpty()) {
+            throw new IllegalArgumentException("Ya tienes una entrega esperando que el dueño la confirme");
+        }
+        EntregaVendedor e = entregas.save(new EntregaVendedor(vendedorId, hoy(), efectivo, nequi, transferencia, clock.instant()));
+        eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "🤝 " + v.getNombre() + " dice que te entregó plata",
+                v.getNombre() + " dice que te entregó " + Pesos.formato(monto) + detalleEntrega(e) + ". Confírmalo en Ajustes → Equipo si es verdad."));
+        return entregaDto(e, v.getNombre());
+    }
+
+    private static String detalleEntrega(EntregaVendedor e) {
+        List<String> partes = new ArrayList<>();
+        if (e.getEfectivo() > 0) partes.add(Pesos.formato(e.getEfectivo()) + " en efectivo");
+        if (e.getNequi() > 0) partes.add(Pesos.formato(e.getNequi()) + " por Nequi");
+        if (e.getTransferencia() > 0) partes.add(Pesos.formato(e.getTransferencia()) + " por otra transferencia");
+        return partes.isEmpty() ? "" : " (" + String.join(", ", partes) + ")";
+    }
+
+    /** El dueño dice si es verdad que recibió esa plata. Solo se responde una vez. */
+    @Transactional
+    public EntregaDto responderEntrega(Long entregaId, boolean recibida) {
+        EntregaVendedor e = entregas.findById(entregaId).orElseThrow(() -> new NoEncontradoException("Entrega no encontrada: " + entregaId));
+        if (e.getEstado() != EntregaVendedor.Estado.PENDIENTE) throw new IllegalArgumentException("Esa entrega ya la respondiste");
+        e.responder(recibida, clock.instant());
+        return entregaDto(entregas.save(e), vendedor(e.getVendedorId()).getNombre());
+    }
+
     // ------------------------------------------------------------------ carga adicional
 
     /** Suma más granizados a lo que el trabajador ya sacó hoy. Lo ya vendido sigue contando: cada sabor conserva su hora de entrega. */
@@ -650,7 +713,10 @@ public class EquipoService {
                 terminos(v).aceptadaEn(), v.getFrecuenciaPago(), porPagarDe(v),
                 pagos.findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(v.getId()).stream()
                         .map(PagoVendedor::getEstado).filter(e -> e != PagoVendedor.Estado.ANULADO).findFirst().orElse(null),
-                baseDeHoy(v.getId()));
+                baseDeHoy(v.getId()),
+                entregas.findByVendedorIdAndEstado(v.getId(), EntregaVendedor.Estado.PENDIENTE).stream().mapToLong(EntregaVendedor::getMonto).sum(),
+                entregas.findTop10ByVendedorIdOrderByCreadaEnDescIdDesc(v.getId()).stream()
+                        .map(EntregaVendedor::getEstado).findFirst().orElse(null));
     }
 
     // ------------------------------------------------------------------ premios del día y términos

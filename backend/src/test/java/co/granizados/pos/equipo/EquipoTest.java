@@ -621,6 +621,44 @@ class EquipoTest extends PruebaIntegracion {
     }
 
     @Test
+    void elTrabajadorDiceQueEntregoYElDuenoConfirmaOLoNiega() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        var ana = equipo.crear(new NuevoVendedor("Ana", "2222", 10));
+        String token = entrar("1111");
+        String dueno = entrar("4321");
+
+        mvc.perform(con(token, post("/api/mi-turno/entregas")).content("{\"efectivo\":0,\"nequi\":0,\"transferencia\":0}")).andExpect(status().isBadRequest());
+        mvc.perform(con(token, post("/api/mi-turno/entregas")).content("{\"efectivo\":18000,\"nequi\":6000,\"transferencia\":4000}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("PENDIENTE")).andExpect(jsonPath("$.monto").value(28000))
+                .andExpect(jsonPath("$.nequi").value(6000)).andExpect(jsonPath("$.transferencia").value(4000));
+        // Mientras una espera respuesta no puede mandar otra
+        mvc.perform(con(token, post("/api/mi-turno/entregas")).content("{\"efectivo\":5000}")).andExpect(status().isBadRequest());
+
+        // El dueño la ve en la lista y en el listado del equipo
+        mvc.perform(con(dueno, get("/api/equipo"))).andExpect(jsonPath("$[?(@.id==" + juan.id() + ")].entregaPendiente").value(28000));
+        String lista = mvc.perform(con(dueno, get("/api/equipo/" + juan.id() + "/entregas"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].monto").value(28000)).andReturn().getResponse().getContentAsString();
+        String id = lista.replaceAll(".*\"id\":(\\d+).*", "$1");
+
+        // El trabajador no responde por el dueño ni ve las de otro
+        mvc.perform(con(token, post("/api/equipo/entregas/" + id + "/responder")).content("{\"recibida\":true}")).andExpect(status().isForbidden());
+        mvc.perform(con(token, get("/api/equipo/" + ana.id() + "/entregas"))).andExpect(status().isForbidden());
+
+        mvc.perform(con(dueno, post("/api/equipo/entregas/" + id + "/responder")).content("{\"recibida\":true}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("RECIBIDA"));
+        mvc.perform(con(dueno, post("/api/equipo/entregas/" + id + "/responder")).content("{\"recibida\":false}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(con(token, get("/api/mi-turno/entregas"))).andExpect(jsonPath("$[0].estado").value("RECIBIDA"));
+
+        // Otra entrega que el dueño niega
+        mvc.perform(con(token, post("/api/mi-turno/entregas")).content("{\"efectivo\":0,\"nequi\":1000,\"transferencia\":0}")).andExpect(status().isOk());
+        String segunda = mvc.perform(con(dueno, get("/api/equipo/" + juan.id() + "/entregas"))).andReturn().getResponse().getContentAsString();
+        String id2 = segunda.replaceAll("^\\[\\{\"id\":(\\d+).*", "$1");
+        mvc.perform(con(dueno, post("/api/equipo/entregas/" + id2 + "/responder")).content("{\"recibida\":false}"))
+                .andExpect(jsonPath("$.estado").value("NO_RECIBIDA"));
+    }
+
+    @Test
     void laBaseParaVueltosSeDevuelveAlCerrarElDiaYSePuedeDeshacer() throws Exception {
         var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
         String token = entrar("1111");

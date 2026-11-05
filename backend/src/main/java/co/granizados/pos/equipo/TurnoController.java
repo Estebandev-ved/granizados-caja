@@ -61,6 +61,18 @@ public class TurnoController {
         return servicio.baseDia(vendedor());
     }
 
+    /** Sus entregas al dueño y si ya se las confirmaron. */
+    @GetMapping("/entregas")
+    public java.util.List<EquipoService.EntregaDto> entregas() {
+        return servicio.entregasDe(vendedor());
+    }
+
+    /** "Ya le entregué $X al dueño": queda pendiente hasta que el dueño confirme. */
+    @PostMapping("/entregas")
+    public EquipoService.EntregaDto entregar(@Valid @RequestBody EquipoService.NuevaEntrega cuerpo) {
+        return servicio.declararEntrega(vendedor(), cuerpo.efectivo(), cuerpo.nequi(), cuerpo.transferencia());
+    }
+
     @PostMapping("/pagos/{id}/responder")
     public EquipoService.PagoDto responder(@PathVariable Long id, @RequestBody EquipoService.RespuestaPago cuerpo) {
         return servicio.responderPago(vendedor(), id, cuerpo.recibido(), cuerpo.firma());

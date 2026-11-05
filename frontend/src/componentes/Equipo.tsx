@@ -10,6 +10,7 @@ import { ETIQUETA_PAGO, PagarTrabajador, fechaHora } from './PagoTrabajador'
 import { NOMBRE_PAGO } from '../pagos'
 import { CampoNumero } from './CampoNumero'
 import { BaseVueltosPanel } from './BaseVueltosPanel'
+import { EntregasDelTrabajador } from './EntregaAlDueno'
 import { Icono } from './Icono'
 import { Sheet } from './Sheet'
 
@@ -72,6 +73,7 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
                   {!t.activo && <span className="eq-tag">Desactivado</span>}
                   {t.ultimoPago === 'DISPUTADO' && <span className="eq-tag mal">Dice que no le pagaron</span>}
                   {t.ultimoPago === 'PENDIENTE' && <span className="eq-tag aviso-tag">Pago por confirmar</span>}
+                  {(t.entregaPendiente ?? 0) > 0 && <span className="eq-tag aviso-tag">Dice que te entregó {pesos(t.entregaPendiente ?? 0)}</span>}
                   {t.ultimoPago === 'CONFIRMADO' && <span className="eq-tag ok">Pago confirmado ✓</span>}
                   {(t.porPagar ?? 0) > 0 && <span className="eq-tag pagar">Por pagar {pesos(t.porPagar ?? 0)}</span>}
                   {!t.terminosAceptadosEn && t.activo && <span className="eq-tag">Sin aceptar términos</span>}
@@ -302,6 +304,8 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
           ))}
         </div>
       )}
+
+      <EntregasDelTrabajador id={t.id} version={String(t.entregaPendiente ?? 0) + (t.ultimaEntrega ?? '')} onCambio={onCambioBase} />
 
       <BaseVueltosPanel t={t} onCambio={onCambioBase} />
 

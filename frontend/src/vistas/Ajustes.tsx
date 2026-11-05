@@ -8,6 +8,7 @@ import { PromoAjustes } from '../componentes/PromoAjustes'
 import { IconoFaceId, type ModoFaceId } from '../componentes/IconoFaceId'
 import { Sheet } from '../componentes/Sheet'
 import { activarFaceId, esCancelacion, esErrorDeDominio, faceIdActivado, olvidarFaceId, soportaFaceId } from '../faceid'
+import { BotonRecargar } from '../componentes/BotonRecargar'
 import { aEntero, pesos } from '../formato'
 import { useInstalarPWA } from '../instalarPwa'
 import { leerPromo, nombrePromo, promoVigente, textoDias } from '../promo'
@@ -185,6 +186,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
           <Entrada icono="calendario" titulo="Datos y celular" detalle="Instalar e importar ventas" onClick={() => abrir('datos')} />
         </div>
         <div className="acciones">
+          <BotonRecargar />
           <button className="big peligro" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
         </div>
       </>
