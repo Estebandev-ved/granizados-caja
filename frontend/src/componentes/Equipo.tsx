@@ -26,7 +26,11 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
   useEffect(() => {
     let vivo = true
     api.equipo().then(l => { if (vivo) setLista(l) }).catch(() => { if (vivo) setLista(prev => prev ?? []) })
-    return () => { vivo = false }
+    // Se vuelve a pedir solo, para ver cuando el trabajador confirma o dice que no le llegó el pago
+    const reloj = window.setInterval(() => {
+      api.equipo().then(l => { if (vivo) setLista(l) }).catch(() => { /* se reintenta en la próxima vuelta */ })
+    }, 10_000)
+    return () => { vivo = false; window.clearInterval(reloj) }
   }, [])
 
   const trabajador = panel && panel.tipo !== 'nuevo' ? lista?.find(t => t.id === panel.id) ?? null : null
@@ -68,6 +72,7 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
                   {!t.activo && <span className="eq-tag">Desactivado</span>}
                   {t.ultimoPago === 'DISPUTADO' && <span className="eq-tag mal">Dice que no le pagaron</span>}
                   {t.ultimoPago === 'PENDIENTE' && <span className="eq-tag aviso-tag">Pago por confirmar</span>}
+                  {t.ultimoPago === 'CONFIRMADO' && <span className="eq-tag ok">Pago confirmado ✓</span>}
                   {(t.porPagar ?? 0) > 0 && <span className="eq-tag pagar">Por pagar {pesos(t.porPagar ?? 0)}</span>}
                   {!t.terminosAceptadosEn && t.activo && <span className="eq-tag">Sin aceptar términos</span>}
                 </div>
