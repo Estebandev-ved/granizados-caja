@@ -116,6 +116,41 @@ export interface Trabajador {
   /** Cuándo aceptó la versión actual de los términos (null = todavía no). */
   terminosAceptadosEn?: string | null
   frecuenciaPago?: FrecuenciaPago | null
+  /** Comisiones y premios que se le deben desde su último pago. */
+  porPagar?: number
+  /** Estado de su último pago (null = nunca se le ha pagado). */
+  ultimoPago?: EstadoPagoEquipo | null
+}
+
+export type MetodoPagoEquipo = 'EFECTIVO' | 'NEQUI'
+export type EstadoPagoEquipo = 'PENDIENTE' | 'CONFIRMADO' | 'DISPUTADO' | 'ANULADO'
+
+/** Un pago de comisiones a un trabajador. En efectivo trae el paz y salvo (`texto`) que el trabajador firma con su nombre. */
+export interface PagoEquipo {
+  id: number
+  vendedorId: number
+  nombre: string
+  metodo: MetodoPagoEquipo
+  estado: EstadoPagoEquipo
+  monto: number
+  comision: number
+  bonos: number
+  unidades: number
+  totalVendido: number
+  efectivo: number
+  desde: string | null
+  hasta: string
+  creadoEn: string
+  respondidoEn: string | null
+  texto: string | null
+  firma: string | null
+}
+
+/** Lo que se le debe a un trabajador desde su último pago, más sus pagos recientes. */
+export interface CuentaEquipo {
+  desde: string | null
+  pendiente: Liquidacion
+  pagos: PagoEquipo[]
 }
 
 /** Lo que ve el trabajador al cerrar su día. `entregar` negativo = el dueño le debe. */

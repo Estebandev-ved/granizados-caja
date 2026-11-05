@@ -538,4 +538,102 @@ class EquipoTest extends PruebaIntegracion {
         var l = equipo.liquidar(java.time.LocalDate.of(2026, 9, 25), java.time.LocalDate.of(2026, 9, 25)).getFirst();
         assertThat(l.bonos()).isEqualTo(6000);
     }
+
+    @Test
+    void elDuenoPagaLasComisionesLasCuentasSeReinicianYElTrabajadorFirmaElPazYSalvo() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        String duenoToken = entrar("4321");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("g-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        // Sin vender no hay nada que pagar; vendiendo, se le deben 10 % de $12.000
+        assertThat(equipo.cuenta(juan.id()).pendiente().comision()).isEqualTo(1200);
+        assertThat(equipo.listar().getFirst().porPagar()).isEqualTo(1200);
+        mvc.perform(con(duenoToken, post("/api/equipo/" + juan.id() + "/pagos")).content("{\"metodo\":\"EFECTIVO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.monto").value(1200))
+                .andExpect(jsonPath("$.estado").value("PENDIENTE"))
+                .andExpect(jsonPath("$.texto").value(org.hamcrest.Matchers.containsString("PAZ Y SALVO")));
+
+        // Las cuentas arrancan de cero y no se puede pagar dos veces lo mismo
+        assertThat(equipo.cuenta(juan.id()).pendiente().comision()).isZero();
+        mvc.perform(con(duenoToken, post("/api/equipo/" + juan.id() + "/pagos")).content("{\"metodo\":\"EFECTIVO\"}"))
+                .andExpect(status().isBadRequest());
+
+        // El trabajador ve el pago pendiente; en efectivo no puede confirmar sin firmar
+        String cuerpo = mvc.perform(con(token, get("/api/mi-turno/pagos"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].estado").value("PENDIENTE")).andReturn().getResponse().getContentAsString();
+        String id = cuerpo.replaceAll(".*\"id\":(\\d+).*", "$1");
+        mvc.perform(con(token, post("/api/mi-turno/pagos/" + id + "/responder")).content("{\"recibido\":true}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(con(token, post("/api/mi-turno/pagos/" + id + "/responder")).content("{\"recibido\":true,\"firma\":\"Juan Pérez\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("CONFIRMADO"))
+                .andExpect(jsonPath("$.firma").value("Juan Pérez"));
+        // Ya respondido: no se responde otra vez, y confirmado no se anula
+        mvc.perform(con(token, post("/api/mi-turno/pagos/" + id + "/responder")).content("{\"recibido\":false}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(con(duenoToken, post("/api/equipo/pagos/" + id + "/anular"))).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void siElTrabajadorDiceQueNoLePagaronElDuenoPuedeAnularYLasCuentasVuelven() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        String duenoToken = entrar("4321");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("g-1", "NEQUI", 2, ""))).andExpect(status().isOk());
+        var pago = equipo.pagar(juan.id(), PagoVendedor.Metodo.NEQUI, null);
+        assertThat(pago.texto()).isNull(); // por Nequi no hay paz y salvo
+
+        mvc.perform(con(token, post("/api/mi-turno/pagos/" + pago.id() + "/responder")).content("{\"recibido\":false}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("DISPUTADO"));
+        assertThat(equipo.listar().getFirst().ultimoPago()).isEqualTo(PagoVendedor.Estado.DISPUTADO);
+
+        mvc.perform(con(duenoToken, post("/api/equipo/pagos/" + pago.id() + "/anular"))).andExpect(status().isOk());
+        assertThat(equipo.cuenta(juan.id()).pendiente().comision()).isEqualTo(1200);
+    }
+
+    @Test
+    void elTrabajadorNoPagaNiVePagosAjenos() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        equipo.crear(new NuevoVendedor("Luis", "2222", 10));
+        String token = entrar("1111");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("g-1", "NEQUI", 2, ""))).andExpect(status().isOk());
+        var pago = equipo.pagar(juan.id(), PagoVendedor.Metodo.NEQUI, null);
+
+        mvc.perform(con(token, post("/api/equipo/" + juan.id() + "/pagos")).content("{\"metodo\":\"NEQUI\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(con(entrar("2222"), post("/api/mi-turno/pagos/" + pago.id() + "/responder")).content("{\"recibido\":true}"))
+                .andExpect(status().isNotFound());
+        mvc.perform(con(entrar("2222"), get("/api/mi-turno/pagos"))).andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void elDuenoPuedeEscribirCuantoLeDaYElPazYSalvoDiceEseMonto() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        mvc.perform(con(entrar("1111"), post("/api/ventas")).content(venta("m-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        var pago = equipo.pagar(juan.id(), PagoVendedor.Metodo.EFECTIVO, 5000L);
+
+        assertThat(pago.monto()).isEqualTo(5000);
+        assertThat(pago.comision()).isEqualTo(1200);
+        assertThat(pago.texto()).contains("5.000");
+    }
+
+    @Test
+    void agregarCargaSumaAlaQueYaTieneYConservaLoVendido() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 0));
+        equipo.cargar(juan.id(), new Carga(List.of(new ItemCarga(idDe("Smirnoff"), 5))));
+        String token = entrar("1111");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("a-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        mvc.perform(con(entrar("4321"), post("/api/equipo/" + juan.id() + "/carga/agregar"))
+                        .content("{\"items\":[{\"productoId\":" + idDe("Smirnoff") + ",\"llevo\":4}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].llevo").value(9))
+                .andExpect(jsonPath("$[0].vendi").value(2))
+                .andExpect(jsonPath("$[0].queda").value(7));
+        mvc.perform(con(entrar("4321"), post("/api/equipo/" + juan.id() + "/carga/agregar")).content("{\"items\":[]}"))
+                .andExpect(status().isBadRequest());
+    }
 }

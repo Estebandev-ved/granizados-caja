@@ -23,7 +23,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -70,7 +72,7 @@ public class EquipoService {
     /** `terminosAceptadosEn` es null mientras no haya aceptado la versión actual de los términos. */
     public record VendedorDto(Long id, String nombre, int comisionPct, boolean activo, int unidadesHoy, long totalHoy,
                               List<FilaCarga> carga, Instant terminosAceptadosEn,
-                              FrecuenciaPago frecuenciaPago) {
+                              FrecuenciaPago frecuenciaPago, long porPagar, PagoVendedor.Estado ultimoPago) {
     }
 
     /**
@@ -121,12 +123,15 @@ public class EquipoService {
     private final Clock clock;
     private final ApplicationEventPublisher eventos;
     private final AceptacionTerminosRepository aceptaciones;
+    private final PagoVendedorRepository pagos;
     private final ZoneId zona;
     private final BCryptPasswordEncoder hash = new BCryptPasswordEncoder();
 
     public EquipoService(VendedorRepository vendedores, CargaVendedorRepository cargas, ProductoRepository productos,
                          VentaRepository ventas, AjustesService ajustes, AppProperties props, Clock clock,
-                         ApplicationEventPublisher eventos, AceptacionTerminosRepository aceptaciones) {
+                         ApplicationEventPublisher eventos, AceptacionTerminosRepository aceptaciones,
+                         PagoVendedorRepository pagos) {
+        this.pagos = pagos;
         this.vendedores = vendedores;
         this.cargas = cargas;
         this.productos = productos;
@@ -358,6 +363,16 @@ public class EquipoService {
         if (hasta.isBefore(desde)) throw new IllegalArgumentException("El rango está al revés");
         List<Venta> delRango = ventas.entre(desde.atStartOfDay(zona).toInstant(), hasta.plusDays(1).atStartOfDay(zona).toInstant());
         List<Liquidacion> filas = new ArrayList<>();
+        for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
+            Liquidacion l = liquidacionDe(v, delRango);
+            if (!v.isActivo() && l.unidades() == 0) continue;
+            filas.add(l);
+        }
+        return filas;
+    }
+
+    /** Las cuentas de un trabajador con las ventas dadas (ya filtradas por el rango; acá se escogen las suyas). */
+    private Liquidacion liquidacionDe(Vendedor v, List<Venta> delRango) {
         Map<String, String> cfg = ajustes.mapa();
         int meta = AjustesService.entero(cfg, "META_EQUIPO", 0);
         long premio = AjustesService.entero(cfg, "PREMIO_EQUIPO", 0);
@@ -365,41 +380,194 @@ public class EquipoService {
         List<Escalones.Escalon> rebajados = escalonesDelDia(cfg, true);
         LocalDate hoy = hoy();
         boolean promoHoy = PromoCalendario.vigente(cfg.get("PROMO"), hoy);
-        for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
-            long total = 0, efectivo = 0, nequi = 0, comision = 0;
-            int unidades = 0;
+        long total = 0, efectivo = 0, nequi = 0, comision = 0;
+        int unidades = 0;
+        for (Venta x : delRango) {
+            if (!v.getId().equals(x.getVendedorId())) continue;
+            unidades += x.getCantidad();
+            total += x.getTotal();
+            efectivo += x.efectivo();
+            nequi += x.nequi();
+            comision += comisionDe(x, v);
+        }
+        // Un premio por cada día del rango en que cumplió la meta, más el del escalón que alcanzó cada día
+        int diasMeta = 0;
+        long premiosEscalon = 0;
+        if (meta > 0 || !escalones.isEmpty()) {
+            Map<LocalDate, Integer> porDia = new HashMap<>();
+            Set<LocalDate> diasPromo = new HashSet<>();
             for (Venta x : delRango) {
                 if (!v.getId().equals(x.getVendedorId())) continue;
-                unidades += x.getCantidad();
-                total += x.getTotal();
-                efectivo += x.efectivo();
-                nequi += x.nequi();
-                comision += comisionDe(x, v);
+                LocalDate d = x.getCreadaEn().atZone(zona).toLocalDate();
+                porDia.merge(d, x.getCantidad(), Integer::sum);
+                if (x.isEnPromo()) diasPromo.add(d);
             }
-            if (!v.isActivo() && unidades == 0) continue;
-            // Un premio por cada día del rango en que cumplió la meta, más el del escalón que alcanzó cada día
-            int diasMeta = 0;
-            long premiosEscalon = 0;
-            if (meta > 0 || !escalones.isEmpty()) {
-                Map<LocalDate, Integer> porDia = new HashMap<>();
-                Set<LocalDate> diasPromo = new HashSet<>();
-                for (Venta x : delRango) {
-                    if (!v.getId().equals(x.getVendedorId())) continue;
-                    LocalDate d = x.getCreadaEn().atZone(zona).toLocalDate();
-                    porDia.merge(d, x.getCantidad(), Integer::sum);
-                    if (x.isEnPromo()) diasPromo.add(d);
-                }
-                for (Map.Entry<LocalDate, Integer> e : porDia.entrySet()) {
-                    if (meta > 0 && e.getValue() >= meta) diasMeta++;
-                    boolean promo = diasPromo.contains(e.getKey()) || (promoHoy && e.getKey().equals(hoy));
-                    premiosEscalon += Escalones.premioDe(promo ? rebajados : escalones, e.getValue());
-                }
+            for (Map.Entry<LocalDate, Integer> e : porDia.entrySet()) {
+                if (meta > 0 && e.getValue() >= meta) diasMeta++;
+                boolean promo = diasPromo.contains(e.getKey()) || (promoHoy && e.getKey().equals(hoy));
+                premiosEscalon += Escalones.premioDe(promo ? rebajados : escalones, e.getValue());
             }
-            long bonos = diasMeta * premio + premiosEscalon;
-            filas.add(new Liquidacion(v.getId(), v.getNombre(), v.getComisionPct(), unidades, total, efectivo, nequi,
-                    comision, diasMeta, bonos, efectivo - comision - bonos));
         }
-        return filas;
+        long bonos = diasMeta * premio + premiosEscalon;
+        return new Liquidacion(v.getId(), v.getNombre(), v.getComisionPct(), unidades, total, efectivo, nequi,
+                comision, diasMeta, bonos, efectivo - comision - bonos);
+    }
+
+    // ------------------------------------------------------------------ pagos al trabajador
+
+    private static final Instant SIEMPRE = Instant.parse("2000-01-01T00:00:00Z");
+    private static final DateTimeFormatter FECHA_LARGA =
+            DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy, h:mm a", Locale.forLanguageTag("es-CO"));
+
+    private Vendedor vendedor(Long id) {
+        return vendedores.findById(id).orElseThrow(() -> new NoEncontradoException("Trabajador no encontrado: " + id));
+    }
+
+    /** Desde dónde cuentan las cuentas de un trabajador: el corte de su último pago que sigue en pie. */
+    private Instant corteDe(Long vendedorId) {
+        return pagos.findFirstByVendedorIdAndEstadoNotOrderByHastaDesc(vendedorId, PagoVendedor.Estado.ANULADO)
+                .map(PagoVendedor::getHasta).orElse(null);
+    }
+
+    private Liquidacion pendienteDe(Vendedor v, Instant ahora) {
+        Instant corte = corteDe(v.getId());
+        return liquidacionDe(v, ventas.entre(corte != null ? corte.plusNanos(1) : SIEMPRE, ahora.plusSeconds(1)));
+    }
+
+    /** Lo que se le debe pagar hoy a ese trabajador por comisiones y premios. */
+    private long porPagarDe(Vendedor v) {
+        Liquidacion l = pendienteDe(v, clock.instant());
+        return l.comision() + l.bonos();
+    }
+
+    /** Un pago, tal cual lo ven el dueño y el trabajador. */
+    public record PagoDto(Long id, Long vendedorId, String nombre, PagoVendedor.Metodo metodo, PagoVendedor.Estado estado,
+                          long monto, long comision, long bonos, int unidades, long totalVendido, long efectivo,
+                          Instant desde, Instant hasta, Instant creadoEn, Instant respondidoEn, String texto, String firma) {
+    }
+
+    /** Lo que se le debe a un trabajador desde su último pago, y sus pagos más recientes. */
+    public record Cuenta(Instant desde, Liquidacion pendiente, List<PagoDto> pagos) {
+    }
+
+    public record NuevoPago(@NotNull PagoVendedor.Metodo metodo, @Min(1) Long monto) {
+    }
+
+    public record RespuestaPago(boolean recibido, @Size(max = 80) String firma) {
+    }
+
+    private PagoDto pagoDto(PagoVendedor p, String nombre) {
+        return new PagoDto(p.getId(), p.getVendedorId(), nombre, p.getMetodo(), p.getEstado(), p.getMonto(), p.getComision(),
+                p.getBonos(), p.getUnidades(), p.getTotalVendido(), p.getEfectivo(), p.getDesde(), p.getHasta(),
+                p.getCreadoEn(), p.getRespondidoEn(), p.getTexto(), p.getFirma());
+    }
+
+    @Transactional(readOnly = true)
+    public Cuenta cuenta(Long vendedorId) {
+        Vendedor v = vendedor(vendedorId);
+        return new Cuenta(corteDe(vendedorId), pendienteDe(v, clock.instant()),
+                pagos.findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(vendedorId).stream().map(p -> pagoDto(p, v.getNombre())).toList());
+    }
+
+    /**
+     * El dueño dice "ya le pagué": se guarda el monto de comisiones y premios y las cuentas del trabajador vuelven a
+     * empezar desde este momento. El trabajador queda con una pregunta pendiente: ¿te pagaron?
+     */
+    @Transactional
+    public PagoDto pagar(Long vendedorId, PagoVendedor.Metodo metodo, Long montoPagado) {
+        Vendedor v = vendedor(vendedorId);
+        Instant ahora = clock.instant();
+        Instant corte = corteDe(vendedorId);
+        Liquidacion l = liquidacionDe(v, ventas.entre(corte != null ? corte.plusNanos(1) : SIEMPRE, ahora.plusSeconds(1)));
+        long debido = l.comision() + l.bonos();
+        long monto = montoPagado != null ? montoPagado : debido;
+        if (monto <= 0) throw new IllegalArgumentException("No hay comisiones por pagarle");
+        String texto = metodo == PagoVendedor.Metodo.EFECTIVO ? pazYSalvo(v, l, monto, corte, ahora) : null;
+        PagoVendedor p = pagos.save(new PagoVendedor(vendedorId, metodo, monto, l.comision(), l.bonos(), l.unidades(), l.total(),
+                l.efectivo(), corte, ahora, ahora, texto));
+        return pagoDto(p, v.getNombre());
+    }
+
+    private String pazYSalvo(Vendedor v, Liquidacion l, long monto, Instant desde, Instant hasta) {
+        String periodo = desde == null ? "hasta el " + FECHA_LARGA.format(hasta.atZone(zona))
+                : "entre el " + FECHA_LARGA.format(desde.atZone(zona)) + " y el " + FECHA_LARGA.format(hasta.atZone(zona));
+        return "PAZ Y SALVO\n"
+                + "Yo, " + v.getNombre() + ", declaro que recibí en efectivo del negocio la suma de " + Pesos.formato(monto)
+                + " por concepto de comisiones" + (l.bonos() > 0 ? " y premios" : "") + " de " + l.unidades()
+                + " granizados vendidos " + periodo + ".\n"
+                + "Con este pago quedo a paz y salvo con el negocio por esos conceptos y por ese período: no se me debe "
+                + "nada más por ese trabajo.\n"
+                + "Firmo escribiendo mi nombre en la aplicación, y acepto que esta firma y la hora en que la hice quedan guardadas como constancia.";
+    }
+
+    @Transactional(readOnly = true)
+    public List<PagoDto> misPagos(Long vendedorId) {
+        Vendedor v = vendedor(vendedorId);
+        return pagos.findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(vendedorId).stream()
+                .filter(p -> p.getEstado() != PagoVendedor.Estado.ANULADO).map(p -> pagoDto(p, v.getNombre())).toList();
+    }
+
+    /** El trabajador responde si le pagaron. En efectivo, confirmar exige firmar el paz y salvo con su nombre. */
+    @Transactional
+    public PagoDto responderPago(Long vendedorId, Long pagoId, boolean recibido, String firma) {
+        Vendedor v = vendedor(vendedorId);
+        PagoVendedor p = pagos.findById(pagoId).filter(x -> x.getVendedorId().equals(vendedorId))
+                .orElseThrow(() -> new NoEncontradoException("Pago no encontrado: " + pagoId));
+        if (p.getEstado() != PagoVendedor.Estado.PENDIENTE) throw new IllegalArgumentException("Ese pago ya lo respondiste");
+        String nombreFirma = firma == null ? "" : firma.trim();
+        if (recibido && p.getMetodo() == PagoVendedor.Metodo.EFECTIVO && nombreFirma.length() < 3) {
+            throw new IllegalArgumentException("Para firmar el paz y salvo escribe tu nombre");
+        }
+        p.responder(recibido ? PagoVendedor.Estado.CONFIRMADO : PagoVendedor.Estado.DISPUTADO,
+                recibido && p.getMetodo() == PagoVendedor.Metodo.EFECTIVO ? nombreFirma : null, clock.instant());
+        pagos.save(p);
+        eventos.publishEvent(recibido
+                ? new AvisoEquipo(TenantContext.actual(), "✅ " + v.getNombre() + " confirmó su pago",
+                        v.getNombre() + " dice que recibió " + Pesos.formato(p.getMonto()) + " (" + (p.getMetodo() == PagoVendedor.Metodo.EFECTIVO ? "efectivo, firmó el paz y salvo" : "Nequi") + ").")
+                : new AvisoEquipo(TenantContext.actual(), "⚠️ " + v.getNombre() + " dice que NO le pagaron",
+                        v.getNombre() + " respondió que no recibió los " + Pesos.formato(p.getMonto()) + ". Revisa en Equipo."));
+        return pagoDto(p, v.getNombre());
+    }
+
+    /** El dueño se equivocó o el trabajador dice que no le llegó: se anula y las cuentas vuelven a contar desde el pago anterior. */
+    @Transactional
+    public PagoDto anularPago(Long pagoId) {
+        PagoVendedor p = pagos.findById(pagoId).orElseThrow(() -> new NoEncontradoException("Pago no encontrado: " + pagoId));
+        if (p.getEstado() == PagoVendedor.Estado.CONFIRMADO || p.getEstado() == PagoVendedor.Estado.ANULADO) {
+            throw new IllegalArgumentException("Ese pago ya está confirmado, no se puede anular");
+        }
+        p.anular();
+        return pagoDto(pagos.save(p), vendedor(p.getVendedorId()).getNombre());
+    }
+
+    // ------------------------------------------------------------------ carga adicional
+
+    /** Suma más granizados a lo que el trabajador ya sacó hoy. Lo ya vendido sigue contando: cada sabor conserva su hora de entrega. */
+    @Transactional
+    public List<FilaCarga> agregarCarga(Long vendedorId, Carga carga) {
+        Vendedor v = vendedor(vendedorId);
+        LocalDate dia = hoy();
+        Instant ahora = clock.instant();
+        Map<Long, CargaVendedor> actuales = new HashMap<>();
+        for (CargaVendedor c : cargas.findByVendedorIdAndDia(v.getId(), dia)) actuales.put(c.getProductoId(), c);
+        Map<Long, Integer> suma = new LinkedHashMap<>();
+        for (ItemCarga i : carga.items()) {
+            if (i.llevo() > 0) suma.merge(i.productoId(), i.llevo(), Integer::sum);
+        }
+        if (suma.isEmpty()) throw new IllegalArgumentException("Escoge cuántos le agregas");
+        for (Long productoId : suma.keySet()) {
+            if (!productos.existsById(productoId)) throw new NoEncontradoException("Producto no encontrado: " + productoId);
+        }
+        suma.forEach((productoId, extra) -> {
+            CargaVendedor c = actuales.get(productoId);
+            if (c == null) cargas.save(new CargaVendedor(v.getId(), productoId, dia, extra, ahora));
+            else {
+                c.llevo(Math.min(999, c.getLlevo() + extra));
+                cargas.save(c);
+            }
+        });
+        cargas.flush();
+        return filasDe(v.getId(), dia, ventasDelDia(dia));
     }
 
     /** La meta del día de ese trabajador, o null si el dueño la tiene apagada. */
@@ -433,7 +601,9 @@ public class EquipoService {
     private VendedorDto dto(Vendedor v, List<Venta> mias, List<FilaCarga> carga) {
         return new VendedorDto(v.getId(), v.getNombre(), v.getComisionPct(), v.isActivo(),
                 mias.stream().mapToInt(Venta::getCantidad).sum(), mias.stream().mapToLong(Venta::getTotal).sum(), carga,
-                terminos(v).aceptadaEn(), v.getFrecuenciaPago());
+                terminos(v).aceptadaEn(), v.getFrecuenciaPago(), porPagarDe(v),
+                pagos.findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(v.getId()).stream()
+                        .map(PagoVendedor::getEstado).filter(e -> e != PagoVendedor.Estado.ANULADO).findFirst().orElse(null));
     }
 
     // ------------------------------------------------------------------ premios del día y términos

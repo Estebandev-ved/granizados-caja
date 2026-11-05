@@ -44,6 +44,29 @@ public class EquipoController {
         return servicio.cargar(id, carga);
     }
 
+    /** Suma granizados a lo que ya sacó hoy (el PUT de arriba lo reemplaza). */
+    @PostMapping("/{id}/carga/agregar")
+    public List<EquipoService.FilaCarga> agregarCarga(@PathVariable Long id, @Valid @RequestBody EquipoService.Carga carga) {
+        return servicio.agregarCarga(id, carga);
+    }
+
+    /** Lo que se le debe desde su último pago y sus pagos recientes. */
+    @GetMapping("/{id}/cuenta")
+    public EquipoService.Cuenta cuenta(@PathVariable Long id) {
+        return servicio.cuenta(id);
+    }
+
+    /** "Ya le pagué": guarda el pago y reinicia sus cuentas. */
+    @PostMapping("/{id}/pagos")
+    public EquipoService.PagoDto pagar(@PathVariable Long id, @Valid @RequestBody EquipoService.NuevoPago nuevo) {
+        return servicio.pagar(id, nuevo.metodo(), nuevo.monto());
+    }
+
+    @PostMapping("/pagos/{pagoId}/anular")
+    public EquipoService.PagoDto anular(@PathVariable Long pagoId) {
+        return servicio.anularPago(pagoId);
+    }
+
     /** Sin fechas, las cuentas de hoy. */
     @GetMapping("/liquidacion")
     public List<EquipoService.Liquidacion> liquidacion(@RequestParam(required = false) LocalDate desde,

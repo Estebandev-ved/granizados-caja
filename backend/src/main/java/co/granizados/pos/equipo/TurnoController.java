@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,6 +47,17 @@ public class TurnoController {
     @PostMapping("/terminos/aceptar")
     public EquipoService.Terminos aceptar(@Valid @RequestBody Aceptar cuerpo) {
         return servicio.aceptar(vendedor(), cuerpo.version());
+    }
+
+    /** Sus pagos recientes; el pendiente es el que tiene que responder ("¿te pagaron?"). */
+    @GetMapping("/pagos")
+    public java.util.List<EquipoService.PagoDto> pagos() {
+        return servicio.misPagos(vendedor());
+    }
+
+    @PostMapping("/pagos/{id}/responder")
+    public EquipoService.PagoDto responder(@PathVariable Long id, @RequestBody EquipoService.RespuestaPago cuerpo) {
+        return servicio.responderPago(vendedor(), id, cuerpo.recibido(), cuerpo.firma());
     }
 
     private static Long vendedor() {

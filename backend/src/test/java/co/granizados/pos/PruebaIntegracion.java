@@ -53,6 +53,7 @@ public abstract class PruebaIntegracion {
         jdbc.update("delete from pago_proveedor");
         jdbc.update("delete from passkey");
         jdbc.update("delete from aceptacion_terminos");
+        jdbc.update("delete from pago_vendedor");
         jdbc.update("delete from carga_vendedor");
         jdbc.update("delete from vendedor");
         jdbc.update("delete from producto where orden > 11 or negocio_id <> 1");

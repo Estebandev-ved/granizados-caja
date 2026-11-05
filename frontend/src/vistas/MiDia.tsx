@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { ConfirmarPago } from '../componentes/PagoTrabajador'
 import { api, sesion } from '../api'
 import { vendidasHoy } from '../carga'
 import { Icono } from '../componentes/Icono'
@@ -8,7 +9,7 @@ import { pesos } from '../formato'
 import { PagoPreferido } from '../componentes/PagoPreferido'
 import { NOMBRE_PAGO } from '../pagos'
 import { TerminosTrabajo } from '../componentes/TerminosTrabajo'
-import type { CierreTurno, Estado, FrecuenciaPago, Terminos, VentaReciente } from '../tipos'
+import type { CierreTurno, Estado, FrecuenciaPago, PagoEquipo, Terminos, VentaReciente } from '../tipos'
 
 /** El día de un trabajador: lo suyo y nada más (sin costos, ganancia ni lo de los demás). */
 export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
@@ -25,6 +26,26 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
   const [terminos, setTerminos] = useState<Terminos | null>(null)
   const [cambiandoPago, setCambiandoPago] = useState(false)
   const premios = estado.premios
+  const [pagos, setPagos] = useState<PagoEquipo[]>([])
+  const [confirmando, setConfirmando] = useState(false)
+  const pagoPendiente = pagos.find(p => p.estado === 'PENDIENTE') ?? null
+
+  useEffect(() => {
+    let vivo = true
+    api.misPagos().then(l => { if (vivo) setPagos(l) }).catch(() => { /* sin señal: se vuelve a pedir al abrir */ })
+    return () => { vivo = false }
+  }, [])
+
+  const responderPago = async (recibido: boolean, firma?: string) => {
+    if (!pagoPendiente) return
+    try {
+      const nuevo = await api.responderPago(pagoPendiente.id, recibido, firma)
+      setPagos(l => l.map(p => (p.id === nuevo.id ? nuevo : p)))
+      setConfirmando(false)
+    } catch (e) {
+      setErrorCierre(e instanceof Error ? e.message : 'No se pudo guardar tu respuesta. Revisa la señal.')
+    }
+  }
 
   const verTerminos = () => { api.terminos().then(setTerminos).catch(() => setErrorCierre('No se pudieron traer los términos, revisa la señal.')) }
 
@@ -64,6 +85,13 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
         </div>
         <Personaje nombre="sofia" libre />
       </div>
+
+      {pagoPendiente && (
+        <div className="pago-pendiente">
+          <span>El dueño dice que te pagó {pesos(pagoPendiente.monto)}. ¿Es cierto?</span>
+          <button onClick={() => setConfirmando(true)}>Responder</button>
+        </div>
+      )}
 
       {premios && (
         <div className="list ganado">
@@ -158,6 +186,10 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
 
       <Sheet abierto={cambiandoPago} onCerrar={() => setCambiandoPago(false)}>
         <PagoPreferido actual={pago} onElegir={async f => { await onElegirPago(f); setCambiandoPago(false) }} />
+      </Sheet>
+
+      <Sheet abierto={confirmando && !!pagoPendiente} onCerrar={() => setConfirmando(false)}>
+        {pagoPendiente && <ConfirmarPago pago={pagoPendiente} onResponder={responderPago} />}
       </Sheet>
 
       <Sheet abierto={!!terminos} onCerrar={() => setTerminos(null)}>

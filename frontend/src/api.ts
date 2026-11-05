@@ -1,6 +1,6 @@
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
 import type {
-  CategoriaGasto, CierreTurno, ClienteConocido, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
+  CategoriaGasto, CierreTurno, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento,
 } from './tipos'
@@ -163,6 +163,17 @@ export const api = {
     pedir<Trabajador>('PATCH', '/api/equipo/' + id, d),
   cargarTrabajador: (id: number, items: { productoId: number; llevo: number }[]) =>
     pedir<FilaCargaEquipo[]>('PUT', '/api/equipo/' + id + '/carga', { items }),
+  /** Suma granizados a lo que el trabajador ya sacó hoy (cargarTrabajador lo reemplaza). */
+  agregarCargaTrabajador: (id: number, items: { productoId: number; llevo: number }[]) =>
+    pedir<FilaCargaEquipo[]>('POST', '/api/equipo/' + id + '/carga/agregar', { items }),
+  cuentaTrabajador: (id: number) => pedir<CuentaEquipo>('GET', '/api/equipo/' + id + '/cuenta'),
+  pagarTrabajador: (id: number, metodo: MetodoPagoEquipo, monto: number) =>
+    pedir<PagoEquipo>('POST', '/api/equipo/' + id + '/pagos', { metodo, monto }),
+  anularPagoTrabajador: (pagoId: number) => pedir<PagoEquipo>('POST', '/api/equipo/pagos/' + pagoId + '/anular'),
+  /** El trabajador: sus pagos recientes y su respuesta a "¿te pagaron?". */
+  misPagos: () => pedir<PagoEquipo[]>('GET', '/api/mi-turno/pagos'),
+  responderPago: (id: number, recibido: boolean, firma?: string) =>
+    pedir<PagoEquipo>('POST', '/api/mi-turno/pagos/' + id + '/responder', { recibido, firma }),
   liquidacionEquipo: (desde: string, hasta: string) =>
     pedir<Liquidacion[]>('GET', '/api/equipo/liquidacion?desde=' + desde + '&hasta=' + hasta),
   /** El trabajador cierra su día: devuelve lo que entrega y lo que devuelve, y el dueño recibe el resumen. */
