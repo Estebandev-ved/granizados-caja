@@ -1,9 +1,51 @@
 import { diaBogota } from './estadoLocal'
-import type { CategoriaGasto } from './tipos'
+import type { CategoriaGasto, LugarPlata } from './tipos'
 
-export const CATEGORIA_TEXTO: Record<CategoriaGasto, string> = {
-  HIELO: 'Hielo', TRANSPORTE: 'Transporte', EMPAQUE: 'Empaque', OTRO: 'Otro',
+/** Las categorías de gasto que trae la app. Un negocio puede escribir además las suyas (se guardan con su nombre). */
+export const CATEGORIAS_GASTO: { valor: CategoriaGasto; texto: string }[] = [
+  { valor: 'HIELO', texto: 'Hielo' },
+  { valor: 'TRANSPORTE', texto: 'Transporte' },
+  { valor: 'EMPAQUE', texto: 'Empaque' },
+  { valor: 'INSUMOS', texto: 'Insumos' },
+  { valor: 'TRABAJADORES', texto: 'Trabajadores' },
+  { valor: 'ARRIENDO', texto: 'Arriendo' },
+  { valor: 'SERVICIOS', texto: 'Servicios' },
+  { valor: 'PUBLICIDAD', texto: 'Publicidad' },
+  { valor: 'OTRO', texto: 'Otro' },
+]
+
+export const CATEGORIA_TEXTO: Record<CategoriaGasto, string> =
+  Object.fromEntries(CATEGORIAS_GASTO.map(c => [c.valor, c.texto]))
+
+/** Largo máximo del nombre de una categoría propia (el mismo tope del servidor). */
+export const MAX_CATEGORIA = 20
+
+/**
+ * Las categorías para escoger al anotar un gasto: las de la app y, antes de «Otro», las propias que el negocio ya usó.
+ * Una propia que se llama igual que una de la app (sin importar mayúsculas) no se repite.
+ */
+export function categoriasParaElegir(usadas: readonly string[] | null | undefined): { valor: CategoriaGasto; texto: string }[] {
+  const conocidas = new Set(CATEGORIAS_GASTO.flatMap(c => [c.valor.toLowerCase(), c.texto.toLowerCase()]))
+  const propias: { valor: CategoriaGasto; texto: string }[] = []
+  for (const u of usadas ?? []) {
+    const limpia = u.trim()
+    if (!limpia || conocidas.has(limpia.toLowerCase())) continue
+    conocidas.add(limpia.toLowerCase())
+    propias.push({ valor: limpia, texto: limpia })
+  }
+  propias.sort((a, b) => a.texto.localeCompare(b.texto, 'es'))
+  return [...CATEGORIAS_GASTO.slice(0, -1), ...propias, CATEGORIAS_GASTO[CATEGORIAS_GASTO.length - 1]]
 }
+
+/** Lo que escribió el dueño como categoría nueva → lo que se guarda: si coincide con una de la app, esa. */
+export function categoriaEscrita(texto: string): CategoriaGasto {
+  const limpia = texto.trim().replace(/\s+/g, ' ').slice(0, MAX_CATEGORIA)
+  const igual = CATEGORIAS_GASTO.find(c => c.texto.toLowerCase() === limpia.toLowerCase() || c.valor.toLowerCase() === limpia.toLowerCase())
+  return igual ? igual.valor : limpia
+}
+
+/** De dónde salió la plata de un gasto, como se le dice al dueño. */
+export const LUGAR_GASTO: Record<LugarPlata, string> = { CAJA: 'De la caja', NEQUI: 'De Nequi', CASA: 'De la casa' }
 
 /** Los cortes de los reportes. Todos se calculan en días de Bogotá. */
 export type Periodo = 'hoy' | 'semana' | 'mes' | 'anio' | 'personalizado'

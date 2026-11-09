@@ -4,13 +4,14 @@ import { CampoNumero } from '../componentes/CampoNumero'
 import { Icono } from '../componentes/Icono'
 import { ResumenCarga } from '../componentes/ResumenCarga'
 import { MeDeben } from '../componentes/MeDeben'
+import { usePerfil } from '../perfil'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { hitoDeRacha } from '../ritmo'
 import { ConsejoNova } from '../componentes/ConsejoNova'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
-import { fechaCorta } from '../reportes'
+import { LUGAR_GASTO, MAX_CATEGORIA, categoriaEscrita, categoriasParaElegir, fechaCorta } from '../reportes'
 import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, Negocio, PedidoSugerido, RecomendacionCompra, SaldoPlata, VentaReciente } from '../tipos'
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
   onRecargar: () => Promise<void>
   onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => void
   onCancelar: (pedidoId: number) => Promise<boolean>
-  onGasto: (categoria: CategoriaGasto, concepto: string, monto: number) => void
+  onGasto: (categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata) => void
   onCerrarCaja: (contado: number, nota: string, casa?: number, nequi?: number) => void
   avisar: (m: string) => void
 }
@@ -30,14 +31,8 @@ type Panel =
   | { tipo: 'gasto'; categoria: CategoriaGasto; monto: string; concepto: string }
   | { tipo: 'cierre'; contado: string; casa: string; nequi: string; nota: string; cargando: boolean; guardado: ArqueoHoy | null; sinSenal: boolean; saldo: SaldoPlata | null }
 
-const CATEGORIAS: { valor: CategoriaGasto; texto: string }[] = [
-  { valor: 'HIELO', texto: 'Hielo' },
-  { valor: 'TRANSPORTE', texto: 'Transporte' },
-  { valor: 'EMPAQUE', texto: 'Empaque' },
-  { valor: 'OTRO', texto: 'Otro' },
-]
-
 export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGasto, onCerrarCaja, avisar }: Props) {
+  const perfil = usePerfil()
   const [panel, setPanel] = useState<Panel | null>(null)
   const [verTodas, setVerTodas] = useState(false)
   const [negocio, setNegocio] = useState<Negocio | null>(null)
@@ -185,7 +180,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
         </div>
       )}
 
-      <MeDeben avisar={avisar} versionVentas={estado.ultimas.length} />
+      {perfil.fiados && <MeDeben avisar={avisar} versionVentas={estado.ultimas.length} />}
 
       {estado.ultimas.length ? (
         <div className="list">
@@ -269,11 +264,11 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           />
         )}
         {panel?.tipo === 'gasto' && (
-          <PanelGasto onGuardar={(categoria, concepto, monto) => {
+          <PanelGasto usadas={estado.categoriasGasto} onGuardar={(categoria, concepto, monto, lugar) => {
             setPanel(null)
             vibrar()
-            onGasto(categoria, concepto, monto)
-            avisar('✓ Gasto de ' + pesos(monto) + ' anotado')
+            onGasto(categoria, concepto, monto, lugar)
+            avisar('✓ Gasto de ' + pesos(monto) + ' anotado · ' + LUGAR_GASTO[lugar].replace(/^D/, 'd'))
           }} />
         )}
         {panel?.tipo === 'cierre' && (
@@ -555,41 +550,79 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
   )
 }
 
-/** Gasto del día: monto con teclado numérico y categoría. Va a la cola, así que sirve sin señal. */
-function PanelGasto({ onGuardar }: { onGuardar: (categoria: CategoriaGasto, concepto: string, monto: number) => void }) {
+const LUGARES_GASTO: { valor: LugarPlata; texto: string }[] = [
+  { valor: 'CAJA', texto: 'De la caja (efectivo)' },
+  { valor: 'NEQUI', texto: 'De Nequi' },
+  { valor: 'CASA', texto: 'De la casa' },
+]
+
+/**
+ * Gasto del día: monto, categoría (las de la app, las propias que ya usó o una nueva) y de dónde salió la plata.
+ * Va a la cola, así que sirve sin señal.
+ */
+function PanelGasto({ usadas, onGuardar }: {
+  usadas?: readonly string[] | null
+  onGuardar: (categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata) => void
+}) {
   const [categoria, setCategoria] = useState<CategoriaGasto>('HIELO')
+  const [nueva, setNueva] = useState<string | null>(null) // null = no está escribiendo una categoría propia
+  const [lugar, setLugar] = useState<LugarPlata | null>(null) // se pregunta siempre: no hay respuesta por defecto
   const [monto, setMonto] = useState('')
   const [concepto, setConcepto] = useState('')
   const hecho = useRef(false) // un doble toque no puede meter dos gastos
 
   const n = Number(monto)
+  const elegida = nueva === null ? categoria : categoriaEscrita(nueva)
+  const falta = !n ? 'Escribe cuánto gastaste' : !elegida ? 'Escribe el nombre de la categoría' : !lugar ? 'Escoge de dónde salió la plata' : null
   const guardar = () => {
-    if (hecho.current || !n) return
+    if (hecho.current || falta || !lugar) return
     hecho.current = true
-    onGuardar(categoria, concepto.trim(), n)
+    onGuardar(elegida, concepto.trim(), n, lugar)
   }
 
   return (
     <form onSubmit={e => { e.preventDefault(); guardar() }}>
       <h2>Registrar gasto</h2>
-      <p>Lo que gastaste hoy y no es producto: hielo, transporte, empaque…</p>
-      <div className="chips">
-        {CATEGORIAS.map(c => (
-          <button type="button" key={c.valor} className={categoria === c.valor ? 'on' : ''}
-            onClick={() => setCategoria(c.valor)}>{c.texto}</button>
-        ))}
-      </div>
+      <p>Lo que gastaste y no es producto: hielo, transporte, arriendo, servicios…</p>
       <div className="campo">
         <label htmlFor="gasto-monto">Monto</label>
         <CampoNumero id="gasto-monto" miles autoFocus placeholder="0" value={monto} onCambio={setMonto} />
+      </div>
+      <div className="campo">
+        <label>¿En qué se fue?</label>
+        <div className="chips izq" role="radiogroup" aria-label="Categoría del gasto">
+          {categoriasParaElegir(usadas).map(c => (
+            <button type="button" role="radio" aria-checked={nueva === null && categoria === c.valor} key={c.valor}
+              className={nueva === null && categoria === c.valor ? 'on' : ''}
+              onClick={() => { setCategoria(c.valor); setNueva(null) }}>{c.texto}</button>
+          ))}
+          <button type="button" role="radio" aria-checked={nueva !== null} className={nueva !== null ? 'on' : ''}
+            onClick={() => setNueva(nueva ?? '')}>＋ Otra categoría</button>
+        </div>
+        {nueva !== null && (
+          <>
+            <input id="gasto-categoria" aria-label="Nombre de la categoría nueva" maxLength={MAX_CATEGORIA} autoFocus value={nueva}
+              onChange={e => setNueva(e.target.value)} placeholder="Ej: Gasolina, Mantenimiento" />
+            <small>Queda guardada: la próxima vez te aparece en la lista.</small>
+          </>
+        )}
+      </div>
+      <div className="campo">
+        <label>¿De dónde salió la plata?</label>
+        <div className="chips izq" role="radiogroup" aria-label="De dónde salió la plata">
+          {LUGARES_GASTO.map(l => (
+            <button type="button" role="radio" aria-checked={lugar === l.valor} key={l.valor}
+              className={lugar === l.valor ? 'on' : ''} onClick={() => setLugar(l.valor)}>{l.texto}</button>
+          ))}
+        </div>
       </div>
       <div className="campo">
         <label htmlFor="gasto-concepto">Para qué (opcional)</label>
         <input id="gasto-concepto" maxLength={120} value={concepto}
           onChange={e => setConcepto(e.target.value)} placeholder="Ej: bolsas de hielo" />
       </div>
-      <button className="big primario" type="submit" disabled={!n}>
-        {n ? 'Guardar gasto de ' + pesos(n) : 'Escribe cuánto gastaste'}
+      <button className="big primario" type="submit" disabled={!!falta}>
+        {falta ?? 'Guardar gasto de ' + pesos(n)}
       </button>
     </form>
   )

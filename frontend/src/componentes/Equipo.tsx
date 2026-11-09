@@ -3,16 +3,17 @@ import { api } from '../api'
 import type { Carga } from '../carga'
 import { diaBogota } from '../estadoLocal'
 import { pesos } from '../formato'
-import type { CuentaEquipo, Liquidacion, MetodoPagoEquipo, Producto, Trabajador } from '../tipos'
+import type { CuentaEquipo, Liquidacion, Producto, Trabajador } from '../tipos'
 import { AgregarCarga } from './AgregarCarga'
 import { CargaDelDia } from './CargaDelDia'
-import { ETIQUETA_PAGO, PagarTrabajador, fechaHora } from './PagoTrabajador'
+import { ETIQUETA_PAGO, PagarTrabajador, comoSePago, fechaHora } from './PagoTrabajador'
 import { NOMBRE_PAGO } from '../pagos'
 import { CampoNumero } from './CampoNumero'
 import { BaseVueltosPanel } from './BaseVueltosPanel'
 import { EntregasDelTrabajador } from './EntregaAlDueno'
 import { Icono } from './Icono'
 import { Sheet } from './Sheet'
+import { Unidades } from './Unidades'
 
 type Panel = { tipo: 'nuevo' } | { tipo: 'ver'; id: number } | { tipo: 'carga'; id: number } | { tipo: 'agregar'; id: number } | { tipo: 'pagar'; id: number }
 
@@ -202,7 +203,8 @@ function PagarPanel({ t, guardar, volver }: {
   if (cuenta === 'error') return <p className="aviso">No se pudieron traer las cuentas, revisa la señal.</p>
   if (!cuenta) return <p className="mut">Calculando…</p>
   const p = cuenta.pendiente
-  if (p.comision + p.bonos <= 0) {
+  const saldoAnterior = cuenta.saldoAnterior ?? 0
+  if (p.comision + p.bonos + saldoAnterior <= 0) {
     return (
       <>
         <h2>Nada por pagarle</h2>
@@ -212,9 +214,11 @@ function PagarPanel({ t, guardar, volver }: {
     )
   }
   return (
-    <PagarTrabajador nombre={t.nombre} comision={p.comision} bonos={p.bonos} unidades={p.unidades}
-      onPagar={async (metodo: MetodoPagoEquipo, monto: number) => {
-        if (await guardar(() => api.pagarTrabajador(t.id, metodo, monto), 'Pago de ' + t.nombre + ' guardado. Sus cuentas arrancan de cero')) volver()
+    <PagarTrabajador nombre={t.nombre} comision={p.comision} bonos={p.bonos} unidades={p.unidades} saldoAnterior={saldoAnterior}
+      onPagar={async pago => {
+        const falta = pago.quedaDebiendo ? p.comision + p.bonos + saldoAnterior - pago.monto : 0
+        const mensaje = 'Pago de ' + t.nombre + ' guardado. ' + (falta > 0 ? 'Le quedas debiendo ' + pesos(falta) : 'Sus cuentas arrancan de cero')
+        if (await guardar(() => api.pagarTrabajador(t.id, pago), mensaje)) volver()
       }} />
   )
 }
@@ -236,7 +240,8 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
   const [comision, setComision] = useState(String(t.comisionPct))
   const cuenta = useCuenta(t)
   const pendiente = cuenta && cuenta !== 'error' ? cuenta.pendiente : null
-  const porPagar = pendiente ? pendiente.comision + pendiente.bonos : t.porPagar ?? 0
+  const saldoAnterior = cuenta && cuenta !== 'error' ? cuenta.saldoAnterior ?? 0 : 0
+  const porPagar = pendiente ? pendiente.comision + pendiente.bonos + saldoAnterior : t.porPagar ?? 0
   const llevo = t.carga.reduce((a, f) => a + f.llevo, 0)
   const vendi = t.carga.reduce((a, f) => a + f.vendi, 0)
 
@@ -273,8 +278,9 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
         <b>{pesos(porPagar)}</b>
         <span className="mut">
           {pendiente
-            ? pendiente.unidades + ' granizado' + (pendiente.unidades === 1 ? '' : 's') + (cuenta && cuenta !== 'error' && cuenta.desde ? ' desde su último pago' : ' en total')
+            ? <><Unidades n={pendiente.unidades} />{(cuenta && cuenta !== 'error' && cuenta.desde ? ' desde su último pago' : ' en total')
               + (pendiente.bonos > 0 ? ' · incluye ' + pesos(pendiente.bonos) + ' de premios' : '')
+              + (saldoAnterior > 0 ? ' · más ' + pesos(saldoAnterior) + ' que le quedaste debiendo' : '')}</>
             : 'Calculando…'}
         </span>
         <button className="big primario" onClick={onPagar} disabled={porPagar <= 0}>Ya le pagué {porPagar > 0 ? pesos(porPagar) : ''}</button>
@@ -286,13 +292,14 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
           {cuenta.pagos.map(p => (
             <div className="pago-hist" key={p.id}>
               <div className="sabor-cabeza">
-                <b>{pesos(p.monto)} · {p.metodo === 'EFECTIVO' ? 'Efectivo' : 'Nequi'}</b>
+                <b>{pesos(p.monto)} · {comoSePago(p)}</b>
                 <span className={'eq-tag ' + (p.estado === 'CONFIRMADO' ? 'ok' : p.estado === 'DISPUTADO' ? 'mal' : p.estado === 'PENDIENTE' ? 'aviso-tag' : '')}>
                   {ETIQUETA_PAGO[p.estado]}
                 </span>
               </div>
               <span className="mut">
-                {fechaHora(p.creadoEn)} · {p.unidades} granizado{p.unidades === 1 ? '' : 's'}
+                {fechaHora(p.creadoEn)} · <Unidades n={p.unidades} />
+                {(p.saldo ?? 0) > 0 && p.estado !== 'ANULADO' && <> · quedaron pendientes {pesos(p.saldo ?? 0)}</>}
                 {p.firma && <> · firmó el paz y salvo: <b>{p.firma}</b></>}
               </span>
               {(p.estado === 'PENDIENTE' || p.estado === 'DISPUTADO') && (

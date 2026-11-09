@@ -35,4 +35,27 @@ class ReportesTest extends PruebaIntegracion {
                 .contains("Efectivo: $12.000 (esto debe haber en caja)")
                 .contains("Top: Smirnoff (2), Tussi (1)");
     }
+
+    @Test
+    void sinVentasEnLaSemanaNoHayResumen() {
+        assertThat(reportes.resumenSemanal()).isEmpty();
+    }
+
+    @Test
+    void resumenSemanalSumaLosSieteDiasHastaAyerYComparaConLaAnterior() {
+        reloj.poner("2026-09-14T10:00-05:00"); // semana anterior
+        ventas.registrar(new NuevaVenta("a", idDe("Smirnoff"), MetodoPago.EFECTIVO, 1));
+        reloj.poner("2026-09-21T10:00-05:00"); // lunes pasado
+        ventas.registrar(new NuevaVenta("b", idDe("Smirnoff"), MetodoPago.EFECTIVO, 2));
+        ventas.registrar(new NuevaVenta("c", idDe("Tussi"), MetodoPago.NEQUI, 1));
+        reloj.poner("2026-09-28T08:00-05:00"); // este lunes, cuando sale el aviso
+
+        var aviso = reportes.resumenSemanal().orElseThrow();
+
+        assertThat(aviso.texto())
+                .contains("Esta semana vendiste 3 unidades: $18.000")
+                .contains("Mejor día: lunes")
+                .contains("Smirnoff (2), Tussi (1)")
+                .contains("200% más que la semana anterior");
+    }
 }

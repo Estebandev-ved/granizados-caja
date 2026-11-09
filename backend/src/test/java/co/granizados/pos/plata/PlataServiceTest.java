@@ -22,6 +22,9 @@ class PlataServiceTest extends PruebaIntegracion {
     PedidoService pedidos;
 
     @Autowired
+    co.granizados.pos.gasto.GastoService gastosServicio;
+
+    @Autowired
     co.granizados.pos.resumen.EstadoService estado;
 
     @Autowired
@@ -262,5 +265,31 @@ class PlataServiceTest extends PruebaIntegracion {
         assertThat(r.libre()).isNull();
         assertThat(r.recomendado()).isEqualTo(7);
         assertThat(r.motivo()).contains("Cuenta tu plata");
+    }
+
+    @Test
+    void cadaGastoSaleDelLugarQueSeEscogio() {
+        plata.contar(new PlataService.NuevoConteo("c-1", 50_000, 200_000, 30_000));
+        reloj.avanzar(Duration.ofMinutes(1));
+
+        gastosServicio.registrar(new co.granizados.pos.gasto.GastoService.NuevoGasto("g-caja", "HIELO", "", 4_000, null));
+        gastosServicio.registrar(new co.granizados.pos.gasto.GastoService.NuevoGasto("g-nequi", "Gasolina moto", "", 10_000, null, LugarPlata.NEQUI));
+        gastosServicio.registrar(new co.granizados.pos.gasto.GastoService.NuevoGasto("g-casa", "ARRIENDO", "", 20_000, null, LugarPlata.CASA));
+
+        var s = plata.saldo();
+        assertThat(s.caja()).isEqualTo(46_000);
+        assertThat(s.nequi()).isEqualTo(20_000);
+        assertThat(s.casa()).isEqualTo(180_000);
+
+        assertThat(plata.movimientos(1).stream().filter(m -> m.tipo().equals("GASTO")))
+                .extracting(PlataService.Movimiento::lugar, PlataService.Movimiento::monto)
+                .containsExactlyInAnyOrder(tuple("CAJA", -4_000L), tuple("NEQUI", -10_000L), tuple("CASA", -20_000L));
+
+        // Las categorías propias llegan al celular y al reporte tal cual se escribieron
+        assertThat(estado.estado().categoriasGasto()).containsExactlyInAnyOrder("HIELO", "Gasolina moto", "ARRIENDO");
+        var r = reportes.reporte(estado.hoy().toString(), estado.hoy().toString());
+        assertThat(r.porCategoriaGasto()).extracting(ReporteService.PorCategoriaGasto::categoria).first().isEqualTo("ARRIENDO");
+        assertThat(r.gastosDetalle()).extracting(ReporteService.GastoDetalle::categoria, ReporteService.GastoDetalle::lugar)
+                .contains(tuple("Gasolina moto", LugarPlata.NEQUI));
     }
 }

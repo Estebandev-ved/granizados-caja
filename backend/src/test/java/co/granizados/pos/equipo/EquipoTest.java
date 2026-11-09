@@ -700,4 +700,86 @@ class EquipoTest extends PruebaIntegracion {
         mvc.perform(con(entrar("4321"), post("/api/equipo/" + juan.id() + "/carga/agregar")).content("{\"items\":[]}"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void elPagoPuedeIrUnaParteEnEfectivoYOtraPorNequi() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        String dueno = entrar("4321");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("x-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        // La parte en efectivo tiene que ser menos que el total (si no, no es mitad y mitad)
+        mvc.perform(con(dueno, post("/api/equipo/" + juan.id() + "/pagos")).content("{\"metodo\":\"MIXTO\",\"monto\":1200}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(con(dueno, post("/api/equipo/" + juan.id() + "/pagos")).content("{\"metodo\":\"MIXTO\",\"monto\":1200,\"montoEfectivo\":1200}"))
+                .andExpect(status().isBadRequest());
+
+        String cuerpo = mvc.perform(con(dueno, post("/api/equipo/" + juan.id() + "/pagos"))
+                        .content("{\"metodo\":\"MIXTO\",\"monto\":1200,\"montoEfectivo\":500}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.metodo").value("MIXTO"))
+                .andExpect(jsonPath("$.monto").value(1200))
+                .andExpect(jsonPath("$.montoEfectivo").value(500))
+                .andExpect(jsonPath("$.saldo").value(0))
+                .andExpect(jsonPath("$.texto").value(org.hamcrest.Matchers.containsString("$500 en efectivo y $700 por Nequi")))
+                .andReturn().getResponse().getContentAsString();
+        String id = cuerpo.replaceAll(".*\"id\":(\\d+).*", "$1");
+        assertThat(equipo.listar().getFirst().porPagar()).isZero();
+
+        // Recibió efectivo: firma el paz y salvo igual que si fuera todo en efectivo
+        mvc.perform(con(token, post("/api/mi-turno/pagos/" + id + "/responder")).content("{\"recibido\":true}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(con(token, post("/api/mi-turno/pagos/" + id + "/responder")).content("{\"recibido\":true,\"firma\":\"Juan Pérez\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.firma").value("Juan Pérez"));
+    }
+
+    @Test
+    void siLeDaMenosElRestoQuedaPendienteYSeLoPagaDespuesPorOtroMedio() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        String dueno = entrar("4321");
+        mvc.perform(con(token, post("/api/ventas")).content(venta("s-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        // Le debe $1.200: le manda $700 por Nequi y queda debiendo $500
+        mvc.perform(con(dueno, post("/api/equipo/" + juan.id() + "/pagos"))
+                        .content("{\"metodo\":\"NEQUI\",\"monto\":700,\"quedaDebiendo\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saldo").value(500))
+                .andExpect(jsonPath("$.montoEfectivo").value(0));
+        var cuenta = equipo.cuenta(juan.id());
+        assertThat(cuenta.pendiente().comision()).isZero();
+        assertThat(cuenta.saldoAnterior()).isEqualTo(500);
+        assertThat(equipo.listar().getFirst().porPagar()).isEqualTo(500);
+
+        // Vende 1 más ($600 de comisión): ahora se le deben $500 de antes + $600
+        reloj.avanzar(java.time.Duration.ofMinutes(5));
+        mvc.perform(con(token, post("/api/ventas")).content(venta("s-2", "EFECTIVO", 1, ""))).andExpect(status().isOk());
+        assertThat(equipo.listar().getFirst().porPagar()).isEqualTo(1100);
+
+        // El resto en efectivo: el paz y salvo cuenta el saldo que venía y queda en cero
+        mvc.perform(con(dueno, post("/api/equipo/" + juan.id() + "/pagos")).content("{\"metodo\":\"EFECTIVO\",\"quedaDebiendo\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.monto").value(1100))
+                .andExpect(jsonPath("$.montoEfectivo").value(1100))
+                .andExpect(jsonPath("$.saldo").value(0))
+                .andExpect(jsonPath("$.texto").value(org.hamcrest.Matchers.containsString("$500 que venían pendientes")));
+        assertThat(equipo.listar().getFirst().porPagar()).isZero();
+    }
+
+    @Test
+    void unAbonoEnEfectivoNoDiceQueQuedaAPazYSalvoYAnularloDevuelveLaCuenta() throws Exception {
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        mvc.perform(con(entrar("1111"), post("/api/ventas")).content(venta("a-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
+
+        var abono = equipo.pagar(juan.id(), PagoVendedor.Metodo.EFECTIVO, 1000L, null, true);
+        assertThat(abono.saldo()).isEqualTo(200);
+        assertThat(abono.texto()).contains("queda pendiente un saldo de $200").doesNotContain("no se me debe");
+
+        // Sin «queda debiendo» (lo de antes): le da menos y las cuentas arrancan de cero igual
+        equipo.anularPago(abono.id());
+        assertThat(equipo.listar().getFirst().porPagar()).isEqualTo(1200);
+        var completo = equipo.pagar(juan.id(), PagoVendedor.Metodo.EFECTIVO, 1000L);
+        assertThat(completo.saldo()).isZero();
+        assertThat(equipo.listar().getFirst().porPagar()).isZero();
+    }
 }

@@ -6,6 +6,11 @@ import co.granizados.pos.comun.Pesos;
 import co.granizados.pos.pedido.PedidoService;
 import co.granizados.pos.resumen.EstadoService;
 import co.granizados.pos.venta.StockBajo;
+import java.time.LocalDate;
+import java.time.format.TextStyle;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -16,6 +21,8 @@ public class Reportes {
 
     public record Aviso(String asunto, String texto) {
     }
+
+    private static final String SALTO = "\n";
 
     private final EstadoService estado;
     private final PedidoService pedidos;
@@ -51,6 +58,46 @@ public class Reportes {
         long d = a.getDiferencia();
         if (d == 0) return "\nCaja: cuadró";
         return "\n" + (d < 0 ? "Faltaron " : "Sobraron ") + Pesos.formato(Math.abs(d));
+    }
+
+    /** Resumen de los últimos 7 días (hasta ayer) frente a los 7 anteriores. Vacío si no hubo ventas. */
+    public Optional<Aviso> resumenSemanal() {
+        LocalDate hoy = estado.hoy();
+        long total = 0;
+        long ganancia = 0;
+        int unidades = 0;
+        long mejorTotal = -1;
+        LocalDate mejorDia = null;
+        Map<String, Integer> sabores = new LinkedHashMap<>();
+        for (int i = 1; i <= 7; i++) {
+            LocalDate dia = hoy.minusDays(i);
+            EstadoService.ResumenDia h = estado.resumenDe(dia);
+            total += h.total();
+            ganancia += h.ganancia();
+            unidades += h.unidades();
+            if (h.total() > mejorTotal) {
+                mejorTotal = h.total();
+                mejorDia = dia;
+            }
+            h.porSabor().forEach(s -> sabores.merge(s.sabor(), s.unidades(), Integer::sum));
+        }
+        if (unidades == 0) return Optional.empty();
+        long anterior = 0;
+        for (int i = 8; i <= 14; i++) anterior += estado.resumenDe(hoy.minusDays(i)).total();
+
+        String top = sabores.entrySet().stream().sorted(Map.Entry.<String, Integer>comparingByValue().reversed()).limit(3)
+                .map(e -> e.getKey() + " (" + e.getValue() + ")").collect(Collectors.joining(", "));
+        StringBuilder texto = new StringBuilder("Esta semana vendiste " + unidades + " unidades: " + Pesos.formato(total)
+                + SALTO + "• Ganancia: " + Pesos.formato(ganancia)
+                + SALTO + "• Mejor día: " + mejorDia.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.of("es", "CO"))
+                + " (" + Pesos.formato(mejorTotal) + ")"
+                + SALTO + "• Lo más vendido: " + top);
+        if (anterior > 0) {
+            long cambio = Math.round((total - anterior) * 100.0 / anterior);
+            texto.append(SALTO).append(cambio >= 0 ? "📈 " : "📉 ").append(Math.abs(cambio)).append("% ")
+                    .append(cambio >= 0 ? "más" : "menos").append(" que la semana anterior");
+        }
+        return Optional.of(new Aviso("📊 Tu semana", texto.toString()));
     }
 
     public Aviso pedidoSemanal() {

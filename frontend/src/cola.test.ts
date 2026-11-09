@@ -140,6 +140,13 @@ describe('subirPendientes', () => {
     expect(enviado.creadoEn).toMatch(/^\d{4}-\d{2}-\d{2}T/)
   })
 
+  it('el gasto dice de dónde salió la plata', async () => {
+    const api = apiFalsa()
+    await subirPendientes([{ ...gasto('g2'), lugar: 'NEQUI' } as Operacion], api)
+
+    expect(api.gasto.mock.calls[0][0]).toMatchObject({ clientUid: 'g2', lugar: 'NEQUI' })
+  })
+
   it('el arqueo sube a /api/arqueo con la hora del celular', async () => {
     const api = apiFalsa()
     const r = await subirPendientes([arqueo('a1')], api)

@@ -16,5 +16,9 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
     @Query("select sum(g.monto) from Gasto g where g.creadoEn >= :desde and g.creadoEn < :hasta")
     Long montoEntre(Instant desde, Instant hasta);
 
+    /** Las categorías que el negocio ha usado desde esa fecha (para ofrecerle las suyas al anotar un gasto). */
+    @Query("select distinct g.categoria from Gasto g where g.creadoEn >= :desde")
+    List<String> categoriasDesde(Instant desde);
+
     List<Gasto> findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(Instant desde, Instant hasta);
 }

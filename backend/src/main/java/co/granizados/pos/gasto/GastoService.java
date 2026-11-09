@@ -1,8 +1,8 @@
 package co.granizados.pos.gasto;
 
+import co.granizados.pos.plata.LugarPlata;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.time.Clock;
@@ -14,12 +14,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class GastoService {
 
+    /** `categoria`: una de las de siempre (HIELO…) o un nombre propio. `lugar` nulo = salió de la caja (celulares sin actualizar). */
     public record NuevoGasto(
             @NotBlank @Size(max = 64) String clientUid,
-            @NotNull CategoriaGasto categoria,
+            @NotBlank @Size(max = 20) String categoria,
             @Size(max = 120) String concepto,
             @Positive @Max(1_000_000_000) long monto,
-            Instant creadoEn) {
+            Instant creadoEn,
+            LugarPlata lugar) {
+
+        public NuevoGasto(String clientUid, String categoria, String concepto, long monto, Instant creadoEn) {
+            this(clientUid, categoria, concepto, monto, creadoEn, null);
+        }
     }
 
     /** Mismo criterio que las ventas: la hora la manda el celular, pero no más de 3 días atrás. */
@@ -39,7 +45,8 @@ public class GastoService {
     public Resultado registrar(NuevoGasto g) {
         if (gastos.existsByClientUid(g.clientUid())) return Resultado.REPETIDA;
         String concepto = g.concepto() == null ? "" : g.concepto().trim();
-        gastos.saveAndFlush(new Gasto(g.clientUid(), g.categoria(), concepto, g.monto(), cuando(g.creadoEn())));
+        gastos.saveAndFlush(new Gasto(g.clientUid(), g.categoria().trim(), concepto, g.monto(),
+                g.lugar() == null ? LugarPlata.CAJA : g.lugar(), cuando(g.creadoEn())));
         return Resultado.REGISTRADA;
     }
 

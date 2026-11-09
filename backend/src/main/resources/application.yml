@@ -51,3 +51,4 @@ app:
     habilitadas: true
     cierre-diario: "0 0 21 * * *"
     pedido-semanal: "0 0 19 * * SUN"
+    resumen-semanal: "0 0 8 * * MON"

@@ -13,13 +13,14 @@ import org.hibernate.annotations.TenantId;
 
 /**
  * Un pago de comisiones y premios a un trabajador. Marca un corte: las cuentas de ese trabajador vuelven a empezar
- * después de `hasta`. El trabajador responde si le llegó; en efectivo firma el paz y salvo (texto exacto + nombre + hora).
+ * después de `hasta`. El trabajador responde si le llegó; si recibió efectivo firma el paz y salvo (texto exacto + nombre + hora).
+ * Puede ir en dos partes (MIXTO: efectivo + Nequi) y puede ser un abono: lo que falta queda en `saldo` y se suma a la cuenta siguiente.
  */
 @Entity
 @Table(name = "pago_vendedor")
 public class PagoVendedor {
 
-    public enum Metodo { EFECTIVO, NEQUI }
+    public enum Metodo { EFECTIVO, NEQUI, MIXTO }
 
     public enum Estado { PENDIENTE, CONFIRMADO, DISPUTADO, ANULADO }
 
@@ -36,6 +37,10 @@ public class PagoVendedor {
     private Estado estado;
 
     private long monto;
+    /** Cuánto de `monto` fue en efectivo (el resto, por Nequi). */
+    private long montoEfectivo;
+    /** Lo que el dueño quedó debiendo después de este pago (0 = quedó a paz y salvo). */
+    private long saldo;
     private long comision;
     private long bonos;
     private int unidades;
@@ -60,7 +65,7 @@ public class PagoVendedor {
     protected PagoVendedor() {
     }
 
-    public PagoVendedor(Long vendedorId, Metodo metodo, long monto, long comision, long bonos, int unidades, long totalVendido,
+    public PagoVendedor(Long vendedorId, Metodo metodo, long monto, long montoEfectivo, long saldo, long comision, long bonos, int unidades, long totalVendido,
                         long efectivo, Instant desde, Instant hasta, Instant creadoEn, String texto) {
         this.vendedorId = vendedorId;
         this.metodo = metodo;
@@ -68,6 +73,8 @@ public class PagoVendedor {
         this.comision = comision;
         this.bonos = bonos;
         this.monto = monto;
+        this.montoEfectivo = montoEfectivo;
+        this.saldo = saldo;
         this.unidades = unidades;
         this.totalVendido = totalVendido;
         this.efectivo = efectivo;
@@ -92,6 +99,8 @@ public class PagoVendedor {
     public Metodo getMetodo() { return metodo; }
     public Estado getEstado() { return estado; }
     public long getMonto() { return monto; }
+    public long getMontoEfectivo() { return montoEfectivo; }
+    public long getSaldo() { return saldo; }
     public long getComision() { return comision; }
     public long getBonos() { return bonos; }
     public int getUnidades() { return unidades; }

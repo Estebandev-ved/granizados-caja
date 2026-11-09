@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Carga } from '../carga'
 import { vibrar } from '../formato'
+import { Unidades } from './Unidades'
 import type { Producto, Tipo } from '../tipos'
 
 const TIPOS: { tipo: Tipo; titulo: string }[] = [
@@ -64,7 +65,7 @@ export function CargaDelDia({ productos, actual, onGuardar, onLimpiar, titulo = 
 
       <div className="acciones">
         <button className="big primario" onClick={() => onGuardar(llevo)} disabled={total === 0}>
-          Guardar · {total} {total === 1 ? 'granizado' : 'granizados'}
+          Guardar · <Unidades n={total} />
         </button>
         {actual && <button className="big ghost" onClick={onLimpiar}>{textoQuitar ?? 'Quitar la carga de hoy'}</button>}
       </div>

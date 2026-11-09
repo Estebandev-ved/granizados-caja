@@ -1,9 +1,11 @@
 import { pesos } from '../formato'
 import { NIVELES, nivelAlcanzado } from '../logros'
+import { palabra, usePerfil } from '../perfil'
 import type { MetaEquipo } from '../tipos'
 
 /** La barra de logros de un trabajador: lleva sus granizados del día contra la meta del dueño. */
 export function BarraLogros({ meta }: { meta: MetaEquipo }) {
+  const perfil = usePerfil()
   const nivel = nivelAlcanzado(meta)
   const tope = Math.ceil(meta.unidades * 1.5)
   const pct = Math.min(100, Math.round(meta.vendidas / tope * 100))
@@ -13,7 +15,7 @@ export function BarraLogros({ meta }: { meta: MetaEquipo }) {
 
   return (
     <div className="barra-meta logros" role="progressbar" aria-valuemin={0} aria-valuemax={tope} aria-valuenow={meta.vendidas}
-      aria-label={`${meta.vendidas} de ${meta.unidades} granizados, meta de hoy`}>
+      aria-label={`${meta.vendidas} de ${meta.unidades} ${palabra(perfil, true)}, meta de hoy`}>
       <div className="barra-meta-cabeza">
         <span className={'k' + (cumplida ? ' on' : '')}>
           {nivel === 0 ? `Meta de hoy · ${meta.unidades}` : NIVELES[nivel - 1].nombre}

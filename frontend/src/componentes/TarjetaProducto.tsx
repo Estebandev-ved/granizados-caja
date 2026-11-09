@@ -2,8 +2,10 @@ import { pesos } from '../formato'
 import type { Producto } from '../tipos'
 
 /** `alcanza` (opcional): aviso corto de cuánto dura lo que queda, según el ritmo de venta. */
-export function TarjetaProducto({ p, onClick, alcanza, restante }: {
+export function TarjetaProducto({ p, onClick, alcanza, restante, indice = 0 }: {
   p: Producto
+  /** Posición en la lista: escalona la animación de entrada. */
+  indice?: number
   onClick: () => void
   alcanza?: string
   /** Lo que te queda de la carga de hoy. `undefined` = no hay carga; `null` = ese sabor no lo llevas hoy. */
@@ -16,7 +18,7 @@ export function TarjetaProducto({ p, onClick, alcanza, restante }: {
     ? (cantidad <= 0 ? 'out' : cantidad <= 1 ? 'low' : '')
     : p.stock <= 0 ? 'out' : p.stock <= p.stockMinimo ? 'low' : ''
   return (
-    <button className={'prod' + (fuera ? ' fuera' : '')} onClick={onClick}>
+    <button className={'prod' + (fuera ? ' fuera' : '')} onClick={onClick} style={{ '--i': Math.min(indice, 12) } as React.CSSProperties}>
       <div className="prod-cabeza">
         <IconoTrago />
         <div>

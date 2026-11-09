@@ -71,6 +71,11 @@ public class Avisos {
             reportes.cierreDelDia().ifPresent(avisos::enviar);
         }
 
+        @Scheduled(cron = "${app.tareas.resumen-semanal}", zone = "${app.zona}")
+        void resumenSemanal() {
+            reportes.resumenSemanal().ifPresent(avisos::enviar);
+        }
+
         @Scheduled(cron = "${app.tareas.pedido-semanal}", zone = "${app.zona}")
         void pedidoSemanal() {
             avisos.enviar(reportes.pedidoSemanal());

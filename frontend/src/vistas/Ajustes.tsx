@@ -11,6 +11,9 @@ import { activarFaceId, esCancelacion, esErrorDeDominio, faceIdActivado, olvidar
 import { BotonRecargar } from '../componentes/BotonRecargar'
 import { aEntero, pesos } from '../formato'
 import { useInstalarPWA } from '../instalarPwa'
+import { ErrorReintento } from '../componentes/ErrorReintento'
+import { PerfilAjustes } from '../componentes/PerfilAjustes'
+import { RUBROS, textoPerfil, leerPerfil, type Perfil } from '../perfil'
 import { leerPromo, nombrePromo, promoVigente, textoDias } from '../promo'
 import type { DatosProducto, Param, Producto, Tipo } from '../tipos'
 
@@ -72,7 +75,7 @@ interface Props {
   onCambio: () => Promise<void>
 }
 
-type Panel = { tipo: 'producto'; producto: Producto | null } | { tipo: 'param'; param: Param }
+type Panel = { tipo: 'producto'; producto: Producto | null } | { tipo: 'param'; param: Param } | { tipo: 'perfil' }
 
 /** Configuración de la caja, ordenada por temas. Necesita señal (no pasa por la cola). */
 export function Ajustes({ avisar, onCambio }: Props) {
@@ -89,6 +92,18 @@ export function Ajustes({ avisar, onCambio }: Props) {
   useEffect(() => { void cargar() }, [cargar])
 
   const abrir = (s: SeccionId | null) => { setSeccion(s); window.scrollTo(0, 0) }
+
+  const guardarPerfil = async (p: Perfil) => {
+    try {
+      await api.guardarConfig('PERFIL', textoPerfil(p))
+      setPanel(null)
+      avisar('✓ Guardado')
+      await cargar()
+      await onCambio()
+    } catch (e) {
+      avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo guardar'))
+    }
+  }
 
   const guardarProducto = async (id: number | null, d: DatosProducto) => {
     try {
@@ -138,7 +153,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
     }
   }
 
-  if (error) return <div className="vacio">Ajustes necesita señal.<br /><br /><button className="big ghost" onClick={cargar}>Reintentar</button></div>
+  if (error) return <ErrorReintento mensaje="Ajustes necesita señal. Revisa tu conexión y vuelve a intentar." onReintentar={cargar} />
   if (!productos) return <div className="vacio">Cargando…</div>
 
   const param = (clave: string) => params.find(p => p.clave === clave)
@@ -149,6 +164,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
   const promo = leerPromo(param('PROMO')?.valor)
   const activos = productos.filter(p => p.activo).length
   const metaDiaria = aEntero(param('META_DIARIA')?.valor ?? '')
+  const perfilActual = leerPerfil(param('PERFIL')?.valor)
 
   const filaParam = (c: Param) => {
     const m = metaDe(c.clave)
@@ -170,15 +186,16 @@ export function Ajustes({ avisar, onCambio }: Props) {
       <>
         <div className="menu">
           <h3>Mi negocio</h3>
+          <Entrada icono="caja" titulo="Perfil del negocio" detalle={perfilActual.nombre ? perfilActual.nombre + ' · ' + RUBROS[perfilActual.rubro].titulo : 'Nombre y rubro'} onClick={() => setPanel({ tipo: 'perfil' })} />
           <Entrada icono="vaso" titulo="Sabores y precios" detalle={`${activos} en la caja`} onClick={() => abrir('sabores')} />
           <Entrada icono="ticket" titulo="Promoción" detalle={promoVigente(promo) ? nombrePromo(promo, pesos) : promo.activa && promo.dias.length ? nombrePromo(promo, pesos) + ' · los ' + textoDias(promo.dias) : 'Apagada'} onClick={() => abrir('promo')} />
           <Entrada icono="trofeo" titulo="Metas y premios" detalle={metaDiaria ? 'Meta ' + pesos(metaDiaria) : 'Sin meta'} onClick={() => abrir('metas')} />
-          <Entrada icono="cara" titulo="Equipo" detalle="Trabajadores, PIN y cargas" onClick={() => abrir('equipo')} />
+          {perfilActual.equipo && <Entrada icono="cara" titulo="Equipo" detalle="Trabajadores, PIN y cargas" onClick={() => abrir('equipo')} />}
         </div>
         <div className="menu">
           <h3>Pedidos y cobros</h3>
           <Entrada icono="camion" titulo="Pedido al proveedor" detalle="WhatsApp y cobertura" onClick={() => abrir('pedido')} />
-          <Entrada icono="billete" titulo="Cobro de fiados" detalle="Dónde te pagan" onClick={() => abrir('cobros')} />
+          {perfilActual.fiados && <Entrada icono="billete" titulo="Cobro de fiados" detalle="Dónde te pagan" onClick={() => abrir('cobros')} />}
         </div>
         <div className="menu">
           <h3>La app</h3>
@@ -276,6 +293,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
       <Sheet abierto={!!panel} onCerrar={() => setPanel(null)}>
         {panel?.tipo === 'producto' && <FormProducto producto={panel.producto} onGuardar={guardarProducto} onEliminar={eliminarProducto} />}
         {panel?.tipo === 'param' && <FormParam param={panel.param} onGuardar={guardarParam} />}
+        {panel?.tipo === 'perfil' && <PerfilAjustes actual={perfilActual} onGuardar={guardarPerfil} />}
       </Sheet>
     </section>
   )

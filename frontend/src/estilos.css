@@ -322,6 +322,11 @@ button.pago-fila:active { background: var(--card2) }
 .panel-sub { color: var(--mut); margin-bottom: 14px; font-size: 14px }
 .panel-sub.aviso { font-weight: 600 }
 .chips.vuelto button { padding: 8px 14px }
+/* Chips dentro de un campo (categoría del gasto, de dónde salió la plata): pegados a la izquierda, bajo su etiqueta */
+.chips.izq { justify-content: flex-start; margin-bottom: 0 }
+.chips.izq button { padding: 9px 14px; font-size: 14px }
+.pago-partes { display: flex; justify-content: space-between; gap: 10px; background: var(--card2); border-radius: var(--r-md); padding: 10px 12px; font-size: 14px }
+.pago-partes b { font-family: var(--font-head) }
 
 /* ---------------------------------------------------------------- reportes */
 .rango { display: flex; gap: 10px; margin-bottom: 16px }
@@ -636,3 +641,149 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .pago-pendiente { display: flex; gap: 10px; align-items: center; justify-content: space-between; background: var(--warn-bg); color: var(--warn-txt);
   border: 1px solid var(--warn); border-radius: var(--r-lg); padding: 12px 14px; margin-bottom: 12px; font-weight: 600 }
 .pago-pendiente button { flex: none; border: 0; border-radius: var(--r-full); background: var(--primario); color: #fff; padding: 10px 16px; font-weight: 700 }
+
+/* ───────── Pulido: movimiento y profundidad ───────── */
+:root { --ease-salida: cubic-bezier(.2, .8, .2, 1); --ease-resorte: cubic-bezier(.34, 1.4, .5, 1);
+  --elev-1: 0 1px 2px var(--sombra), 0 1px 1px var(--sombra); --elev-2: 0 6px 18px var(--sombra) }
+:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px }
+button { touch-action: manipulation }
+
+/* Cada pantalla entra con un fundido corto; las tarjetas suben escalonadas */
+.vista { animation: entra .28s var(--ease-salida) both }
+@keyframes entra { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+.grid > .prod { animation: entra .34s var(--ease-salida) both; animation-delay: calc(var(--i, 0) * 28ms) }
+.cards > .card, .list, .accion { animation: entra .32s var(--ease-salida) both }
+.cards > .card:nth-child(2) { animation-delay: 40ms } .cards > .card:nth-child(3) { animation-delay: 80ms } .cards > .card:nth-child(4) { animation-delay: 120ms }
+
+/* Tarjetas con un poco de relieve y respuesta al toque */
+.prod, .card, .list, .accion, .banner-pedido { box-shadow: var(--elev-1) }
+.prod { transition: transform .16s var(--ease-resorte), border-color .15s, box-shadow .2s, background .15s }
+.prod:active { box-shadow: none }
+.accion { transition: transform .16s var(--ease-resorte), background .15s }
+.big, .chips button, .segmento button, .qty button, .link { transition: transform .14s var(--ease-resorte), filter .15s, background .2s, color .2s }
+.big:active:not(:disabled), .chips button:active, .qty button:active { transform: scale(.96) }
+.big.primario { box-shadow: 0 6px 16px var(--primario-bg2) }
+.chips button.on, .segmento button.on { transition: background .2s, color .2s, box-shadow .2s }
+
+/* Navegación: el ícono activo salta un poco y la barra roja se desliza adentro */
+nav { box-shadow: 0 -6px 20px var(--sombra) }
+nav button { transition: color .2s }
+nav button::before { content: ''; position: absolute; top: 0; left: 50%; right: 50%; height: 3px; border-radius: 0 0 var(--r) var(--r);
+  background: var(--primario); transition: left .25s var(--ease-salida), right .25s var(--ease-salida) }
+nav button.on::before { left: 30%; right: 30% }
+nav button.on svg { animation: salto .35s var(--ease-resorte) }
+@keyframes salto { 0% { transform: translateY(2px) scale(.9) } 100% { transform: none } }
+
+/* Panel de abajo y aviso: con resorte suave */
+.sheet { transition: transform .32s var(--ease-salida) }
+.sheet-bg { transition: opacity .25s; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px) }
+.toast { transition: transform .35s var(--ease-resorte) }
+
+/* Cargando: esqueleto que brilla en lugar de un texto suelto */
+.esqueleto { padding-top: 14px }
+.esqueleto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.esqueleto-grid i { display: block; height: 96px; border-radius: var(--r-lg); border: 1px solid var(--line);
+  background: linear-gradient(100deg, var(--card2) 30%, var(--line) 50%, var(--card2) 70%); background-size: 220% 100%;
+  animation: brillo 1.3s linear infinite; animation-delay: calc(var(--i, 0) * 80ms) }
+@keyframes brillo { from { background-position: 120% 0 } to { background-position: -120% 0 } }
+
+/* Bienvenida: primera vez del dueño */
+.bienvenida { position: fixed; inset: 0; z-index: 30; background: var(--bg); display: flex; flex-direction: column;
+  padding: calc(var(--safe-t) + 12px) 20px calc(var(--safe-b) + 16px); animation: entra .3s var(--ease-salida) both; overflow-y: auto }
+.bienvenida-tope { display: flex; align-items: center; justify-content: space-between; min-height: 44px }
+.bienvenida-puntos { display: flex; gap: 6px }
+.bienvenida-puntos i { width: 22px; height: 4px; border-radius: var(--r-full); background: var(--line); transition: background .3s, width .3s var(--ease-salida) }
+.bienvenida-puntos i.on { background: var(--primario); width: 34px }
+.bienvenida-cuerpo { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; text-align: center; animation: entra .35s var(--ease-salida) both }
+.bienvenida h1 { font-family: var(--font-head); font-size: 26px; letter-spacing: -.5px; line-height: 1.15 }
+.bienvenida h2 { font-size: 15px; text-align: left; margin-top: 6px }
+.bienvenida p { color: var(--mut); font-size: 15px }
+.opciones { display: grid; gap: 10px }
+.opciones.cuadricula { grid-template-columns: 1fr 1fr }
+.opcion { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--r-lg); padding: 16px 14px; text-align: left;
+  box-shadow: var(--elev-1); transition: transform .16s var(--ease-resorte), border-color .2s, background .2s }
+.opcion b { display: block; font-size: 17px } .opcion small { display: block; color: var(--mut); font-size: 13px; margin-top: 3px }
+.opcion:active { transform: scale(.97) }
+.opcion.on { border-color: var(--primario); background: var(--primario-bg) }
+.campo-bienvenida { width: 100%; background: var(--card2); border: 1.5px solid var(--line); border-radius: var(--r-md); padding: 14px; font-size: 16px }
+.campo-bienvenida:focus { outline: none; border-color: var(--primario) }
+.bienvenida-lista { list-style: none; text-align: left; color: var(--mut); font-size: 14px; display: grid; gap: 8px }
+.bienvenida-lista li::before { content: '✓'; color: var(--ok-txt); font-weight: 800; margin-right: 8px }
+.bienvenida-pie { display: flex; gap: 10px; padding-top: 12px }
+.bienvenida-pie .big { flex: 1 }
+
+/* Quien prefiere menos movimiento no lo recibe */
+@media (prefers-reduced-motion: reduce) {
+  .vista, .grid > .prod, .cards > .card, .list, .accion, .bienvenida, .bienvenida-cuerpo, nav button.on svg, .esqueleto-grid i { animation: none }
+  .sheet, .toast, nav button::before { transition: none }
+}
+
+/* ───────── Negocio propio: marca, ayuda, primeros pasos ───────── */
+.monograma { flex: 0 0 auto; width: 28px; height: 28px; border-radius: var(--r-md); background: var(--primario); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; font-family: var(--font-head); font-weight: 800; font-size: 12px; letter-spacing: .02em }
+.marca .marca-negocio { font-size: 14px; letter-spacing: 0; text-transform: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.marca-fila { display: flex; align-items: center; gap: 8px }
+.ayuda-boton { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--card2); color: var(--mut);
+  font-weight: 800; font-size: 14px; line-height: 1; display: inline-flex; align-items: center; justify-content: center }
+.ayuda-boton:active { background: var(--primario-bg); color: var(--primario-txt) }
+
+.primeros-pasos { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--primario); border-radius: var(--r-lg);
+  padding: 12px; margin: 12px 0; box-shadow: var(--elev-1) }
+.pp-cabeza { display: flex; align-items: center; gap: 10px }
+.pp-cabeza .personaje { width: 44px; height: 44px; margin: 0; flex: 0 0 auto }
+.pp-cabeza > div { flex: 1 } .pp-cabeza b { display: block; font-size: 16px } .pp-cabeza small { color: var(--mut); font-size: 12px }
+.pp-cerrar { background: none; border: 0; color: var(--mut); font-size: 16px; width: 36px; height: 36px }
+.pp-barra { height: 6px; border-radius: var(--r-full); background: var(--card2); margin: 10px 0 6px; overflow: hidden }
+.pp-barra span { display: block; height: 100%; background: var(--primario); border-radius: var(--r-full); transition: width .5s var(--ease-salida) }
+.pp-paso { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-top: 1px solid var(--line);
+  padding: 11px 2px; text-align: left; font-size: 15px; font-weight: 600; min-height: 44px }
+.pp-paso:first-of-type { border-top: 0 }
+.pp-paso:disabled { cursor: default }
+.pp-paso .chevron { margin-left: auto; color: var(--mut) }
+.pp-check { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: inline-flex;
+  align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff; transition: background .25s, border-color .25s }
+.pp-paso.hecho { color: var(--mut); text-decoration: line-through }
+.pp-paso.hecho .pp-check { background: var(--ok); border-color: transparent }
+
+.ayuda-lista { max-height: 52vh; overflow-y: auto; margin: 0 -4px 14px; padding: 0 4px }
+.ayuda-grupo h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); margin: 12px 0 4px }
+.ayuda-grupo details { border-top: 1px solid var(--line); padding: 2px 0 }
+.ayuda-grupo summary { cursor: pointer; padding: 11px 0; font-weight: 700; font-size: 15px; min-height: 44px; list-style-position: inside }
+.ayuda-grupo ol { margin: 0 0 12px 22px; color: var(--mut); font-size: 14px; display: grid; gap: 6px }
+
+/* Confirmación de venta */
+.chulo-venta { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 25; pointer-events: none;
+  animation: chulo-sale .9s ease both }
+.chulo-venta svg { background: var(--card); border-radius: 50%; padding: 10px; box-shadow: var(--elev-2); stroke: var(--ok) }
+.chulo-circulo { stroke-dasharray: 140; stroke-dashoffset: 140; animation: trazo .4s ease-out .05s forwards }
+.chulo-marca { stroke-dasharray: 40; stroke-dashoffset: 40; animation: trazo .25s ease-out .32s forwards }
+@keyframes trazo { to { stroke-dashoffset: 0 } }
+@keyframes chulo-sale { 0% { opacity: 0; transform: scale(.7) } 15% { opacity: 1; transform: scale(1) } 75% { opacity: 1 } 100% { opacity: 0; transform: scale(1.05) } }
+
+/* Formularios del perfil y de la bienvenida */
+.bienvenida-tope .link { text-decoration: none }
+.bienvenida-puntos.centro { justify-content: center }
+.opcion.fila { display: flex; align-items: center; justify-content: space-between; gap: 10px }
+.opcion-precio { font-weight: 700; color: var(--mut) }
+.qty.compacta { margin: 0 0 4px } .qty.compacta span { font-size: 28px }
+.campo-etiqueta { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); margin: 14px 0 6px }
+.interruptor-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line) }
+.interruptor-fila b { display: block; font-size: 15px } .interruptor-fila small { color: var(--mut); font-size: 12px }
+.interruptor { flex: 0 0 auto; width: 50px; height: 30px; border-radius: var(--r-full); border: 0; background: var(--line); padding: 3px; transition: background .2s }
+.interruptor i { display: block; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px var(--sombra-fuerte); transition: transform .25s var(--ease-resorte) }
+.interruptor.on { background: var(--primario) } .interruptor.on i { transform: translateX(20px) }
+.login-recorrido { font-size: 14px }
+.recorrido { text-align: center; animation: entra .3s var(--ease-salida) both } .recorrido h2 { margin-bottom: 6px }
+.error-reintento p { margin-bottom: 14px } .error-reintento .big { max-width: 220px; margin: 0 auto }
+
+/* Zonas táctiles de mínimo 40px: dedos grandes y manos con prisa */
+.mini button { width: 40px; height: 40px }
+.qty button { min-width: 48px }
+.link { min-height: 44px }
+
+@media (prefers-reduced-motion: reduce) {
+  .chulo-venta, .recorrido { animation: none }
+  .chulo-circulo, .chulo-marca { animation: none; stroke-dashoffset: 0 }
+  .interruptor, .interruptor i, .pp-barra span { transition: none }
+}
+.bienvenida-pie { position: sticky; bottom: 0; background: var(--bg); padding-bottom: 4px }

@@ -5,7 +5,8 @@ export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO' | 'MIXTO' | 'REGALO'
 export type TipoMovimiento = 'ENTRADA' | 'CONTEO' | 'MERMA'
 export type MotivoMerma = 'DANADO' | 'REGALADO' | 'VENCIDO'
 export type EstadoPedido = 'ENVIADO' | 'RECIBIDO' | 'CANCELADO'
-export type CategoriaGasto = 'HIELO' | 'TRANSPORTE' | 'EMPAQUE' | 'OTRO'
+/** Una de las de siempre (HIELO, TRANSPORTE…, ver `CATEGORIAS_GASTO`) o el nombre de una categoría propia del negocio. */
+export type CategoriaGasto = string
 
 export interface Producto {
   id: number
@@ -148,10 +149,13 @@ export interface BaseVueltos {
   entregas: { id: number; monto: number; creadaEn: string }[]
 }
 
-export type MetodoPagoEquipo = 'EFECTIVO' | 'NEQUI'
+export type MetodoPagoEquipo = 'EFECTIVO' | 'NEQUI' | 'MIXTO'
 export type EstadoPagoEquipo = 'PENDIENTE' | 'CONFIRMADO' | 'DISPUTADO' | 'ANULADO'
 
-/** Un pago de comisiones a un trabajador. En efectivo trae el paz y salvo (`texto`) que el trabajador firma con su nombre. */
+/**
+ * Un pago de comisiones a un trabajador. Si recibió efectivo trae el paz y salvo (`texto`) que firma con su nombre.
+ * Con MIXTO, `montoEfectivo` es la parte en efectivo y el resto fue por Nequi. `saldo` = lo que quedó pendiente después.
+ */
 export interface PagoEquipo {
   id: number
   vendedorId: number
@@ -159,6 +163,8 @@ export interface PagoEquipo {
   metodo: MetodoPagoEquipo
   estado: EstadoPagoEquipo
   monto: number
+  montoEfectivo?: number
+  saldo?: number
   comision: number
   bonos: number
   unidades: number
@@ -177,6 +183,8 @@ export interface CuentaEquipo {
   desde: string | null
   pendiente: Liquidacion
   pagos: PagoEquipo[]
+  /** Lo que quedó pendiente de su último pago: se le debe además de la comisión y los premios de `pendiente`. */
+  saldoAnterior?: number
 }
 
 /** Lo que ve el trabajador al cerrar su día. `entregar` negativo = el dueño le debe. */
@@ -235,6 +243,10 @@ export interface Estado {
   premios?: PremiosDia | null
   /** La promoción del negocio (JSON), para que la vendan todos los celulares. Ausente = no hay. */
   promo?: string | null
+  /** El perfil del negocio (JSON: nombre, rubro, funciones). Ausente = negocio de antes, todo prendido. */
+  perfil?: string | null
+  /** Solo para el dueño: categorías de gasto que ha usado en los últimos meses (incluye las propias). */
+  categoriasGasto?: string[] | null
 }
 
 export interface Meta {
@@ -365,6 +377,8 @@ export interface ReporteGasto {
   categoria: CategoriaGasto
   concepto: string
   monto: number
+  /** De dónde salió la plata. */
+  lugar?: LugarPlata
 }
 
 /** Lo gastado en un día del periodo, para la gráfica de "Mis gastos". */
@@ -463,7 +477,7 @@ export type Operacion =
   | { tipo: 'entrada'; clientUid: string; productoId: number; cantidad: number; creadaEn: number }
   | { tipo: 'ajuste'; clientUid: string; productoId: number; real: number; creadaEn: number }
   | { tipo: 'merma'; clientUid: string; productoId: number; cantidad: number; motivo: MotivoMerma; creadaEn: number }
-  | { tipo: 'gasto'; clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; creadaEn: number }
+  | { tipo: 'gasto'; clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; /** De dónde salió la plata (si falta, de la caja). */ lugar?: LugarPlata; creadaEn: number }
   | { tipo: 'recepcion'; clientUid: string; pedidoId: number; items: LineaPedido[]; pagoLugar?: LugarPlata; creadaEn: number }
   | { tipo: 'arqueo'; clientUid: string; contado: number; nota: string; casa?: number; nequi?: number; creadaEn: number }
 

@@ -1,7 +1,7 @@
 import { Icono } from '../componentes/Icono'
 import { Personaje } from '../componentes/Personaje'
 import { pesos } from '../formato'
-import { CATEGORIA_TEXTO, fechaCorta, variacion } from '../reportes'
+import { CATEGORIA_TEXTO, LUGAR_GASTO, fechaCorta, variacion } from '../reportes'
 import type { CategoriaGasto, Reporte, ReporteCategoriaGasto, ReporteDiaGasto } from '../tipos'
 
 interface Props {
@@ -74,7 +74,7 @@ export function MisGastos({ periodo, datos, onBorrar, onVolver }: Props) {
                 <div className="row" key={g.clientUid}>
                   <span>
                     <b>{CATEGORIA_TEXTO[g.categoria] ?? g.categoria}</b>{g.concepto ? ' · ' + g.concepto : ''}
-                    <br /><small className="mut">{fechaCorta(g.dia)} · {g.hora} · {pesos(g.monto)}</small>
+                    <br /><small className="mut">{fechaCorta(g.dia)} · {g.hora} · {pesos(g.monto)}{g.lugar ? ' · ' + LUGAR_GASTO[g.lugar].replace(/^D/, 'd') : ''}</small>
                   </span>
                   <button className="quitar" onClick={() => onBorrar(g.clientUid)}>Borrar</button>
                 </div>

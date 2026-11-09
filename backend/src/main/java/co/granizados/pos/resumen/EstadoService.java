@@ -79,7 +79,11 @@ public class EstadoService {
                          /** Solo para un trabajador: lo que lleva ganado hoy (comisión y premios por escalón). */
                          EquipoService.PremiosDia premios,
                          /** La promoción del negocio tal como la guardó el dueño (JSON); vacía si no hay. Le llega a todos los celulares. */
-                         String promo) {
+                         String promo,
+                         /** El perfil del negocio (JSON: nombre, rubro, funciones que usa); null si todavía no lo llenó. */
+                         String perfil,
+                         /** Solo para el dueño: las categorías de gasto que ha usado en los últimos meses (incluye las propias). */
+                         List<String> categoriasGasto) {
     }
 
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("h:mm a", Locale.US);
@@ -117,6 +121,9 @@ public class EstadoService {
         this.zona = props.zoneId();
     }
 
+    /** Una categoría de gasto propia se sigue ofreciendo mientras se haya usado en este tiempo. */
+    static final int DIAS_CATEGORIAS = 120;
+
     /** "Hoy" es el día calendario en Bogotá, no en UTC. */
     public LocalDate hoy() {
         return LocalDate.now(clock.withZone(zona));
@@ -134,7 +141,8 @@ public class EstadoService {
                 .toList();
         List<ProductoDto> activos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream().map(ProductoDto::de).toList();
         ResumenDia resumen = resumenDe(dia, delDia);
-        return new Estado(activos, resumen, ultimas, dia, pedidos.enCamino(), metaDe(dia), null, null, promoDe());
+        return new Estado(activos, resumen, ultimas, dia, pedidos.enCamino(), metaDe(dia), null, null, promoDe(), textoDe("PERFIL"),
+                gastos.categoriasDesde(dia.minusDays(DIAS_CATEGORIAS).atStartOfDay(zona).toInstant()));
     }
 
     /**
@@ -156,12 +164,16 @@ public class EstadoService {
         ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades(), r.porSabor(), 0, 0, 0,
                 r.total(), 0, r.porSabor(), r.cerveza());
         return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0), equipo.metaDe(vendedor, dia),
-                equipo.premiosDe(vendedor, mias), promoDe());
+                equipo.premiosDe(vendedor, mias), promoDe(), textoDe("PERFIL"), null);
     }
 
     private String promoDe() {
-        String promo = ajustes.mapa().get("PROMO");
-        return promo == null || promo.isBlank() ? null : promo;
+        return textoDe("PROMO");
+    }
+
+    private String textoDe(String clave) {
+        String valor = ajustes.mapa().get(clave);
+        return valor == null || valor.isBlank() ? null : valor;
     }
 
     /** La meta puesta en Ajustes, más la racha. Con 0 la meta está apagada y no hay racha. */

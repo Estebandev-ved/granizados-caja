@@ -4,7 +4,6 @@ import co.granizados.pos.caja.ArqueoService;
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.fiado.Deuda;
 import co.granizados.pos.fiado.DeudaRepository;
-import co.granizados.pos.gasto.CategoriaGasto;
 import co.granizados.pos.gasto.Gasto;
 import co.granizados.pos.gasto.GastoRepository;
 import co.granizados.pos.inventario.EntradaInventarioRepository;
@@ -64,11 +63,12 @@ public class ReporteService {
     public record CierreCaja(LocalDate dia, long esperado, long contado, long diferencia, String nota) {
     }
 
-    public record PorCategoriaGasto(CategoriaGasto categoria, long monto) {
+    public record PorCategoriaGasto(String categoria, long monto) {
     }
 
     /** Un gasto individual del periodo, para la lista de "Mis gastos". */
-    public record GastoDetalle(String clientUid, String dia, String hora, CategoriaGasto categoria, String concepto, long monto) {
+    public record GastoDetalle(String clientUid, String dia, String hora, String categoria, String concepto, long monto,
+                               co.granizados.pos.plata.LugarPlata lugar) {
     }
 
     /** Lo gastado en un día del periodo, para la gráfica de "Mis gastos". */
@@ -331,7 +331,7 @@ public class ReporteService {
     }
 
     private List<PorCategoriaGasto> porCategoriaGasto(List<Gasto> lista) {
-        Map<CategoriaGasto, Long> mapa = new EnumMap<>(CategoriaGasto.class);
+        Map<String, Long> mapa = new java.util.LinkedHashMap<>();
         for (Gasto g : lista) mapa.merge(g.getCategoria(), g.getMonto(), Long::sum);
         return mapa.entrySet().stream()
                 .map(e -> new PorCategoriaGasto(e.getKey(), e.getValue()))
@@ -345,7 +345,7 @@ public class ReporteService {
                 .map(g -> {
                     var cuando = g.getCreadoEn().atZone(zona);
                     return new GastoDetalle(g.getClientUid(), ISO.format(cuando.toLocalDate()),
-                            HORA.format(cuando.toLocalTime()), g.getCategoria(), g.getConcepto(), g.getMonto());
+                            HORA.format(cuando.toLocalTime()), g.getCategoria(), g.getConcepto(), g.getMonto(), g.getLugar());
                 })
                 .toList();
     }

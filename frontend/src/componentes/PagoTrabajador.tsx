@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { pesos } from '../formato'
+import type { DatosPagoEquipo } from '../api'
 import type { MetodoPagoEquipo, PagoEquipo } from '../tipos'
 import { CampoNumero } from './CampoNumero'
+import { Unidades } from './Unidades'
 import { Personaje } from './Personaje'
 
 export function fechaHora(iso: string): string {
@@ -15,71 +17,124 @@ export const ETIQUETA_PAGO: Record<PagoEquipo['estado'], string> = {
   ANULADO: 'Anulado',
 }
 
-/** El dueño dice "ya le pagué": escoge cómo y confirma. Esto reinicia las cuentas del trabajador. */
-export function PagarTrabajador({ nombre, comision, bonos, unidades, onPagar }: {
+/** Cómo se pagó, en pocas palabras: «Efectivo», «Nequi» o las dos partes con su monto. */
+export function comoSePago(p: Pick<PagoEquipo, 'metodo' | 'monto' | 'montoEfectivo'>): string {
+  if (p.metodo === 'EFECTIVO') return 'Efectivo'
+  if (p.metodo === 'NEQUI') return 'Nequi'
+  const efectivo = p.montoEfectivo ?? 0
+  return pesos(efectivo) + ' efectivo + ' + pesos(p.monto - efectivo) + ' Nequi'
+}
+
+const METODOS_PAGO: { valor: MetodoPagoEquipo; texto: string }[] = [
+  { valor: 'EFECTIVO', texto: 'Todo en efectivo' },
+  { valor: 'NEQUI', texto: 'Todo por Nequi' },
+  { valor: 'MIXTO', texto: 'Parte y parte' },
+]
+
+/**
+ * El dueño dice "ya le pagué": cuánto, cómo (efectivo, Nequi o una parte de cada uno) y, si le da menos de lo que
+ * le toca, si el resto se lo queda debiendo. Esto reinicia las cuentas del trabajador.
+ */
+export function PagarTrabajador({ nombre, comision, bonos, unidades, saldoAnterior = 0, onPagar }: {
   nombre: string
   comision: number
   bonos: number
   unidades: number
-  onPagar: (metodo: MetodoPagoEquipo, monto: number) => Promise<void>
+  /** Lo que quedó pendiente de su último pago. */
+  saldoAnterior?: number
+  onPagar: (pago: DatosPagoEquipo) => Promise<void>
 }) {
   const [metodo, setMetodo] = useState<MetodoPagoEquipo>('EFECTIVO')
   const [enviando, setEnviando] = useState(false)
-  const debido = comision + bonos
+  const debido = comision + bonos + saldoAnterior
   const [texto, setTexto] = useState(String(debido))
+  const [textoEfectivo, setTextoEfectivo] = useState('')
+  const [quedaDebiendo, setQuedaDebiendo] = useState(true)
   const monto = Number(texto) || 0
+  const enEfectivo = Number(textoEfectivo) || 0
+  const porNequi = monto - enEfectivo
+  const falta = debido - monto
+  const mixtoMal = metodo === 'MIXTO' && (enEfectivo <= 0 || enEfectivo >= monto)
+  const recibeEfectivo = metodo !== 'NEQUI'
 
   const pagar = async () => {
-    if (enviando || monto <= 0) return
+    if (enviando || monto <= 0 || mixtoMal) return
     setEnviando(true)
     try {
-      await onPagar(metodo, monto)
+      await onPagar({ metodo, monto, montoEfectivo: metodo === 'MIXTO' ? enEfectivo : undefined, quedaDebiendo: falta > 0 && quedaDebiendo })
     } finally {
       setEnviando(false)
     }
   }
 
+  const partes = [
+    comision > 0 || bonos > 0 ? pesos(comision) + ' de comisión' : '',
+    bonos > 0 ? pesos(bonos) + ' de premios' : '',
+    saldoAnterior > 0 ? pesos(saldoAnterior) + ' que le quedaste debiendo' : '',
+  ].filter(Boolean)
+
   return (
     <>
       <h2>Pagarle a {nombre}</h2>
       <div className="pago-monto">
-        <span>Le corresponde por {unidades} granizado{unidades === 1 ? '' : 's'}</span>
+        <span>Le corresponde por <Unidades n={unidades} /></span>
         <b>{pesos(debido)}</b>
-        {bonos > 0 && <span className="mut">{pesos(comision)} de comisión + {pesos(bonos)} de premios</span>}
+        {partes.length > 1 && <span className="mut">{partes.join(' + ')}</span>}
       </div>
       <div className="campo">
-        <label htmlFor="pago-monto">¿Cuánto le das?</label>
-        <CampoNumero id="pago-monto" max={9} value={texto} onCambio={setTexto} />
-        {monto !== debido && monto > 0 && (
-          <span className="mut">
-            {monto < debido ? 'Le das ' + pesos(debido - monto) + ' menos de lo que le corresponde.' : 'Le das ' + pesos(monto - debido) + ' más de lo que le corresponde.'}
-            {' '}Sus cuentas arrancan de cero igual.
-          </span>
-        )}
+        <label htmlFor="pago-monto">¿Cuánto le das en total?</label>
+        <CampoNumero id="pago-monto" miles max={9} value={texto} onCambio={setTexto} />
       </div>
       <div className="campo">
-        <label>¿De dónde sale la plata?</label>
-        <div className="chips" role="radiogroup">
-          <button type="button" role="radio" aria-checked={metodo === 'EFECTIVO'} className={metodo === 'EFECTIVO' ? 'on' : ''}
-            onClick={() => setMetodo('EFECTIVO')}>De la caja, en efectivo</button>
-          <button type="button" role="radio" aria-checked={metodo === 'NEQUI'} className={metodo === 'NEQUI' ? 'on' : ''}
-            onClick={() => setMetodo('NEQUI')}>Por Nequi</button>
+        <label>¿Cómo le pagas?</label>
+        <div className="chips izq" role="radiogroup" aria-label="Cómo le pagas">
+          {METODOS_PAGO.map(m => (
+            <button type="button" role="radio" aria-checked={metodo === m.valor} key={m.valor}
+              className={metodo === m.valor ? 'on' : ''} onClick={() => setMetodo(m.valor)}>{m.texto}</button>
+          ))}
         </div>
       </div>
+      {metodo === 'MIXTO' && (
+        <div className="campo">
+          <label htmlFor="pago-efectivo">¿Cuánto de eso en efectivo?</label>
+          <CampoNumero id="pago-efectivo" miles max={9} placeholder="0" value={textoEfectivo} onCambio={setTextoEfectivo} />
+          {enEfectivo > 0 && enEfectivo < monto
+            ? <div className="pago-partes"><span>Efectivo <b>{pesos(enEfectivo)}</b></span><span>Nequi <b>{pesos(porNequi)}</b></span></div>
+            : <small>{enEfectivo >= monto && monto > 0 ? 'Tiene que ser menos que los ' + pesos(monto) + ' del total.' : 'El resto se cuenta como Nequi.'}</small>}
+        </div>
+      )}
+      {monto > 0 && falta > 0 && (
+        <div className="campo">
+          <label>¿Y los {pesos(falta)} que faltan?</label>
+          <div className="chips izq" role="radiogroup" aria-label="Qué pasa con lo que falta">
+            <button type="button" role="radio" aria-checked={quedaDebiendo} className={quedaDebiendo ? 'on' : ''}
+              onClick={() => setQuedaDebiendo(true)}>Se los pago después</button>
+            <button type="button" role="radio" aria-checked={!quedaDebiendo} className={!quedaDebiendo ? 'on' : ''}
+              onClick={() => setQuedaDebiendo(false)}>No se los debo</button>
+          </div>
+          <small>
+            {quedaDebiendo
+              ? 'Quedan pendientes: te siguen saliendo en «Por pagarle» para que se los des después, en efectivo o por Nequi.'
+              : 'Sus cuentas arrancan de cero: esa plata ya no se le debe (por ejemplo, un descuento que acordaron).'}
+          </small>
+        </div>
+      )}
+      {monto > debido && <p className="mut">Le das {pesos(monto - debido)} más de lo que le corresponde.</p>}
       <p className="mut">
-        Sus cuentas arrancan de cero desde ahora. A {nombre} le llega la pregunta «¿te pagaron?» en su celular
-        {metodo === 'EFECTIVO' ? ' y firma un paz y salvo aceptando que recibió la plata.' : ' y confirma que le llegó el Nequi.'}
+        {falta > 0 && quedaDebiendo ? 'Lo de hoy queda anotado como abono.' : 'Sus cuentas arrancan de cero desde ahora.'}
+        {' '}A {nombre} le llega la pregunta «¿te pagaron?» en su celular
+        {recibeEfectivo ? ' y firma un paz y salvo aceptando que recibió la plata.' : ' y confirma que le llegó el Nequi.'}
       </p>
       <div className="acciones">
-        <button className="big primario" disabled={enviando || monto <= 0} onClick={() => void pagar()}>
-          {enviando ? 'Guardando…' : monto > 0 ? 'Sí, ya le pagué ' + pesos(monto) : 'Escribe el monto'}
+        <button className="big primario" disabled={enviando || monto <= 0 || mixtoMal} onClick={() => void pagar()}>
+          {enviando ? 'Guardando…' : monto <= 0 ? 'Escribe el monto' : mixtoMal ? 'Escribe cuánto fue en efectivo' : 'Sí, ya le pagué ' + pesos(monto)}
         </button>
       </div>
     </>
   )
 }
 
-/** Lo que ve el trabajador: «el dueño dice que te pagó, ¿es cierto?». En efectivo, firma el paz y salvo con su nombre. */
+/** Lo que ve el trabajador: «el dueño dice que te pagó, ¿es cierto?». Si recibió efectivo, firma el paz y salvo con su nombre. */
 export function ConfirmarPago({ pago, onResponder }: {
   pago: PagoEquipo
   onResponder: (recibido: boolean, firma?: string) => Promise<void>
@@ -88,7 +143,9 @@ export function ConfirmarPago({ pago, onResponder }: {
   const [acepto, setAcepto] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [negando, setNegando] = useState(false)
-  const efectivo = pago.metodo === 'EFECTIVO'
+  const efectivo = pago.metodo !== 'NEQUI' // recibió efectivo, todo o una parte: firma el paz y salvo
+  const parteEfectivo = pago.montoEfectivo ?? 0
+  const pendiente = pago.saldo ?? 0
   const listo = !efectivo || (acepto && firma.trim().length >= 3)
 
   const responder = async (recibido: boolean) => {
@@ -119,8 +176,9 @@ export function ConfirmarPago({ pago, onResponder }: {
     <>
       <h2>¿Te pagaron {pesos(pago.monto)}?</h2>
       <p>
-        El dueño dice que te pagó {efectivo ? 'en efectivo' : 'por Nequi'} tus comisiones{pago.bonos > 0 ? ' y premios' : ''} de {pago.unidades} granizado{pago.unidades === 1 ? '' : 's'}.
+        El dueño dice que te pagó {pago.metodo === 'MIXTO' ? pesos(parteEfectivo) + ' en efectivo y ' + pesos(pago.monto - parteEfectivo) + ' por Nequi por' : pago.metodo === 'EFECTIVO' ? 'en efectivo' : 'por Nequi'} tus comisiones{pago.bonos > 0 ? ' y premios' : ''} de {pago.unidades} granizado{pago.unidades === 1 ? '' : 's'}.
       </p>
+      {pendiente > 0 && <p className="mut">Es un abono: te quedan debiendo {pesos(pendiente)}, que te pagan después.</p>}
       {efectivo && pago.texto && (
         <div className="paz-y-salvo">
           {pago.texto.split('\n').map((l, i) => i === 0 ? <h3 key={i}>{l}</h3> : <p key={i}>{l}</p>)}

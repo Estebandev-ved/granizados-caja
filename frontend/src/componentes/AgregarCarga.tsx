@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { vibrar } from '../formato'
+import { Unidades } from './Unidades'
 import type { Producto, Trabajador } from '../tipos'
 
 /** Sumarle más granizados a un trabajador a mitad del día. Lo que ya llevaba y lo que ya vendió no se toca. */
@@ -54,7 +55,7 @@ export function AgregarCarga({ trabajador, productos, onGuardar }: {
       </div>
       <div className="acciones">
         <button className="big primario" disabled={!total || enviando} onClick={() => void guardar()}>
-          {enviando ? 'Guardando…' : total ? 'Agregar ' + total + (total === 1 ? ' granizado' : ' granizados') : 'Escoge cuántos'}
+          {enviando ? 'Guardando…' : total ? <>Agregar <Unidades n={total} /></> : 'Escoge cuántos'}
         </button>
       </div>
     </>

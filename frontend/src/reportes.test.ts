@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { restarDias, rangoDe } from './reportes'
+import { CATEGORIA_TEXTO, categoriaEscrita, categoriasParaElegir, restarDias, rangoDe } from './reportes'
 
 const HOY = '2026-09-25'
 const PERSONAL = { desde: '2026-03-01', hasta: '2026-03-15' }
@@ -39,5 +39,28 @@ describe('rangoDe', () => {
 
   it('el mes cruza diciembre sin romperse', () => {
     expect(rangoDe('mes', '2026-01-09', PERSONAL)).toEqual({ desde: '2026-01-01', hasta: '2026-01-09' })
+  })
+})
+
+describe('categorias de gasto', () => {
+  it('ofrece las de la app y mete las propias antes de Otro, sin repetir', () => {
+    const lista = categoriasParaElegir(['HIELO', 'Gasolina', 'arriendo', ' gasolina ', 'Aseo'])
+    const textos = lista.map(c => c.texto)
+    expect(textos[0]).toBe('Hielo')
+    expect(textos[textos.length - 1]).toBe('Otro')
+    expect(textos.filter(t => t.toLowerCase() === 'gasolina')).toHaveLength(1)
+    expect(textos.filter(t => t.toLowerCase() === 'arriendo')).toEqual(['Arriendo'])
+    expect(textos.slice(-3)).toEqual(['Aseo', 'Gasolina', 'Otro'])
+  })
+
+  it('sin categorias propias quedan solo las de la app', () => {
+    expect(categoriasParaElegir(null).map(c => c.valor)).toEqual(Object.keys(CATEGORIA_TEXTO))
+  })
+
+  it('una categoria escrita que ya existe se guarda con la de la app; una nueva, limpia y con tope', () => {
+    expect(categoriaEscrita(' arriendo ')).toBe('ARRIENDO')
+    expect(categoriaEscrita('  Gasolina   moto ')).toBe('Gasolina moto')
+    expect(categoriaEscrita('x'.repeat(40))).toHaveLength(20)
+    expect(categoriaEscrita('   ')).toBe('')
   })
 })

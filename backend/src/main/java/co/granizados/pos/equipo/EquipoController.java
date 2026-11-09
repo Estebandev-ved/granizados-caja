@@ -59,7 +59,7 @@ public class EquipoController {
     /** "Ya le pagué": guarda el pago y reinicia sus cuentas. */
     @PostMapping("/{id}/pagos")
     public EquipoService.PagoDto pagar(@PathVariable Long id, @Valid @RequestBody EquipoService.NuevoPago nuevo) {
-        return servicio.pagar(id, nuevo.metodo(), nuevo.monto());
+        return servicio.pagar(id, nuevo.metodo(), nuevo.monto(), nuevo.montoEfectivo(), Boolean.TRUE.equals(nuevo.quedaDebiendo()));
     }
 
     /** Plata de la caja que le pasas para dar vueltos (se la devuelve al cerrar). */

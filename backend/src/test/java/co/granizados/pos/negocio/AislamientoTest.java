@@ -52,6 +52,9 @@ class AislamientoTest extends PruebaIntegracion {
     PlataService plata;
 
     @Autowired
+    co.granizados.pos.gasto.GastoService gastos;
+
+    @Autowired
     ArqueoService arqueos;
 
     @Autowired
@@ -239,5 +242,19 @@ class AislamientoTest extends PruebaIntegracion {
         assertThat(como(1, () -> equipo.terminos(juan.id()).aceptadaEn())).isNotNull();
         assertThatThrownBy(() -> como(2, () -> equipo.terminos(juan.id()))).isInstanceOf(NoEncontradoException.class);
         assertThatThrownBy(() -> como(2, () -> equipo.aceptar(juan.id(), version))).isInstanceOf(NoEncontradoException.class);
+    }
+
+    @Test
+    void losGastosYSusCategoriasPropiasSonDeCadaNegocio() {
+        como(2, () -> gastos.registrar(new co.granizados.pos.gasto.GastoService.NuevoGasto(
+                "g-1", "Telas", "", 30_000, null, co.granizados.pos.plata.LugarPlata.NEQUI)));
+
+        assertThat(como(2, () -> estado.estado().categoriasGasto())).containsExactly("Telas");
+        assertThat(como(1, () -> estado.estado().categoriasGasto())).isEmpty();
+        assertThat(como(2, () -> estado.resumenDe(estado.hoy()).gastos())).isEqualTo(30_000);
+        assertThat(como(1, () -> estado.resumenDe(estado.hoy()).gastos())).isZero();
+        // El mismo identificador en el otro negocio no choca
+        assertThat(como(1, () -> gastos.registrar(new co.granizados.pos.gasto.GastoService.NuevoGasto("g-1", "HIELO", "", 1_000, null))))
+                .isEqualTo(co.granizados.pos.gasto.GastoService.Resultado.REGISTRADA);
     }
 }

@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.groups.Tuple.tuple;
 
 import co.granizados.pos.PruebaIntegracion;
-import co.granizados.pos.gasto.CategoriaGasto;
 import co.granizados.pos.gasto.GastoService;
 import co.granizados.pos.inventario.InventarioService;
 import co.granizados.pos.inventario.MotivoMerma;
@@ -48,7 +47,7 @@ class ReporteServiceTest extends PruebaIntegracion {
         ponerCosto("Smirnoff", 3000);
         ventas.registrar(new NuevaVenta("v1", idDe("Smirnoff"), MetodoPago.EFECTIVO, 2, JUEVES_10));
         ventas.registrar(new NuevaVenta("v2", idDe("Smirnoff"), MetodoPago.NEQUI, 1, VIERNES_14));
-        gastos.registrar(new GastoService.NuevoGasto("g1", CategoriaGasto.HIELO, "bolsas", 1500, JUEVES_10));
+        gastos.registrar(new GastoService.NuevoGasto("g1", "HIELO", "bolsas", 1500, JUEVES_10));
         inventario.registrar(new InventarioService.NuevoMovimiento(
                 "m1", idDe("Smirnoff"), TipoMovimiento.MERMA, 1, null, MotivoMerma.DANADO));
 

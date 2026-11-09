@@ -151,7 +151,10 @@ type MovimientoApi = {
   motivo?: MotivoMerma
 }
 type RespuestaMovimiento = { clientUid: string; estado: string; error: string | null }
-type GastoApi = { clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; creadoEn: string }
+type GastoApi = { clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; creadoEn: string; lugar?: LugarPlata }
+
+/** «Ya le pagué»: `montoEfectivo` solo con MIXTO; `quedaDebiendo` deja pendiente lo que falte. */
+export type DatosPagoEquipo = { metodo: MetodoPagoEquipo; monto: number; montoEfectivo?: number; quedaDebiendo: boolean }
 type ArqueoApi = { clientUid: string; contado: number; nota: string | null; creadoEn: string; casa?: number; nequi?: number }
 
 export const api = {
@@ -177,8 +180,8 @@ export const api = {
     pedir<EntregaEquipo>('POST', '/api/equipo/entregas/' + entregaId + '/responder', { recibida }),
   miBase: () => pedir<BaseVueltos>('GET', '/api/mi-turno/base'),
   cuentaTrabajador: (id: number) => pedir<CuentaEquipo>('GET', '/api/equipo/' + id + '/cuenta'),
-  pagarTrabajador: (id: number, metodo: MetodoPagoEquipo, monto: number) =>
-    pedir<PagoEquipo>('POST', '/api/equipo/' + id + '/pagos', { metodo, monto }),
+  pagarTrabajador: (id: number, pago: DatosPagoEquipo) =>
+    pedir<PagoEquipo>('POST', '/api/equipo/' + id + '/pagos', pago),
   anularPagoTrabajador: (pagoId: number) => pedir<PagoEquipo>('POST', '/api/equipo/pagos/' + pagoId + '/anular'),
   /** El trabajador: sus pagos recientes y su respuesta a "¿te pagaron?". */
   misPagos: () => pedir<PagoEquipo[]>('GET', '/api/mi-turno/pagos'),

@@ -442,23 +442,41 @@ public class EquipoService {
         return liquidacionDe(v, ventas.entre(corte != null ? corte.plusNanos(1) : SIEMPRE, ahora.plusSeconds(1)));
     }
 
-    /** Lo que se le debe pagar hoy a ese trabajador por comisiones y premios. */
+    /** Lo que quedó debiéndole el dueño en su último pago en pie (un abono: le dio menos y el resto lo paga después). */
+    private long saldoAnteriorDe(Long vendedorId) {
+        return pagos.findFirstByVendedorIdAndEstadoNotOrderByHastaDesc(vendedorId, PagoVendedor.Estado.ANULADO)
+                .map(PagoVendedor::getSaldo).orElse(0L);
+    }
+
+    /** Lo que se le debe pagar hoy a ese trabajador: comisiones y premios desde su último pago, más lo que quedó pendiente de ese pago. */
     private long porPagarDe(Vendedor v) {
         Liquidacion l = pendienteDe(v, clock.instant());
-        return l.comision() + l.bonos();
+        return l.comision() + l.bonos() + saldoAnteriorDe(v.getId());
     }
 
-    /** Un pago, tal cual lo ven el dueño y el trabajador. */
+    /**
+     * Un pago, tal cual lo ven el dueño y el trabajador. `montoEfectivo` es la parte de `monto` que fue en efectivo
+     * (el resto, Nequi) y `saldo` lo que quedó pendiente después de este pago.
+     */
     public record PagoDto(Long id, Long vendedorId, String nombre, PagoVendedor.Metodo metodo, PagoVendedor.Estado estado,
                           long monto, long comision, long bonos, int unidades, long totalVendido, long efectivo,
-                          Instant desde, Instant hasta, Instant creadoEn, Instant respondidoEn, String texto, String firma) {
+                          Instant desde, Instant hasta, Instant creadoEn, Instant respondidoEn, String texto, String firma,
+                          long montoEfectivo, long saldo) {
     }
 
-    /** Lo que se le debe a un trabajador desde su último pago, y sus pagos más recientes. */
-    public record Cuenta(Instant desde, Liquidacion pendiente, List<PagoDto> pagos) {
+    /**
+     * Lo que se le debe a un trabajador desde su último pago, y sus pagos más recientes. `saldoAnterior` es lo que
+     * quedó pendiente de ese último pago: se le debe además de la comisión y los premios de `pendiente`.
+     */
+    public record Cuenta(Instant desde, Liquidacion pendiente, List<PagoDto> pagos, long saldoAnterior) {
     }
 
-    public record NuevoPago(@NotNull PagoVendedor.Metodo metodo, @Min(1) Long monto) {
+    /**
+     * `montoEfectivo` solo con MIXTO: la parte en efectivo (el resto, por Nequi). `quedaDebiendo`: si le da menos de
+     * lo que le toca, el resto queda pendiente para después (si no, las cuentas arrancan de cero igual).
+     */
+    public record NuevoPago(@NotNull PagoVendedor.Metodo metodo, @Min(1) Long monto, @Min(0) Long montoEfectivo,
+                            Boolean quedaDebiendo) {
     }
 
     public record RespuestaPago(boolean recibido, @Size(max = 80) String firma) {
@@ -467,45 +485,84 @@ public class EquipoService {
     private PagoDto pagoDto(PagoVendedor p, String nombre) {
         return new PagoDto(p.getId(), p.getVendedorId(), nombre, p.getMetodo(), p.getEstado(), p.getMonto(), p.getComision(),
                 p.getBonos(), p.getUnidades(), p.getTotalVendido(), p.getEfectivo(), p.getDesde(), p.getHasta(),
-                p.getCreadoEn(), p.getRespondidoEn(), p.getTexto(), p.getFirma());
+                p.getCreadoEn(), p.getRespondidoEn(), p.getTexto(), p.getFirma(), p.getMontoEfectivo(), p.getSaldo());
     }
 
     @Transactional(readOnly = true)
     public Cuenta cuenta(Long vendedorId) {
         Vendedor v = vendedor(vendedorId);
         return new Cuenta(corteDe(vendedorId), pendienteDe(v, clock.instant()),
-                pagos.findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(vendedorId).stream().map(p -> pagoDto(p, v.getNombre())).toList());
+                pagos.findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(vendedorId).stream().map(p -> pagoDto(p, v.getNombre())).toList(),
+                saldoAnteriorDe(vendedorId));
+    }
+
+    /** Un solo método, todo lo que se le debe (o `montoPagado`), y las cuentas arrancan de cero. */
+    @Transactional
+    public PagoDto pagar(Long vendedorId, PagoVendedor.Metodo metodo, Long montoPagado) {
+        return pagar(vendedorId, metodo, montoPagado, null, false);
     }
 
     /**
-     * El dueño dice "ya le pagué": se guarda el monto de comisiones y premios y las cuentas del trabajador vuelven a
-     * empezar desde este momento. El trabajador queda con una pregunta pendiente: ¿te pagaron?
+     * El dueño dice "ya le pagué": se guarda el monto y las cuentas del trabajador vuelven a empezar desde este momento.
+     * El trabajador queda con una pregunta pendiente: ¿te pagaron?
+     * Con MIXTO, `montoEfectivo` es la parte en efectivo y el resto fue por Nequi. Si le dio menos de lo que le toca y
+     * `quedaDebiendo`, lo que falta queda como saldo y se suma a lo que se le deba la próxima vez.
      */
     @Transactional
-    public PagoDto pagar(Long vendedorId, PagoVendedor.Metodo metodo, Long montoPagado) {
+    public PagoDto pagar(Long vendedorId, PagoVendedor.Metodo metodo, Long montoPagado, Long montoEfectivo, boolean quedaDebiendo) {
         Vendedor v = vendedor(vendedorId);
         Instant ahora = clock.instant();
         Instant corte = corteDe(vendedorId);
+        long saldoAnterior = saldoAnteriorDe(vendedorId);
         Liquidacion l = liquidacionDe(v, ventas.entre(corte != null ? corte.plusNanos(1) : SIEMPRE, ahora.plusSeconds(1)));
-        long debido = l.comision() + l.bonos();
+        long debido = l.comision() + l.bonos() + saldoAnterior;
         long monto = montoPagado != null ? montoPagado : debido;
         if (monto <= 0) throw new IllegalArgumentException("No hay comisiones por pagarle");
-        String texto = metodo == PagoVendedor.Metodo.EFECTIVO ? pazYSalvo(v, l, monto, corte, ahora) : null;
-        PagoVendedor p = pagos.save(new PagoVendedor(vendedorId, metodo, monto, l.comision(), l.bonos(), l.unidades(), l.total(),
-                l.efectivo(), corte, ahora, ahora, texto));
+        long enEfectivo = switch (metodo) {
+            case EFECTIVO -> monto;
+            case NEQUI -> 0;
+            case MIXTO -> {
+                if (montoEfectivo == null || montoEfectivo <= 0 || montoEfectivo >= monto) {
+                    throw new IllegalArgumentException("Escribe cuánto le diste en efectivo: tiene que ser menos que el total");
+                }
+                yield montoEfectivo;
+            }
+        };
+        long saldo = quedaDebiendo ? Math.max(0, debido - monto) : 0;
+        String texto = enEfectivo > 0 ? pazYSalvo(v, l, monto, enEfectivo, saldoAnterior, saldo, corte, ahora) : null;
+        PagoVendedor p = pagos.save(new PagoVendedor(vendedorId, metodo, monto, enEfectivo, saldo, l.comision(), l.bonos(),
+                l.unidades(), l.total(), l.efectivo(), corte, ahora, ahora, texto));
         return pagoDto(p, v.getNombre());
     }
 
-    private String pazYSalvo(Vendedor v, Liquidacion l, long monto, Instant desde, Instant hasta) {
+    private String pazYSalvo(Vendedor v, Liquidacion l, long monto, long enEfectivo, long saldoAnterior, long saldo,
+                             Instant desde, Instant hasta) {
         String periodo = desde == null ? "hasta el " + FECHA_LARGA.format(hasta.atZone(zona))
                 : "entre el " + FECHA_LARGA.format(desde.atZone(zona)) + " y el " + FECHA_LARGA.format(hasta.atZone(zona));
+        String como = enEfectivo == monto ? "recibí en efectivo del negocio la suma de " + Pesos.formato(monto)
+                : "recibí del negocio la suma de " + Pesos.formato(monto) + " (" + Pesos.formato(enEfectivo) + " en efectivo y "
+                        + Pesos.formato(monto - enEfectivo) + " por Nequi)";
+        String cierre = saldo > 0
+                ? "Este pago es un abono: queda pendiente un saldo de " + Pesos.formato(saldo) + " a mi favor por esos conceptos, "
+                        + "que el negocio me paga después.\n"
+                : "Con este pago quedo a paz y salvo con el negocio por esos conceptos y por ese período: no se me debe "
+                        + "nada más por ese trabajo.\n";
         return "PAZ Y SALVO\n"
-                + "Yo, " + v.getNombre() + ", declaro que recibí en efectivo del negocio la suma de " + Pesos.formato(monto)
+                + "Yo, " + v.getNombre() + ", declaro que " + como
                 + " por concepto de comisiones" + (l.bonos() > 0 ? " y premios" : "") + " de " + l.unidades()
-                + " granizados vendidos " + periodo + ".\n"
-                + "Con este pago quedo a paz y salvo con el negocio por esos conceptos y por ese período: no se me debe "
-                + "nada más por ese trabajo.\n"
+                + " granizados vendidos " + periodo
+                + (saldoAnterior > 0 ? ", más " + Pesos.formato(saldoAnterior) + " que venían pendientes de un pago anterior" : "") + ".\n"
+                + cierre
                 + "Firmo escribiendo mi nombre en la aplicación, y acepto que esta firma y la hora en que la hice quedan guardadas como constancia.";
+    }
+
+    private static String comoSePago(PagoVendedor p) {
+        return switch (p.getMetodo()) {
+            case EFECTIVO -> "efectivo, firmó el paz y salvo";
+            case NEQUI -> "Nequi";
+            case MIXTO -> Pesos.formato(p.getMontoEfectivo()) + " en efectivo y " + Pesos.formato(p.getMonto() - p.getMontoEfectivo())
+                    + " por Nequi, firmó el paz y salvo";
+        };
     }
 
     @Transactional(readOnly = true)
@@ -523,15 +580,16 @@ public class EquipoService {
                 .orElseThrow(() -> new NoEncontradoException("Pago no encontrado: " + pagoId));
         if (p.getEstado() != PagoVendedor.Estado.PENDIENTE) throw new IllegalArgumentException("Ese pago ya lo respondiste");
         String nombreFirma = firma == null ? "" : firma.trim();
-        if (recibido && p.getMetodo() == PagoVendedor.Metodo.EFECTIVO && nombreFirma.length() < 3) {
+        boolean firmaPazYSalvo = p.getMetodo() != PagoVendedor.Metodo.NEQUI; // recibió efectivo (todo o una parte)
+        if (recibido && firmaPazYSalvo && nombreFirma.length() < 3) {
             throw new IllegalArgumentException("Para firmar el paz y salvo escribe tu nombre");
         }
         p.responder(recibido ? PagoVendedor.Estado.CONFIRMADO : PagoVendedor.Estado.DISPUTADO,
-                recibido && p.getMetodo() == PagoVendedor.Metodo.EFECTIVO ? nombreFirma : null, clock.instant());
+                recibido && firmaPazYSalvo ? nombreFirma : null, clock.instant());
         pagos.save(p);
         eventos.publishEvent(recibido
                 ? new AvisoEquipo(TenantContext.actual(), "✅ " + v.getNombre() + " confirmó su pago",
-                        v.getNombre() + " dice que recibió " + Pesos.formato(p.getMonto()) + " (" + (p.getMetodo() == PagoVendedor.Metodo.EFECTIVO ? "efectivo, firmó el paz y salvo" : "Nequi") + ").")
+                        v.getNombre() + " dice que recibió " + Pesos.formato(p.getMonto()) + " (" + comoSePago(p) + ").")
                 : new AvisoEquipo(TenantContext.actual(), "⚠️ " + v.getNombre() + " dice que NO le pagaron",
                         v.getNombre() + " respondió que no recibió los " + Pesos.formato(p.getMonto()) + ". Revisa en Equipo."));
         return pagoDto(p, v.getNombre());

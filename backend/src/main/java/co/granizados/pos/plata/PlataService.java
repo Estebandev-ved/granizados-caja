@@ -32,9 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Cuánta plata hay y dónde. Parte del último conteo que hiciste y le suma o resta lo que pasó después:
  *   caja  = conteo + ventas en efectivo + ingresos − gastos − pagos al proveedor ± traslados
- *   casa  = conteo + ingresos − pagos al proveedor ± traslados
- *   nequi = conteo + ventas por Nequi + ingresos − pagos al proveedor ± traslados
- * Los gastos se asumen pagados con efectivo de la caja. Si no coincide con la realidad, se cuenta de nuevo.
+ *   casa  = conteo + ingresos − gastos − pagos al proveedor ± traslados
+ *   nequi = conteo + ventas por Nequi + ingresos − gastos − pagos al proveedor ± traslados
+ * Cada gasto sale del lugar que se escogió al anotarlo (los de antes, de la caja).
  *
  * Las metas ("sobres") apartan plata sin moverla de lugar: `libre = total − apartado`.
  * Solo los ingresos marcados como ganancia entran en la ganancia del día (ver EstadoService y ReporteService).
@@ -223,7 +223,13 @@ public class PlataService {
             caja += v.efectivo(); // el fiado entra al cobrarlo (ingreso)
             nequi += v.nequi();
         }
-        caja -= Optional.ofNullable(gastos.montoEntre(desde, hasta)).orElse(0L);
+        for (Gasto g : gastos.findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(desde, hasta)) {
+            switch (g.getLugar()) {
+                case CAJA -> caja -= g.getMonto();
+                case CASA -> casa -= g.getMonto();
+                case NEQUI -> nequi -= g.getMonto();
+            }
+        }
         for (Ingreso i : ingresos.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
             switch (i.getLugar()) {
                 case CAJA -> caja += i.getMonto();
@@ -305,10 +311,10 @@ public class PlataService {
         }
         for (Gasto g : gastos.findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(desde, hasta)) {
             var z = g.getCreadoEn().atZone(zona);
-            String concepto = "Gasto · " + g.getCategoria().name().toLowerCase(Locale.ROOT)
+            String concepto = "Gasto · " + g.getCategoria().toLowerCase(Locale.ROOT)
                     + (g.getConcepto() == null || g.getConcepto().isBlank() ? "" : " · " + g.getConcepto());
             filas.add(new Fila(g.getCreadoEn(), new Movimiento("GASTO", DIA.format(z), HORA.format(z), concepto,
-                    -g.getMonto(), "CAJA", g.getClientUid())));
+                    -g.getMonto(), g.getLugar().name(), g.getClientUid())));
         }
         for (PagoProveedor p : pagos.findByCreadoEnGreaterThanEqual(desde)) {
             var z = p.getCreadoEn().atZone(zona);

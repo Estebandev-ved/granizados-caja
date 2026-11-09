@@ -1,5 +1,6 @@
 package co.granizados.pos.gasto;
 
+import co.granizados.pos.plata.LugarPlata;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -22,8 +23,8 @@ public class Gasto {
 
     private String clientUid;
 
-    @Enumerated(EnumType.STRING)
-    private CategoriaGasto categoria;
+    /** HIELO, TRANSPORTE… o el nombre que el negocio le haya puesto a una categoría propia. */
+    private String categoria;
 
     private String concepto;
 
@@ -31,6 +32,10 @@ public class Gasto {
     private long monto;
 
     private Instant creadoEn;
+
+    /** De dónde salió la plata: caja (efectivo), casa o Nequi. */
+    @Enumerated(EnumType.STRING)
+    private LugarPlata lugar;
 
     /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
     @TenantId
@@ -40,17 +45,19 @@ public class Gasto {
     protected Gasto() {
     }
 
-    public Gasto(String clientUid, CategoriaGasto categoria, String concepto, long monto, Instant creadoEn) {
+    public Gasto(String clientUid, String categoria, String concepto, long monto, LugarPlata lugar, Instant creadoEn) {
         this.clientUid = clientUid;
         this.categoria = categoria;
         this.concepto = concepto;
         this.monto = monto;
+        this.lugar = lugar;
         this.creadoEn = creadoEn;
     }
 
     public Long getId() { return id; }
     public String getClientUid() { return clientUid; }
-    public CategoriaGasto getCategoria() { return categoria; }
+    public String getCategoria() { return categoria; }
+    public LugarPlata getLugar() { return lugar; }
     public String getConcepto() { return concepto; }
     public long getMonto() { return monto; }
     public Instant getCreadoEn() { return creadoEn; }

@@ -7,6 +7,8 @@ import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { CampoNumero } from '../componentes/CampoNumero'
 import { aEntero, pesos, vibrar } from '../formato'
+import { ChuloVenta } from '../componentes/ChuloVenta'
+import { etiquetaTipo, usePerfil } from '../perfil'
 import { aplicaPromo, nombrePromo, repartirEfectivo, repartirTotal, totalMezclado, type Promo } from '../promo'
 import type { Metodo, PorSabor, Producto, Tipo } from '../tipos'
 
@@ -23,9 +25,11 @@ interface Props {
 }
 
 type Filtro = 'todos' | Tipo
-const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande', CERVEZA: 'Cerveza' }
+const TIPOS: Tipo[] = ['NORMAL', 'CREMOSO', 'GRANDE', 'CERVEZA']
 
 export function Vender({ productos, porSabor, trabajador = false, promo, onVender }: Props) {
+  const perfil = usePerfil()
+  const [ok, setOk] = useState(0)
   const [elegido, setElegido] = useState<Producto | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('todos')
   // La promo se configura en Ajustes y viene del servidor; aquí solo se aplica
@@ -37,7 +41,7 @@ export function Vender({ productos, porSabor, trabajador = false, promo, onVende
   const [armando, setArmando] = useState(false)
 
   const tiposPresentes = useMemo(
-    () => (Object.keys(ETIQUETA_TIPO) as Tipo[]).filter(t => productos.some(p => p.tipo === t)),
+    () => TIPOS.filter(t => productos.some(p => p.tipo === t)),
     [productos])
 
   /** Lo que te queda de la carga: undefined = no hay carga hoy, null = ese sabor no lo llevas. */
@@ -91,19 +95,20 @@ export function Vender({ productos, porSabor, trabajador = false, promo, onVende
       {trabajador && !productos.some(p => p.stock > 0) && (
         <p className="aviso" style={{ textAlign: 'center' }}>No tienes nada cargado. Pídele al dueño que te anote lo que sacas a vender.</p>
       )}
-      <div className="modo">Toca un sabor para vender</div>
+      <div className="modo">Toca un producto para vender</div>
       {tiposPresentes.length > 1 && (
         <div className="chips categorias">
           <button className={filtro === 'todos' ? 'on' : ''} onClick={() => setFiltro('todos')}>Todos</button>
           {tiposPresentes.map(t => (
-            <button key={t} className={filtro === t ? 'on' : ''} onClick={() => setFiltro(t)}>{ETIQUETA_TIPO[t]}</button>
+            <button key={t} className={filtro === t ? 'on' : ''} onClick={() => setFiltro(t)}>{etiquetaTipo(perfil, t)}</button>
           ))}
         </div>
       )}
       <div className="grid">
-        {orden.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} restante={queda(p)} />)}
+        {orden.map((p, i) => <TarjetaProducto key={p.id} p={p} indice={i} onClick={() => setElegido(p)} restante={queda(p)} />)}
         {!orden.length && <p className="mut" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0' }}>Nada por aquí</p>}
       </div>
+      {ok > 0 && <ChuloVenta key={ok} />}
       <Sheet abierto={armando} onCerrar={() => setArmando(false)}>
         <CargaDelDia productos={productos} actual={carga} onGuardar={guardar} onLimpiar={limpiar} />
       </Sheet>
@@ -116,6 +121,7 @@ export function Vender({ productos, porSabor, trabajador = false, promo, onVende
             onPagar={(metodo, lineas, fiado) => {
               setElegido(null)
               onVender(lineas, metodo, fiado)
+              setOk(n => n + 1)
             }} />
         )}
       </Sheet>
@@ -133,6 +139,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
   trabajador: boolean
   onPagar: (m: Metodo, lineas: { p: Producto; cantidad: number; total?: number; efectivo?: number }[], fiado?: { cliente: string; telefono: string }) => void
 }) {
+  const perfil = usePerfil()
   const [fiando, setFiando] = useState(false)
   const [cliente, setCliente] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -288,7 +295,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
             <button className="big cash" onClick={() => pagar('EFECTIVO')}>Efectivo</button>
           </div>
           <button type="button" className="link fiado-boton" onClick={() => setMixto(true)}>Pagó mitad y mitad (efectivo + Nequi)</button>
-          {!trabajador && <button type="button" className="link fiado-boton" onClick={() => setFiando(true)}>Fiado (paga después)</button>}
+          {!trabajador && perfil.fiados && <button type="button" className="link fiado-boton" onClick={() => setFiando(true)}>Fiado (paga después)</button>}
           {!trabajador && <button type="button" className="link fiado-boton" onClick={() => pagar('REGALO')}>🎁 Regalo (sello de fidelidad)</button>}
         </>
       )}

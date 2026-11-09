@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { pesos } from '../formato'
 import type { Producto } from '../tipos'
+import { Palabra } from './Unidades'
 
 /**
  * Cuántos granizados hay en total y cuánto dejarían al venderse. Se calcula con los productos que ya están en el
@@ -17,7 +18,7 @@ export function ResumenInventario({ productos }: { productos: Producto[] }) {
   return (
     <div className="resumen-inv">
       <button type="button" className="resumen-inv-fila" aria-expanded={abierto} onClick={() => setAbierto(a => !a)}>
-        <span><b>{unidades}</b> granizado{unidades === 1 ? '' : 's'} en inventario</span>
+        <span><b>{unidades}</b> <Palabra plural={unidades !== 1} /> en inventario</span>
         <span className="mut">{abierto ? 'Ocultar' : 'Ver ganancia'}</span>
       </button>
       {abierto && (

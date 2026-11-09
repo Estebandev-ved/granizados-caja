@@ -3,6 +3,7 @@ import { api, ApiError, sesion } from '../api'
 import { IconoFaceId, type ModoFaceId } from '../componentes/IconoFaceId'
 import { Marca } from '../componentes/Marca'
 import { Personaje } from '../componentes/Personaje'
+import { Recorrido } from '../componentes/Recorrido'
 import { activarFaceId, entrarConFaceId, esCancelacion, faceIdActivado, olvidarFaceId, soportaFaceId } from '../faceid'
 import { vibrar } from '../formato'
 
@@ -17,6 +18,7 @@ export function Login({ onEntrar }: { onEntrar: () => void }) {
   const [modo, setModo] = useState<ModoFaceId>('quieto')
   const [mensaje, setMensaje] = useState('')
   const intentoAutomatico = useRef(false)
+  const [recorrido, setRecorrido] = useState(false)
   // La bienvenida sale solo la primera vez que se abre la app en este celular
   const [primeraVez] = useState(() => { try { return localStorage.getItem(BIENVENIDA) !== '1' } catch { return false } })
 
@@ -113,6 +115,11 @@ export function Login({ onEntrar }: { onEntrar: () => void }) {
         <TecladoPin mensajeInicial={mensaje} onEntrar={alEntrarConPin}
                     onFaceId={faceIdActivado() ? () => { setPaso('faceid'); void conFaceId() } : undefined} />
       )}
+
+      {(paso === 'pin' || paso === 'faceid') && (
+        <button className="link login-recorrido" onClick={() => setRecorrido(true)}>¿Primera vez? Mira cómo funciona</button>
+      )}
+      <Recorrido abierto={recorrido} onCerrar={() => setRecorrido(false)} />
 
       {paso === 'ofrecer' && (
         <>

@@ -8,6 +8,7 @@ import { ResumenInventario } from '../componentes/ResumenInventario'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { vibrar } from '../formato'
+import { etiquetaTipo, usePerfil } from '../perfil'
 import { diasQueAlcanza, ritmoPorSabor, textoAlcanza, VENTANA_RITMO } from '../ritmo'
 import { restarDias } from '../reportes'
 import { diaBogota } from '../estadoLocal'
@@ -16,7 +17,6 @@ import type { LineaPedido, LugarPlata, MotivoMerma, Producto, Tipo, PedidoEnCami
 type Modo = 'sumar' | 'contar' | 'merma'
 
 const ETIQUETA: Record<Modo, string> = { sumar: 'Sumar', contar: 'Contar', merma: 'Merma' }
-const ETIQUETA_TIPO: Record<Tipo, string> = { NORMAL: 'Normal', CREMOSO: 'Cremoso', GRANDE: 'Grande', CERVEZA: 'Cerveza' }
 
 const MOTIVOS: { valor: MotivoMerma; texto: string }[] = [
   { valor: 'DANADO', texto: 'Dañado' },
@@ -41,6 +41,7 @@ interface Props {
 /** Inventario: sumar lo que llegó, contar lo que hay y anotar mermas. Todo funciona sin señal. */
 export function Inventario({ productos, pedido, onReponer, onContar, onContarTodo, onMerma, onLlego, onCancelar,
   avisar }: Props) {
+  const perfil = usePerfil()
   const [elegido, setElegido] = useState<Producto | null>(null)
   const [contando, setContando] = useState(false)
   const [busqueda, setBusqueda] = useState('')
@@ -107,7 +108,7 @@ export function Inventario({ productos, pedido, onReponer, onContar, onContarTod
 
       {grupos.length > 1 ? grupos.map(g => (
         <div key={g.tipo} className="seccion-grupo">
-          <div className="grupo-titulo"><Icono nombre="vaso" /> {ETIQUETA_TIPO[g.tipo]}<span className="mut">{g.items.length}</span></div>
+          <div className="grupo-titulo"><Icono nombre="vaso" /> {etiquetaTipo(perfil, g.tipo)}<span className="mut">{g.items.length}</span></div>
           <div className="grid">
             {g.items.map(p => <TarjetaProducto key={p.id} p={p} onClick={() => setElegido(p)} alcanza={alcanza(p)} />)}
           </div>

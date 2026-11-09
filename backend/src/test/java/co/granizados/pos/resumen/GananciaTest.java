@@ -3,7 +3,6 @@ package co.granizados.pos.resumen;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import co.granizados.pos.PruebaIntegracion;
-import co.granizados.pos.gasto.CategoriaGasto;
 import co.granizados.pos.gasto.GastoService;
 import co.granizados.pos.inventario.InventarioService;
 import co.granizados.pos.inventario.MotivoMerma;
@@ -41,7 +40,7 @@ class GananciaTest extends PruebaIntegracion {
         ponerCosto("Smirnoff", 3000);
 
         ventas.registrar(new NuevaVenta("v1", idDe("Smirnoff"), MetodoPago.EFECTIVO, 2));
-        gastos.registrar(new GastoService.NuevoGasto("g1", CategoriaGasto.HIELO, "bolsas de hielo", 1500, null));
+        gastos.registrar(new GastoService.NuevoGasto("g1", "HIELO", "bolsas de hielo", 1500, null));
         inventario.registrar(new InventarioService.NuevoMovimiento(
                 "m1", idDe("Smirnoff"), TipoMovimiento.MERMA, 1, null, MotivoMerma.DANADO));
 
@@ -68,9 +67,9 @@ class GananciaTest extends PruebaIntegracion {
 
     @Test
     void elGastoNoSeDuplicaYSePuedeBorrar() {
-        assertThat(gastos.registrar(new GastoService.NuevoGasto("g1", CategoriaGasto.HIELO, "hielo", 1500, null)))
+        assertThat(gastos.registrar(new GastoService.NuevoGasto("g1", "HIELO", "hielo", 1500, null)))
                 .isEqualTo(GastoService.Resultado.REGISTRADA);
-        assertThat(gastos.registrar(new GastoService.NuevoGasto("g1", CategoriaGasto.HIELO, "hielo", 1500, null)))
+        assertThat(gastos.registrar(new GastoService.NuevoGasto("g1", "HIELO", "hielo", 1500, null)))
                 .isEqualTo(GastoService.Resultado.REPETIDA);
         assertThat(contar("gasto")).isEqualTo(1);
 
@@ -83,7 +82,7 @@ class GananciaTest extends PruebaIntegracion {
     void elCierreDeTelegramTraeLaGanancia() {
         ponerCosto("Smirnoff", 3000);
         ventas.registrar(new NuevaVenta("1", idDe("Smirnoff"), MetodoPago.EFECTIVO, 2));
-        gastos.registrar(new GastoService.NuevoGasto("g1", CategoriaGasto.TRANSPORTE, "gasolina", 2000, null));
+        gastos.registrar(new GastoService.NuevoGasto("g1", "TRANSPORTE", "gasolina", 2000, null));
 
         var aviso = reportes.cierreDelDia().orElseThrow();
         assertThat(aviso.texto())

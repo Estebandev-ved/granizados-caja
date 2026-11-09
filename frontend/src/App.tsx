@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Ayuda, type TemaAyuda } from './componentes/Ayuda'
+import { Bienvenida, CLAVE_BIENVENIDA } from './componentes/Bienvenida'
+import { PrimerosPasos } from './componentes/PrimerosPasos'
+import { leerPerfil, PerfilContexto } from './perfil'
+import { NumeroAnimado } from './componentes/NumeroAnimado'
 import { api, sesion } from './api'
 import { AvisoActualizacion } from './componentes/AvisoActualizacion'
 import { BarraLogros } from './componentes/BarraLogros'
@@ -159,12 +164,22 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     return diaEstado && promoVigente(p, diaEstado) ? p : null
   }, [textoPromo, diaEstado])
 
+  // Bienvenida: solo al dueño, una vez, y solo si su caja está recién estrenada (sin meta ni ventas hoy)
+  const [bienvenidaVista, setBienvenidaVista] = useState(() => {
+    try { return !!localStorage.getItem(CLAVE_BIENVENIDA) } catch { return false }
+  })
+  const bienvenida = !trabajador && !bienvenidaVista && !!estado && !estado.perfil && estado.meta.valor === 0 && estado.hoy.unidades === 0
+  const textoPerfilServidor = estado?.perfil
+  const perfil = useMemo(() => leerPerfil(textoPerfilServidor), [textoPerfilServidor])
+  const [ayuda, setAyuda] = useState(false)
+
   let contenido: ReactNode
   if (!estado) {
-    contenido = <div className="vacio">
-      <Personaje nombre={sync === 'sin-senal' ? 'error' : 'carga'} />
-      {sync === 'sin-senal' ? 'La primera vez necesitas señal para cargar los sabores.' : 'Cargando…'}
-    </div>
+    contenido = sync === 'sin-senal'
+      ? <div className="vacio"><Personaje nombre="error" />La primera vez necesitas señal para cargar los sabores.</div>
+      : <div className="esqueleto" aria-busy="true" aria-label="Cargando">
+          <div className="esqueleto-grid">{Array.from({ length: 6 }, (_, i) => <i key={i} style={{ '--i': i } as CSSProperties} />)}</div>
+        </div>
   } else if (vista === 'vender') {
     contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promo={promo} onVender={(lineas, metodo, fiado) => {
       const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado, l.efectivo))
@@ -240,17 +255,22 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     )
   }
 
+  const temaAyuda: TemaAyuda = trabajador && vista === 'hoy' ? 'dia' : vista
+
   return (
-    <>
+    <PerfilContexto.Provider value={perfil}>
       <header>
         <div className="hoy-mini">
-          {trabajador && premios ? pesos(premios.comision + premios.premio) : pesos(estado?.hoy.total ?? 0)}
+          <NumeroAnimado valor={trabajador && premios ? premios.comision + premios.premio : estado?.hoy.total ?? 0} formato={pesos} />
           <small>
             {trabajador && premios ? 'ganado hoy' : 'hoy'} · {estado?.hoy.unidades ?? 0} vendido{estado?.hoy.unidades === 1 ? '' : 's'}
           </small>
         </div>
         <div className="derecha">
-          <Marca compacta />
+          <div className="marca-fila">
+            <Marca compacta />
+            <button className="ayuda-boton" aria-label="Ayuda" onClick={() => setAyuda(true)}>?</button>
+          </div>
           <div className="sync"><span className={'dot ' + sync} />{textoSync}</div>
         </div>
       </header>
@@ -269,7 +289,12 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
           <BarraPremios premios={premios} />
         </div>
       )}
-      <main>{contenido}</main>
+      <main><div className="vista" key={vista}>
+        {estado && !trabajador && vista === 'vender' && <PrimerosPasos estado={estado} onIr={irA} />}
+        {contenido}
+      </div></main>
+      <Ayuda tema={temaAyuda} abierto={ayuda} onCerrar={() => setAyuda(false)} />
+      {bienvenida && <Bienvenida avisar={avisar} tieneProductos={!!estado && estado.productos.length > 0} onTerminar={destino => { setBienvenidaVista(true); caja.recargar(); if (destino === 'ajustes') irA('ajustes') }} />}
       {celebrando && <><Confeti /><div className="logro-flotante"><Personaje nombre="sofia" libre /></div></>}
       <nav>
         <BotonNav activa={vista === 'vender'} onClick={() => irA('vender')} texto="Vender">
@@ -294,7 +319,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
           </BotonNav>
         )}
       </nav>
-    </>
+    </PerfilContexto.Provider>
   )
 }
 

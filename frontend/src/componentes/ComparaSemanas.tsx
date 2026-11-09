@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { pesos } from '../formato'
+import { Unidades } from './Unidades'
 import { diaBogota } from '../estadoLocal'
 import {
   armarSemanas, DIAS_SEMANA, fechaCorta, rangoSemanas, totalPrimerosDias, variacion, type Semana,
@@ -40,7 +41,7 @@ export function ComparaSemanas() {
         <div className="card">
           <div className="k">Esta semana</div>
           <div className="v">{pesos(actual.total)}</div>
-          <div className="desglose"><span>{actual.unidades} granizados</span></div>
+          <div className="desglose"><span><Unidades n={actual.unidades} /></span></div>
         </div>
         <div className="card">
           <div className="k">Pasada, mismo tramo</div>
