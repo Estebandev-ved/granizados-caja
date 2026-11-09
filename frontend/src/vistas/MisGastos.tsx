@@ -1,18 +1,22 @@
+import { useState } from 'react'
 import { Icono } from '../componentes/Icono'
+import { diaBogota } from '../estadoLocal'
 import { Personaje } from '../componentes/Personaje'
 import { pesos } from '../formato'
-import { CATEGORIA_TEXTO, LUGAR_GASTO, fechaCorta, variacion } from '../reportes'
-import type { CategoriaGasto, Reporte, ReporteCategoriaGasto, ReporteDiaGasto } from '../tipos'
+import { CATEGORIA_TEXTO, DIAS_ATRAS_GASTO, LUGAR_GASTO, fechaCorta, restarDias, variacion } from '../reportes'
+import type { CategoriaGasto, Reporte, ReporteCategoriaGasto, ReporteDiaGasto, ReporteGasto } from '../tipos'
 
 interface Props {
   periodo: string
   datos: Reporte
   onBorrar: (clientUid: string) => void
+  /** Pasa el gasto a otro día ("2026-11-05"). Resuelve en true si quedó guardado. */
+  onCambiarFecha: (clientUid: string, dia: string) => Promise<boolean>
   onVolver: () => void
 }
 
 /** Página completa de gastos: totales, por categoría, por día y recomendaciones. Se abre desde Reportes. */
-export function MisGastos({ periodo, datos, onBorrar, onVolver }: Props) {
+export function MisGastos({ periodo, datos, onBorrar, onCambiarFecha, onVolver }: Props) {
   const t = datos.totales
   const vGastos = variacion(t.gastos, datos.anterior.gastos)
   const promedioDia = datos.gastosPorDia.length ? Math.round(t.gastos / datos.gastosPorDia.length) : 0
@@ -71,19 +75,59 @@ export function MisGastos({ periodo, datos, onBorrar, onVolver }: Props) {
             <h2><Icono nombre="ticket" /> Detalle</h2>
             <div className="list">
               {datos.gastosDetalle.map(g => (
-                <div className="row" key={g.clientUid}>
-                  <span>
-                    <b>{CATEGORIA_TEXTO[g.categoria] ?? g.categoria}</b>{g.concepto ? ' · ' + g.concepto : ''}
-                    <br /><small className="mut">{fechaCorta(g.dia)} · {g.hora} · {pesos(g.monto)}{g.lugar ? ' · ' + LUGAR_GASTO[g.lugar].replace(/^D/, 'd') : ''}</small>
-                  </span>
-                  <button className="quitar" onClick={() => onBorrar(g.clientUid)}>Borrar</button>
-                </div>
+                <FilaGasto key={g.clientUid} g={g} onBorrar={onBorrar} onCambiarFecha={onCambiarFecha} />
               ))}
             </div>
           </section>
         </>
       )}
     </section>
+  )
+}
+
+/** Un gasto del detalle: se puede borrar o, si se anotó tarde, pasar al día en que de verdad fue. */
+function FilaGasto({ g, onBorrar, onCambiarFecha }: {
+  g: ReporteGasto
+  onBorrar: (clientUid: string) => void
+  onCambiarFecha: (clientUid: string, dia: string) => Promise<boolean>
+}) {
+  const hoy = diaBogota()
+  const [dia, setDia] = useState<string | null>(null) // null = no está cambiando la fecha
+  const [guardando, setGuardando] = useState(false)
+
+  const guardar = async () => {
+    if (!dia || guardando) return
+    setGuardando(true)
+    const quedo = await onCambiarFecha(g.clientUid, dia)
+    setGuardando(false)
+    if (quedo) setDia(null)
+  }
+
+  return (
+    <div className="row gasto-fila">
+      <span>
+        <b>{CATEGORIA_TEXTO[g.categoria] ?? g.categoria}</b>{g.concepto ? ' · ' + g.concepto : ''}
+        <br /><small className="mut">{fechaCorta(g.dia)} · {g.hora} · {pesos(g.monto)}{g.lugar ? ' · ' + LUGAR_GASTO[g.lugar].replace(/^D/, 'd') : ''}</small>
+      </span>
+      {dia === null ? (
+        <span className="gasto-botones">
+          <button className="chico-ghost" onClick={() => setDia(g.dia)}>Cambiar fecha</button>
+          <button className="quitar" onClick={() => onBorrar(g.clientUid)}>Borrar</button>
+        </span>
+      ) : (
+        <div className="gasto-fecha">
+          <label htmlFor={'fecha-' + g.clientUid}>¿Qué día fue?</label>
+          <input id={'fecha-' + g.clientUid} type="date" value={dia} min={restarDias(hoy, DIAS_ATRAS_GASTO)} max={hoy}
+            onChange={e => { if (e.target.value) setDia(e.target.value) }} />
+          <span className="gasto-botones">
+            <button className="chico-ghost" disabled={guardando} onClick={() => setDia(null)}>Cancelar</button>
+            <button className="chico-ghost fuerte" disabled={guardando || dia === g.dia || dia > hoy} onClick={() => void guardar()}>
+              {guardando ? 'Guardando…' : 'Pasar al ' + fechaCorta(dia)}
+            </button>
+          </span>
+        </div>
+      )}
+    </div>
   )
 }
 

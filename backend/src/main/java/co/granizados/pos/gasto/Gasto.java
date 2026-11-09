@@ -54,6 +54,11 @@ public class Gasto {
         this.creadoEn = creadoEn;
     }
 
+    /** El gasto se anotó tarde: pasa al día en que de verdad se hizo. */
+    public void moverA(Instant cuando) {
+        this.creadoEn = cuando;
+    }
+
     public Long getId() { return id; }
     public String getClientUid() { return clientUid; }
     public String getCategoria() { return categoria; }

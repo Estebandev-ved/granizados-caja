@@ -65,11 +65,22 @@ export function Reportes({ avisar }: Props) {
       .catch(e => avisar(e instanceof ApiError ? e.message : 'No se pudo borrar, revisa la señal'))
   }
 
+  const cambiarFechaGasto = (clientUid: string, dia: string) =>
+    api.cambiarFechaGasto(clientUid, dia)
+      .then(() => {
+        avisar('✓ Gasto pasado al ' + fechaCorta(dia))
+        return api.reportes(desde, hasta).then(setDatos).then(() => true, () => true)
+      })
+      .catch(e => {
+        avisar(e instanceof ApiError ? e.message : 'No se pudo cambiar, revisa la señal')
+        return false
+      })
+
   const t = datos ? datos.totales : null
   const vacio = !!t && t.ventas === 0 && t.gastos === 0 && t.mermas === 0
 
   if (misGastos && datos) {
-    return <MisGastos periodo={PERIODOS[periodo]} datos={datos} onBorrar={borrarGasto} onVolver={() => setMisGastos(false)} />
+    return <MisGastos periodo={PERIODOS[periodo]} datos={datos} onBorrar={borrarGasto} onCambiarFecha={cambiarFechaGasto} onVolver={() => setMisGastos(false)} />
   }
 
   return (

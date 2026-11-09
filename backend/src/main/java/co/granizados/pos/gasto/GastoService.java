@@ -1,5 +1,7 @@
 package co.granizados.pos.gasto;
 
+import co.granizados.pos.comun.AppProperties;
+import co.granizados.pos.comun.NoEncontradoException;
 import co.granizados.pos.plata.LugarPlata;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
@@ -8,6 +10,9 @@ import jakarta.validation.constraints.Size;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,17 +33,22 @@ public class GastoService {
         }
     }
 
-    /** Mismo criterio que las ventas: la hora la manda el celular, pero no más de 3 días atrás. */
-    static final Duration MAX_ATRASO = Duration.ofDays(3);
+    /**
+     * La hora la manda el celular. A diferencia de las ventas, un gasto se puede anotar tarde (se le escoge el día en
+     * que fue), pero no más de 90 días atrás.
+     */
+    static final Duration MAX_ATRASO = Duration.ofDays(90);
 
     public enum Resultado { REGISTRADA, REPETIDA }
 
     private final GastoRepository gastos;
     private final Clock clock;
+    private final ZoneId zona;
 
-    public GastoService(GastoRepository gastos, Clock clock) {
+    public GastoService(GastoRepository gastos, Clock clock, AppProperties props) {
         this.gastos = gastos;
         this.clock = clock;
+        this.zona = props.zoneId();
     }
 
     @Transactional
@@ -53,6 +63,24 @@ public class GastoService {
     @Transactional
     public void borrar(String clientUid) {
         gastos.findByClientUid(clientUid).ifPresent(gastos::delete);
+    }
+
+    /**
+     * El gasto se anotó otro día: lo pasa al día en que de verdad fue (día de Bogotá), para que no le baje la ganancia
+     * al día en que se escribió. Queda al mediodía de ese día; si es hoy, a la hora de ahora.
+     */
+    @Transactional
+    public void cambiarDia(String clientUid, LocalDate dia) {
+        Gasto g = gastos.findByClientUid(clientUid)
+                .orElseThrow(() -> new NoEncontradoException("Gasto no encontrado: " + clientUid));
+        Instant ahora = clock.instant();
+        LocalDate hoy = LocalDate.ofInstant(ahora, zona);
+        if (dia.isAfter(hoy)) throw new IllegalArgumentException("Ese día todavía no llega");
+        if (dia.isBefore(hoy.minusDays(MAX_ATRASO.toDays()))) {
+            throw new IllegalArgumentException("Solo se puede mover hasta " + MAX_ATRASO.toDays() + " días atrás");
+        }
+        g.moverA(dia.equals(hoy) ? ahora : dia.atTime(LocalTime.NOON).atZone(zona).toInstant());
+        gastos.save(g);
     }
 
     private Instant cuando(Instant delCelular) {

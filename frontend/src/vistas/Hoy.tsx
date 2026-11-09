@@ -11,7 +11,8 @@ import { ConsejoNova } from '../componentes/ConsejoNova'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
-import { LUGAR_GASTO, MAX_CATEGORIA, categoriaEscrita, categoriasParaElegir, fechaCorta } from '../reportes'
+import { diaBogota } from '../estadoLocal'
+import { DIAS_ATRAS_GASTO, LUGAR_GASTO, MAX_CATEGORIA, categoriaEscrita, categoriasParaElegir, fechaCorta, mediodiaDe, restarDias } from '../reportes'
 import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, Negocio, PedidoSugerido, RecomendacionCompra, SaldoPlata, VentaReciente } from '../tipos'
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
   onRecargar: () => Promise<void>
   onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => void
   onCancelar: (pedidoId: number) => Promise<boolean>
-  onGasto: (categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata) => void
+  onGasto: (categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata, cuando?: number) => void
   onCerrarCaja: (contado: number, nota: string, casa?: number, nequi?: number) => void
   avisar: (m: string) => void
 }
@@ -264,11 +265,11 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           />
         )}
         {panel?.tipo === 'gasto' && (
-          <PanelGasto usadas={estado.categoriasGasto} onGuardar={(categoria, concepto, monto, lugar) => {
+          <PanelGasto usadas={estado.categoriasGasto} onGuardar={(categoria, concepto, monto, lugar, dia) => {
             setPanel(null)
             vibrar()
-            onGasto(categoria, concepto, monto, lugar)
-            avisar('✓ Gasto de ' + pesos(monto) + ' anotado · ' + LUGAR_GASTO[lugar].replace(/^D/, 'd'))
+            onGasto(categoria, concepto, monto, lugar, dia ? mediodiaDe(dia) : undefined)
+            avisar('✓ Gasto de ' + pesos(monto) + ' anotado' + (dia ? ' para el ' + fechaCorta(dia) : '') + ' · ' + LUGAR_GASTO[lugar].replace(/^D/, 'd'))
           }} />
         )}
         {panel?.tipo === 'cierre' && (
@@ -562,8 +563,13 @@ const LUGARES_GASTO: { valor: LugarPlata; texto: string }[] = [
  */
 function PanelGasto({ usadas, onGuardar }: {
   usadas?: readonly string[] | null
-  onGuardar: (categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata) => void
+  /** `dia` solo si el gasto fue otro día ("2026-11-05"); sin él, es de ahora. */
+  onGuardar: (categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata, dia?: string) => void
 }) {
+  const hoy = diaBogota()
+  const ayer = restarDias(hoy, 1)
+  const [dia, setDia] = useState(hoy)
+  const [otroDia, setOtroDia] = useState(false)
   const [categoria, setCategoria] = useState<CategoriaGasto>('HIELO')
   const [nueva, setNueva] = useState<string | null>(null) // null = no está escribiendo una categoría propia
   const [lugar, setLugar] = useState<LugarPlata | null>(null) // se pregunta siempre: no hay respuesta por defecto
@@ -577,7 +583,7 @@ function PanelGasto({ usadas, onGuardar }: {
   const guardar = () => {
     if (hecho.current || falta || !lugar) return
     hecho.current = true
-    onGuardar(elegida, concepto.trim(), n, lugar)
+    onGuardar(elegida, concepto.trim(), n, lugar, dia === hoy ? undefined : dia)
   }
 
   return (
@@ -617,12 +623,28 @@ function PanelGasto({ usadas, onGuardar }: {
         </div>
       </div>
       <div className="campo">
+        <label>¿Cuándo fue?</label>
+        <div className="chips izq" role="radiogroup" aria-label="Cuándo fue el gasto">
+          <button type="button" role="radio" aria-checked={!otroDia && dia === hoy} className={!otroDia && dia === hoy ? 'on' : ''}
+            onClick={() => { setDia(hoy); setOtroDia(false) }}>Hoy</button>
+          <button type="button" role="radio" aria-checked={!otroDia && dia === ayer} className={!otroDia && dia === ayer ? 'on' : ''}
+            onClick={() => { setDia(ayer); setOtroDia(false) }}>Ayer</button>
+          <button type="button" role="radio" aria-checked={otroDia} className={otroDia ? 'on' : ''}
+            onClick={() => setOtroDia(true)}>Otro día</button>
+        </div>
+        {otroDia && (
+          <input type="date" aria-label="Día del gasto" value={dia} min={restarDias(hoy, DIAS_ATRAS_GASTO)} max={hoy}
+            onChange={e => { if (e.target.value && e.target.value <= hoy) setDia(e.target.value) }} />
+        )}
+        {dia !== hoy && <small>Cuenta para el {fechaCorta(dia)}: no le baja la ganancia a hoy.</small>}
+      </div>
+      <div className="campo">
         <label htmlFor="gasto-concepto">Para qué (opcional)</label>
         <input id="gasto-concepto" maxLength={120} value={concepto}
           onChange={e => setConcepto(e.target.value)} placeholder="Ej: bolsas de hielo" />
       </div>
       <button className="big primario" type="submit" disabled={!!falta}>
-        {falta ?? 'Guardar gasto de ' + pesos(n)}
+        {falta ?? 'Guardar gasto de ' + pesos(n) + (dia !== hoy ? ' · ' + fechaCorta(dia) : '')}
       </button>
     </form>
   )

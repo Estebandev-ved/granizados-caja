@@ -184,8 +184,8 @@ export function useCaja(avisar: (mensaje: string) => void) {
   }, [setCola, sincronizar])
 
   /** Gasto del día: se ve al instante en la ganancia y sube cuando haya señal. */
-  const registrarGasto = useCallback((categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata = 'CAJA') => {
-    const op: Operacion = { tipo: 'gasto', clientUid: nuevoUid(), categoria, concepto, monto, lugar, creadaEn: Date.now() }
+  const registrarGasto = useCallback((categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata = 'CAJA', cuando: number = Date.now()) => {
+    const op: Operacion = { tipo: 'gasto', clientUid: nuevoUid(), categoria, concepto, monto, lugar, creadaEn: cuando }
     setCola(c => [...c, op])
     void sincronizar()
   }, [setCola, sincronizar])

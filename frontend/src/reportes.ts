@@ -44,6 +44,14 @@ export function categoriaEscrita(texto: string): CategoriaGasto {
   return igual ? igual.valor : limpia
 }
 
+/** Cuántos días atrás se puede anotar o mover un gasto (el mismo tope del servidor). */
+export const DIAS_ATRAS_GASTO = 90
+
+/** El momento que se le pone a un gasto de otro día: mediodía de Bogotá de ese día ("2026-11-05"). */
+export function mediodiaDe(dia: string): number {
+  return Date.parse(dia + 'T12:00:00-05:00')
+}
+
 /** De dónde salió la plata de un gasto, como se le dice al dueño. */
 export const LUGAR_GASTO: Record<LugarPlata, string> = { CAJA: 'De la caja', NEQUI: 'De Nequi', CASA: 'De la casa' }
 

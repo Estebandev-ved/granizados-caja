@@ -201,6 +201,9 @@ export const api = {
   entrada: (e: EntradaApi) => pedir<{ estado: string }>('POST', '/api/inventario/entradas', e),
   movimiento: (m: MovimientoApi) => pedir<RespuestaMovimiento>('POST', '/api/inventario/movimientos', m),
   gasto: (g: GastoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/gastos', g),
+  /** `dia` = "2026-11-05": pasa el gasto al día en que de verdad se hizo. */
+  cambiarFechaGasto: (clientUid: string, dia: string) =>
+    pedir<void>('POST', '/api/gastos/' + encodeURIComponent(clientUid) + '/fecha', { dia }),
   borrarGasto: (clientUid: string) => pedir<void>('DELETE', '/api/gastos/' + encodeURIComponent(clientUid)),
   arqueo: (a: ArqueoApi) => pedir<{ clientUid: string; estado: string; error: string | null }>('POST', '/api/arqueo', a),
   cierreHoy: () => pedir<ArqueoHoy | null>('GET', '/api/arqueo'),

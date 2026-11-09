@@ -19,6 +19,9 @@ public class GastoController {
     public record Respuesta(String clientUid, String estado, String error) {
     }
 
+    public record NuevaFecha(@jakarta.validation.constraints.NotNull java.time.LocalDate dia) {
+    }
+
     private final GastoService servicio;
     private final GastoRepository gastos;
 
@@ -37,6 +40,13 @@ public class GastoController {
             }
             throw e;
         }
+    }
+
+    /** El gasto se anotó tarde: lo pasa al día en que de verdad se hizo. */
+    @PostMapping("/{clientUid}/fecha")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cambiarFecha(@PathVariable String clientUid, @Valid @RequestBody NuevaFecha fecha) {
+        servicio.cambiarDia(clientUid, fecha.dia());
     }
 
     @DeleteMapping("/{clientUid}")

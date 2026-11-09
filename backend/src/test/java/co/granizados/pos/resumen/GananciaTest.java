@@ -1,6 +1,7 @@
 package co.granizados.pos.resumen;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import co.granizados.pos.PruebaIntegracion;
 import co.granizados.pos.gasto.GastoService;
@@ -89,5 +90,36 @@ class GananciaTest extends PruebaIntegracion {
                 .contains("Lo que costó: $6.000")
                 .contains("Gastos: $2.000")
                 .contains("Ganancia: $4.000");
+    }
+
+    @Test
+    void unGastoAnotadoTardeSePasaASuDiaYDejaDeBajarLaGananciaDeHoy() {
+        ventas.registrar(new NuevaVenta("1", idDe("Smirnoff"), MetodoPago.EFECTIVO, 1));
+        gastos.registrar(new GastoService.NuevoGasto("g1", "ARRIENDO", "", 100_000, null));
+        assertThat(estado.resumenDe(estado.hoy()).gastos()).isEqualTo(100_000);
+
+        java.time.LocalDate hace5 = estado.hoy().minusDays(5);
+        gastos.cambiarDia("g1", hace5);
+
+        assertThat(estado.resumenDe(estado.hoy()).gastos()).isZero();
+        assertThat(estado.resumenDe(hace5).gastos()).isEqualTo(100_000);
+        // Y se puede devolver a hoy
+        gastos.cambiarDia("g1", estado.hoy());
+        assertThat(estado.resumenDe(estado.hoy()).gastos()).isEqualTo(100_000);
+
+        // Ni al futuro ni más de 90 días atrás, y el gasto tiene que existir
+        assertThatThrownBy(() -> gastos.cambiarDia("g1", estado.hoy().plusDays(1))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> gastos.cambiarDia("g1", estado.hoy().minusDays(91))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> gastos.cambiarDia("no-existe", hace5))
+                .isInstanceOf(co.granizados.pos.comun.NoEncontradoException.class);
+    }
+
+    @Test
+    void unGastoNuevoPuedeLlegarConLaFechaDeHaceVariosDias() {
+        java.time.Instant hace10 = reloj.instant().minus(java.time.Duration.ofDays(10));
+        gastos.registrar(new GastoService.NuevoGasto("g1", "SERVICIOS", "luz", 40_000, hace10));
+
+        assertThat(estado.resumenDe(estado.hoy()).gastos()).isZero();
+        assertThat(estado.resumenDe(estado.hoy().minusDays(10)).gastos()).isEqualTo(40_000);
     }
 }

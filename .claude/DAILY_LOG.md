@@ -43,7 +43,8 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 ### 2026-11-09
 - **Pago al trabajador en dos partes** (migración V29): en «Ya le pagué» ahora se escoge todo en efectivo, todo por Nequi o **parte y parte** (cuánto en efectivo, el resto Nequi) y queda un solo pago que el trabajador confirma y firma. Si le das menos de lo que le toca, la app pregunta por lo que falta: «Se los pago después» lo deja pendiente y sigue saliendo en «Por pagarle» (antes las cuentas arrancaban de cero sin avisar bien) o «No se los debo».
 - **Gastos** (migración V30): más categorías (Insumos, Trabajadores, Arriendo, Servicios, Publicidad), «＋ Otra categoría» para escribir la propia (queda como chip para la próxima) y pregunta obligatoria «¿De dónde salió la plata?» (caja, Nequi o casa); Mi plata descuenta del lugar correcto y Mis gastos lo muestra.
-- Pruebas: backend 189, frontend 98. Probado en local contra PostgreSQL (las dos migraciones corrieron bien).
+- **Gastos de otros días:** al anotar un gasto se escoge «¿Cuándo fue?» (hoy, ayer u otro día, hasta 90 días atrás) y en Reportes → Mis gastos cada gasto tiene «Cambiar fecha» para pasarlo al día en que de verdad fue; así no le baja la ganancia al día en que se escribió.
+- Pruebas: backend 191, frontend 98. Probado en local contra PostgreSQL (las dos migraciones corrieron bien).
 - **Pendiente de decidir:** los pagos al equipo siguen sin restar de Mi plata ni de la ganancia (son solo constancia). Si Esteban quiere, que «Ya le pagué» anote solo el gasto «Trabajadores» desde caja/Nequi.
 
 ### 2026-11-06 (tarde)
