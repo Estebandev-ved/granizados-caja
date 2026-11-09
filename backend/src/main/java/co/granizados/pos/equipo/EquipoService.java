@@ -81,7 +81,9 @@ public class EquipoService {
      * `gratis` son los granizados que puede tomarse sin pagar.
      */
     public record PremiosDia(int vendidas, long comision, long premio, List<Escalones.Escalon> escalones,
-                             Escalones.Escalon siguiente, int gratis, boolean diaPromo) {
+                             Escalones.Escalon siguiente, int gratis, boolean diaPromo,
+                             /** Los que se ha tomado hoy y lo que se le descuenta por los que pasaron de los gratis. */
+                             int consumidos, long descuento) {
     }
 
     public record SeccionTerminos(String titulo, List<String> lineas) {
@@ -93,11 +95,18 @@ public class EquipoService {
     }
 
     /**
-     * Cuentas de un trabajador en un rango de días. `saldo` = efectivo − comisión − bonos por meta: si es positivo el
-     * trabajador le debe esa plata al dueño; si es negativo, el dueño le debe a él.
+     * Cuentas de un trabajador en un rango de días. `saldo` = efectivo − comisión − bonos por meta + consumos: si es
+     * positivo el trabajador le debe esa plata al dueño; si es negativo, el dueño le debe a él.
+     * `consumidos` son los granizados que se tomó él (no cuentan como vendidos) y `consumos` lo que se le descuenta
+     * por los que pasaron de los gratis del día.
      */
     public record Liquidacion(Long vendedorId, String nombre, int comisionPct, int unidades, long total, long efectivo,
-                              long nequi, long comision, int diasMeta, long bonos, long saldo) {
+                              long nequi, long comision, int diasMeta, long bonos, long saldo, int consumidos, long consumos) {
+
+        /** Lo que hay que pagarle por este rango: lo que ganó menos lo que se tomó. Negativo = él queda debiendo. */
+        public long porPagar() {
+            return comision + bonos - consumos;
+        }
     }
 
     /** La meta del día de un trabajador: cuánto lleva, cuánto gana si la cumple y cuántos días seguidos la viene cumpliendo. */
@@ -106,7 +115,9 @@ public class EquipoService {
 
     /** Lo que ve el trabajador al cerrar su turno: lo que debe entregar y lo que devuelve. */
     public record CierreTurno(int unidades, long total, long efectivo, long nequi, long comision, long bonos, long base, long entregar,
-                              List<FilaCarga> devuelve) {
+                              List<FilaCarga> devuelve,
+                              /** Los que se tomó hoy y lo que se le descuenta por ellos (ya está sumado en `entregar`). */
+                              int consumidos, long consumos) {
     }
 
     /** Cuando a un trabajador le quedan este número de granizados (o menos) de un sabor, el dueño recibe un aviso. */
@@ -287,9 +298,15 @@ public class EquipoService {
         LocalDate dia = hoy();
         List<Venta> delDia = ventasDelDia(dia);
         int unidades = 0;
-        long total = 0, efectivo = 0, nequi = 0, comision = 0;
+        int consumidos = 0;
+        long total = 0, efectivo = 0, nequi = 0, comision = 0, consumos = 0;
         for (Venta x : delDia) {
             if (!vendedorId.equals(x.getVendedorId())) continue;
+            if (x.esConsumo()) { // se lo tomó él: no es una venta, y lo que no era gratis se le descuenta
+                consumidos += x.getCantidad();
+                consumos += x.getCargoVendedor();
+                continue;
+            }
             unidades += x.getCantidad();
             total += x.getTotal();
             efectivo += x.efectivo();
@@ -303,7 +320,7 @@ public class EquipoService {
         long bonos = (meta > 0 && unidades >= meta ? premio : 0)
                 + Escalones.premioDe(escalonesDelDia(ajustes.mapa(), diaPromo), unidades);
         long base = baseDeHoy(vendedorId);
-        long entregar = efectivo + base - comision - bonos;
+        long entregar = efectivo + base - comision - bonos + consumos;
         List<FilaCarga> devuelve = filasDe(vendedorId, dia, delDia).stream().filter(f -> f.queda() > 0).toList();
 
         StringBuilder t = new StringBuilder(v.getNombre() + " cerró su día: " + unidades + " vendidos, " + Pesos.formato(total)
@@ -311,11 +328,13 @@ public class EquipoService {
         if (base > 0) t.append("\n\u2022 Base para vueltos que le pasaste: ").append(Pesos.formato(base));
         if (comision > 0) t.append("\n• Su comisión: ").append(Pesos.formato(comision));
         if (bonos > 0) t.append("\n• Premios del día: ").append(Pesos.formato(bonos));
+        if (consumidos > 0) t.append("\n• Se tomó ").append(consumidos)
+                .append(consumos > 0 ? ": se le descuentan " + Pesos.formato(consumos) : " (gratis del día)");
         t.append(entregar >= 0 ? "\nTe entrega " + Pesos.formato(entregar) : "\nTú le debes " + Pesos.formato(-entregar));
         if (devuelve.isEmpty()) t.append("\nNo devuelve nada.");
         else t.append("\nDevuelve: ").append(String.join(", ", devuelve.stream().map(f -> f.queda() + " " + f.nombre()).toList()));
         eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "🧾 " + v.getNombre() + " cerró su día", t.toString()));
-        return new CierreTurno(unidades, total, efectivo, nequi, comision, bonos, base, entregar, devuelve);
+        return new CierreTurno(unidades, total, efectivo, nequi, comision, bonos, base, entregar, devuelve, consumidos, consumos);
     }
 
     /**
@@ -388,10 +407,15 @@ public class EquipoService {
         List<Escalones.Escalon> rebajados = escalonesDelDia(cfg, true);
         LocalDate hoy = hoy();
         boolean promoHoy = PromoCalendario.vigente(cfg.get("PROMO"), hoy);
-        long total = 0, efectivo = 0, nequi = 0, comision = 0;
-        int unidades = 0;
+        long total = 0, efectivo = 0, nequi = 0, comision = 0, consumos = 0;
+        int unidades = 0, consumidos = 0;
         for (Venta x : delRango) {
             if (!v.getId().equals(x.getVendedorId())) continue;
+            if (x.esConsumo()) {
+                consumidos += x.getCantidad();
+                consumos += x.getCargoVendedor();
+                continue;
+            }
             unidades += x.getCantidad();
             total += x.getTotal();
             efectivo += x.efectivo();
@@ -405,7 +429,7 @@ public class EquipoService {
             Map<LocalDate, Integer> porDia = new HashMap<>();
             Set<LocalDate> diasPromo = new HashSet<>();
             for (Venta x : delRango) {
-                if (!v.getId().equals(x.getVendedorId())) continue;
+                if (!v.getId().equals(x.getVendedorId()) || x.esConsumo()) continue; // lo que se toma él no suma para premios
                 LocalDate d = x.getCreadaEn().atZone(zona).toLocalDate();
                 porDia.merge(d, x.getCantidad(), Integer::sum);
                 if (x.isEnPromo()) diasPromo.add(d);
@@ -418,7 +442,7 @@ public class EquipoService {
         }
         long bonos = diasMeta * premio + premiosEscalon;
         return new Liquidacion(v.getId(), v.getNombre(), v.getComisionPct(), unidades, total, efectivo, nequi,
-                comision, diasMeta, bonos, efectivo - comision - bonos);
+                comision, diasMeta, bonos, efectivo - comision - bonos + consumos, consumidos, consumos);
     }
 
     // ------------------------------------------------------------------ pagos al trabajador
@@ -448,10 +472,13 @@ public class EquipoService {
                 .map(PagoVendedor::getSaldo).orElse(0L);
     }
 
-    /** Lo que se le debe pagar hoy a ese trabajador: comisiones y premios desde su último pago, más lo que quedó pendiente de ese pago. */
+    /**
+     * Lo que se le debe pagar hoy a ese trabajador: comisiones y premios desde su último pago, menos lo que se tomó,
+     * más lo que quedó pendiente de ese pago.
+     */
     private long porPagarDe(Vendedor v) {
         Liquidacion l = pendienteDe(v, clock.instant());
-        return l.comision() + l.bonos() + saldoAnteriorDe(v.getId());
+        return l.porPagar() + saldoAnteriorDe(v.getId());
     }
 
     /**
@@ -461,7 +488,9 @@ public class EquipoService {
     public record PagoDto(Long id, Long vendedorId, String nombre, PagoVendedor.Metodo metodo, PagoVendedor.Estado estado,
                           long monto, long comision, long bonos, int unidades, long totalVendido, long efectivo,
                           Instant desde, Instant hasta, Instant creadoEn, Instant respondidoEn, String texto, String firma,
-                          long montoEfectivo, long saldo) {
+                          long montoEfectivo, long saldo,
+                          /** Lo que se le descontó en este pago por los granizados que se tomó. */
+                          long consumos) {
     }
 
     /**
@@ -485,7 +514,7 @@ public class EquipoService {
     private PagoDto pagoDto(PagoVendedor p, String nombre) {
         return new PagoDto(p.getId(), p.getVendedorId(), nombre, p.getMetodo(), p.getEstado(), p.getMonto(), p.getComision(),
                 p.getBonos(), p.getUnidades(), p.getTotalVendido(), p.getEfectivo(), p.getDesde(), p.getHasta(),
-                p.getCreadoEn(), p.getRespondidoEn(), p.getTexto(), p.getFirma(), p.getMontoEfectivo(), p.getSaldo());
+                p.getCreadoEn(), p.getRespondidoEn(), p.getTexto(), p.getFirma(), p.getMontoEfectivo(), p.getSaldo(), p.getConsumos());
     }
 
     @Transactional(readOnly = true)
@@ -515,7 +544,7 @@ public class EquipoService {
         Instant corte = corteDe(vendedorId);
         long saldoAnterior = saldoAnteriorDe(vendedorId);
         Liquidacion l = liquidacionDe(v, ventas.entre(corte != null ? corte.plusNanos(1) : SIEMPRE, ahora.plusSeconds(1)));
-        long debido = l.comision() + l.bonos() + saldoAnterior;
+        long debido = l.porPagar() + saldoAnterior;
         long monto = montoPagado != null ? montoPagado : debido;
         if (monto <= 0) throw new IllegalArgumentException("No hay comisiones por pagarle");
         long enEfectivo = switch (metodo) {
@@ -531,7 +560,7 @@ public class EquipoService {
         long saldo = quedaDebiendo ? Math.max(0, debido - monto) : 0;
         String texto = enEfectivo > 0 ? pazYSalvo(v, l, monto, enEfectivo, saldoAnterior, saldo, corte, ahora) : null;
         PagoVendedor p = pagos.save(new PagoVendedor(vendedorId, metodo, monto, enEfectivo, saldo, l.comision(), l.bonos(),
-                l.unidades(), l.total(), l.efectivo(), corte, ahora, ahora, texto));
+                l.unidades(), l.total(), l.efectivo(), corte, ahora, ahora, texto).conConsumos(l.consumos()));
         return pagoDto(p, v.getNombre());
     }
 
@@ -551,7 +580,8 @@ public class EquipoService {
                 + "Yo, " + v.getNombre() + ", declaro que " + como
                 + " por concepto de comisiones" + (l.bonos() > 0 ? " y premios" : "") + " de " + l.unidades()
                 + " granizados vendidos " + periodo
-                + (saldoAnterior > 0 ? ", más " + Pesos.formato(saldoAnterior) + " que venían pendientes de un pago anterior" : "") + ".\n"
+                + (saldoAnterior > 0 ? ", más " + Pesos.formato(saldoAnterior) + " que venían pendientes de un pago anterior" : "")
+                + (l.consumos() > 0 ? ", ya descontados " + Pesos.formato(l.consumos()) + " de los granizados que consumí" : "") + ".\n"
                 + cierre
                 + "Firmo escribiendo mi nombre en la aplicación, y acepto que esta firma y la hora en que la hice quedan guardadas como constancia.";
     }
@@ -758,7 +788,7 @@ public class EquipoService {
     private Map<LocalDate, Integer> unidadesPorDia(Long vendedorId, LocalDate desde, LocalDate hasta) {
         Map<LocalDate, Integer> porDia = new HashMap<>();
         for (Venta v : ventas.entre(desde.atStartOfDay(zona).toInstant(), hasta.plusDays(1).atStartOfDay(zona).toInstant())) {
-            if (vendedorId.equals(v.getVendedorId())) {
+            if (vendedorId.equals(v.getVendedorId()) && !v.esConsumo()) {
                 porDia.merge(v.getCreadaEn().atZone(zona).toLocalDate(), v.getCantidad(), Integer::sum);
             }
         }
@@ -767,7 +797,8 @@ public class EquipoService {
 
     private VendedorDto dto(Vendedor v, List<Venta> mias, List<FilaCarga> carga) {
         return new VendedorDto(v.getId(), v.getNombre(), v.getComisionPct(), v.isActivo(),
-                mias.stream().mapToInt(Venta::getCantidad).sum(), mias.stream().mapToLong(Venta::getTotal).sum(), carga,
+                mias.stream().filter(x -> !x.esConsumo()).mapToInt(Venta::getCantidad).sum(),
+                mias.stream().mapToLong(Venta::getTotal).sum(), carga,
                 terminos(v).aceptadaEn(), v.getFrecuenciaPago(), porPagarDe(v),
                 pagos.findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(v.getId()).stream()
                         .map(PagoVendedor::getEstado).filter(e -> e != PagoVendedor.Estado.ANULADO).findFirst().orElse(null),
@@ -784,20 +815,59 @@ public class EquipoService {
     public PremiosDia premiosDe(Long vendedorId, List<Venta> mias) {
         Map<String, String> cfg = ajustes.mapa();
         List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
-        int vendidas = mias.stream().mapToInt(Venta::getCantidad).sum();
+        int vendidas = mias.stream().filter(x -> !x.esConsumo()).mapToInt(Venta::getCantidad).sum();
+        int consumidos = mias.stream().filter(Venta::esConsumo).mapToInt(Venta::getCantidad).sum();
+        long descuento = mias.stream().mapToLong(Venta::getCargoVendedor).sum();
         long comision = vendedores.findById(vendedorId)
                 .map(v -> mias.stream().mapToLong(x -> comisionDe(x, v)).sum()).orElse(0L);
-        int gratis = 1;
-        try {
-            gratis = Math.max(0, Integer.parseInt(cfg.getOrDefault("GRANIZADOS_GRATIS", "1").trim()));
-        } catch (NumberFormatException e) {
-            // se queda en 1
-        }
+        int gratis = gratisPorDia(cfg);
         // Los días de promoción los premios bajan; el trabajador ve ya los montos de hoy
         boolean diaPromo = mias.stream().anyMatch(Venta::isEnPromo) || PromoCalendario.vigente(cfg.get("PROMO"), hoy());
         List<Escalones.Escalon> deHoy = escalonesDelDia(cfg, diaPromo);
         return new PremiosDia(vendidas, comision, Escalones.premioDe(deHoy, vendidas), deHoy,
-                Escalones.siguiente(deHoy, vendidas), gratis, diaPromo);
+                Escalones.siguiente(deHoy, vendidas), gratis, diaPromo, consumidos, descuento);
+    }
+
+    // ------------------------------------------------------------------ lo que se toma el trabajador
+
+    /** Cuántos granizados puede tomarse gratis un trabajador por día (`GRANIZADOS_GRATIS`, 1 si no está puesto). */
+    private static int gratisPorDia(Map<String, String> cfg) {
+        try {
+            return Math.max(0, Integer.parseInt(cfg.getOrDefault("GRANIZADOS_GRATIS", "1").trim()));
+        } catch (NumberFormatException e) {
+            return 1;
+        }
+    }
+
+    /**
+     * Pone cuánto se le descuenta por cada consumo de ese día: los primeros (en orden de hora) son los gratis y del
+     * siguiente en adelante se cobra el precio de lista. Se llama cada vez que anota o borra uno, así siempre cuadra.
+     */
+    @Transactional
+    public void recalcularConsumos(Long vendedorId, LocalDate dia) {
+        int libres = gratisPorDia(ajustes.mapa());
+        List<Venta> suyos = ventasDelDia(dia).stream()
+                .filter(x -> vendedorId.equals(x.getVendedorId()) && x.esConsumo())
+                .sorted(java.util.Comparator.comparing(Venta::getCreadaEn).thenComparing(Venta::getId))
+                .toList();
+        for (Venta x : suyos) {
+            int sinCosto = Math.min(libres, x.getCantidad());
+            libres -= sinCosto;
+            x.cobrarAlVendedor(x.getPrecioUnitario() * (x.getCantidad() - sinCosto));
+        }
+        ventas.saveAll(suyos);
+        ventas.flush();
+    }
+
+    /** El trabajador se tomó (o compró) uno de su carga: se calcula cuánto se le descuenta y el dueño recibe el aviso. */
+    @Transactional
+    public void anotarConsumo(Long vendedorId, Venta consumo, String sabor) {
+        recalcularConsumos(vendedorId, consumo.getCreadaEn().atZone(zona).toLocalDate());
+        String quien = vendedores.findById(vendedorId).map(Vendedor::getNombre).orElse("Un trabajador");
+        long cargo = consumo.getCargoVendedor();
+        eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "\uD83E\uDD64 " + quien + " se tomó uno",
+                quien + " se tomó " + consumo.getCantidad() + " " + sabor
+                        + (cargo > 0 ? ". Se le descuentan " + Pesos.formato(cargo) + " de su pago." : " (gratis del día).")));
     }
 
     /** Los escalones de premio de un día: los días de promoción cada uno baja `PREMIO_REBAJA_PROMO` (sin pasar de 0). */

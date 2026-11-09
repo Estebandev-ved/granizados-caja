@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api'
 import { armarCarga, guardarCarga, leerCarga, quedaDeCarga } from '../carga'
-import { diaBogota } from '../estadoLocal'
+import { cargoConsumo, diaBogota } from '../estadoLocal'
 import { CargaDelDia } from '../componentes/CargaDelDia'
 import { Sheet } from '../componentes/Sheet'
 import { TarjetaProducto } from '../componentes/TarjetaProducto'
@@ -20,6 +20,8 @@ interface Props {
   trabajador?: boolean
   /** La promoción que está corriendo hoy (viene del servidor, igual para todos), o null. */
   promo: Promo | null
+  /** Solo un trabajador: cuántos puede tomarse gratis al día y cuántos lleva hoy. Con esto sale «Me lo tomo yo». */
+  consumo?: { gratis: number; consumidos: number } | null
   /** Una línea por sabor. `total` solo viene cuando hubo promo (lo realmente cobrado en esa línea). */
   onVender: (lineas: { p: Producto; cantidad: number; total?: number; efectivo?: number }[], metodo: Metodo, fiado?: { cliente: string; telefono: string }) => void
 }
@@ -27,7 +29,7 @@ interface Props {
 type Filtro = 'todos' | Tipo
 const TIPOS: Tipo[] = ['NORMAL', 'CREMOSO', 'GRANDE', 'CERVEZA']
 
-export function Vender({ productos, porSabor, trabajador = false, promo, onVender }: Props) {
+export function Vender({ productos, porSabor, trabajador = false, promo, consumo = null, onVender }: Props) {
   const perfil = usePerfil()
   const [ok, setOk] = useState(0)
   const [elegido, setElegido] = useState<Producto | null>(null)
@@ -114,7 +116,7 @@ export function Vender({ productos, porSabor, trabajador = false, promo, onVende
       </Sheet>
       <Sheet abierto={!!elegido} onCerrar={() => setElegido(null)}>
         {elegido && (
-          <PanelVenta p={elegido} queda={queda(elegido)} trabajador={trabajador} promo={promo && aplicaPromo(promo, elegido) ? promo : null}
+          <PanelVenta p={elegido} queda={queda(elegido)} trabajador={trabajador} consumo={trabajador ? consumo : null} promo={promo && aplicaPromo(promo, elegido) ? promo : null}
             otros={promo && aplicaPromo(promo, elegido)
               ? orden.filter(o => o.id !== elegido.id && aplicaPromo(promo, o) && !agotado(o))
               : []}
@@ -129,8 +131,10 @@ export function Vender({ productos, porSabor, trabajador = false, promo, onVende
   )
 }
 
-function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
+function PanelVenta({ p, promo, otros, queda, trabajador, consumo, onPagar }: {
   p: Producto
+  /** Solo un trabajador: los gratis del día y los que ya se tomó. */
+  consumo: { gratis: number; consumidos: number } | null
   promo: Promo | null
   /** Otros sabores que entran en la promo: el cliente puede mezclar. */
   otros: Producto[]
@@ -166,11 +170,12 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
     pagado.current = true
     vibrar()
     // Si mezcló sabores, el total del combo se reparte entre las líneas (la API guarda una venta por sabor)
-    const partes = m === 'REGALO' ? lineas.map(() => 0) : repartirTotal(lineas, total)
+    const sinCobro = m === 'REGALO' || m === 'CONSUMO' // el servidor pone lo que vale: un regalo nada, un consumo lo que se descuenta
+    const partes = sinCobro ? lineas.map(() => 0) : repartirTotal(lineas, total)
     // Pago dividido: lo pagado en efectivo se reparte igual entre las líneas, el resto de cada una es Nequi
     const efectivos = m === 'MIXTO' && enEfectivo !== undefined ? repartirEfectivo(partes, enEfectivo) : []
     onPagar(m, lineas.map((l, i) => ({
-      p: l.p, cantidad: l.cantidad, total: m === 'REGALO' ? 0 : promo && partes[i] < l.p.precio * l.cantidad ? partes[i] : undefined,
+      p: l.p, cantidad: l.cantidad, total: m === 'REGALO' ? 0 : m === 'CONSUMO' ? undefined : promo && partes[i] < l.p.precio * l.cantidad ? partes[i] : undefined,
       efectivo: m === 'MIXTO' ? efectivos[i] : undefined,
     })), fiado)
   }
@@ -184,6 +189,15 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
   const total = promo ? totalMezclado(promo, lineas) : normal
   const enEfectivo = aEntero(efectivoTxt)
   const mixtoValido = enEfectivo > 0 && enEfectivo < total
+  // Si se lo toma él: los gratis del día no se cobran y del siguiente en adelante va al precio de venta
+  let yaTomados = consumo?.consumidos ?? 0
+  let descuento = 0
+  if (consumo) {
+    for (const l of lineas) {
+      descuento += cargoConsumo(l.p.precio, l.cantidad, consumo.gratis, yaTomados)
+      yaTomados += l.cantidad
+    }
+  }
 
   return (
     <>
@@ -297,6 +311,11 @@ function PanelVenta({ p, promo, otros, queda, trabajador, onPagar }: {
           <button type="button" className="link fiado-boton" onClick={() => setMixto(true)}>Pagó mitad y mitad (efectivo + Nequi)</button>
           {!trabajador && perfil.fiados && <button type="button" className="link fiado-boton" onClick={() => setFiando(true)}>Fiado (paga después)</button>}
           {!trabajador && <button type="button" className="link fiado-boton" onClick={() => pagar('REGALO')}>🎁 Regalo (sello de fidelidad)</button>}
+          {consumo && (
+            <button type="button" className="link fiado-boton" onClick={() => pagar('CONSUMO')}>
+              🥤 Me lo tomo yo · {descuento > 0 ? 'se me descuentan ' + pesos(descuento) : 'gratis, es el del día'}
+            </button>
+          )}
         </>
       )}
     </>

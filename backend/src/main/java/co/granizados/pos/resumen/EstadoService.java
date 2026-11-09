@@ -65,7 +65,8 @@ public class EstadoService {
         }
     }
 
-    public record VentaReciente(String clientUid, String hora, String sabor, long total, MetodoPago metodo) {
+    /** `cargo` solo en un CONSUMO: lo que se le descuenta al trabajador que se lo tomó (0 = era gratis). */
+    public record VentaReciente(String clientUid, String hora, String sabor, long total, MetodoPago metodo, long cargo) {
     }
 
     /** La meta del día y los días seguidos cumpliéndola. `valor = 0` significa que está apagada. */
@@ -137,7 +138,7 @@ public class EstadoService {
         if (vendedor != null) return estadoDeTrabajador(vendedor, dia, delDia);
         List<VentaReciente> ultimas = delDia.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
-                        v.getProducto().nombre(), v.getTotal(), v.getMetodo()))
+                        v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor()))
                 .toList();
         List<ProductoDto> activos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream().map(ProductoDto::de).toList();
         ResumenDia resumen = resumenDe(dia, delDia);
@@ -158,10 +159,12 @@ public class EstadoService {
                 .toList();
         List<VentaReciente> ultimas = mias.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
-                        v.getProducto().nombre(), v.getTotal(), v.getMetodo()))
+                        v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor()))
                 .toList();
         ResumenDia r = resumir(mias, 0, 0, 0);
-        ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades(), r.porSabor(), 0, 0, 0,
+        // Lo que se tomó él no cuenta como vendido, pero sí salió de su carga: por eso sigue en `porSabor`
+        int consumidos = mias.stream().filter(Venta::esConsumo).mapToInt(Venta::getCantidad).sum();
+        ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades() - consumidos, r.porSabor(), 0, 0, 0,
                 r.total(), 0, r.porSabor(), r.cerveza());
         return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0), equipo.metaDe(vendedor, dia),
                 equipo.premiosDe(vendedor, mias), promoDe(), textoDe("PERFIL"), null);

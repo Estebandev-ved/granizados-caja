@@ -43,6 +43,8 @@ public class PagoVendedor {
     private long saldo;
     private long comision;
     private long bonos;
+    /** Lo que se le descontó por los granizados que se tomó (ya está restado de lo que se le debía). */
+    private long consumos;
     private int unidades;
     private long totalVendido;
     private long efectivo;
@@ -89,6 +91,13 @@ public class PagoVendedor {
         this.firma = firma;
         this.respondidoEn = cuando;
     }
+
+    public PagoVendedor conConsumos(long consumos) {
+        this.consumos = consumos;
+        return this;
+    }
+
+    public long getConsumos() { return consumos; }
 
     public void anular() {
         this.estado = Estado.ANULADO;

@@ -32,6 +32,7 @@ const AYUDA: Record<TemaAyuda, { titulo: string; entradas: Entrada[] }> = {
   ] },
   dia: { titulo: 'Mi día', entradas: [
     { titulo: 'Cómo gano', pasos: ['Arriba ves lo que llevas ganado hoy: comisión más premios.', 'La barra te muestra cuánto falta para el siguiente premio.'] },
+    { titulo: 'Si te tomas uno', pasos: ['En Vender toca el sabor y luego «Me lo tomo yo».', 'El del día es gratis; del siguiente en adelante se descuenta de tu pago.'] },
     { titulo: 'Entregar lo recaudado', pasos: ['Al cerrar, anota cuánto entregaste en efectivo y por Nequi; el dueño lo confirma.'] },
   ] },
 }

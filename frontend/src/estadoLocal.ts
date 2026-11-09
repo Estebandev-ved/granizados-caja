@@ -96,11 +96,41 @@ function producto(e: Estado, id: number) {
   return e.productos.find(x => x.id === id)
 }
 
+/**
+ * Lo que se le descuenta a un trabajador por tomarse `cantidad`: los que le quedan gratis hoy no se cobran y el resto
+ * va al precio de venta (misma cuenta que hace el servidor).
+ */
+export function cargoConsumo(precio: number, cantidad: number, gratis: number, consumidos: number): number {
+  const sinCosto = Math.min(Math.max(0, gratis - consumidos), cantidad)
+  return precio * (cantidad - sinCosto)
+}
+
+function sumarSabor(lista: { sabor: string; unidades: number }[], sabor: string, unidades: number) {
+  const fila = lista.find(s => s.sabor === sabor)
+  if (fila) fila.unidades += unidades
+  else lista.push({ sabor, unidades })
+}
+
 function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy: string, pendiente: boolean) {
   const p = producto(e, op.productoId)
   if (!p) return
   p.stock -= op.cantidad
   if (diaBogota(op.creadaEn) !== hoy) return
+
+  if (op.metodo === 'CONSUMO') {
+    // Se lo tomó el trabajador: sale de su carga, pero no es una venta ni entra plata
+    const cargo = cargoConsumo(p.precio, op.cantidad, e.premios?.gratis ?? 1, e.premios?.consumidos ?? 0)
+    if (e.premios) {
+      e.premios.consumidos = (e.premios.consumidos ?? 0) + op.cantidad
+      e.premios.descuento = (e.premios.descuento ?? 0) + cargo
+    }
+    sumarSabor(e.hoy.porSabor, p.nombre, op.cantidad)
+    e.hoy.porSabor.sort((a, b) => b.unidades - a.unidades)
+    if (e.hoy.propias) sumarSabor(e.hoy.propias, p.nombre, op.cantidad)
+    e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total: 0, metodo: op.metodo, cargo, pendiente },
+      ...e.ultimas].slice(0, 40)
+    return
+  }
 
   // Un regalo no cobra nada, pero igual baja el stock y cuenta el costo
   const total = op.metodo === 'REGALO' ? 0 : op.total ?? p.precio * op.cantidad

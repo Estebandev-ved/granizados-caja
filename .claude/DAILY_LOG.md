@@ -40,6 +40,11 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-09 (tarde)
+- **«Me lo tomo yo»** (migración V31, método `CONSUMO`): el trabajador toca el sabor en Vender y luego «Me lo tomo yo». El del día sale gratis (`GRANIZADOS_GRATIS`) y del siguiente en adelante se le descuenta al precio de venta de lo que se le paga: lo ve en Mi día (los que se tomó, cuánto se descuenta, «me tomé» en la carga) y al cerrar el día; el dueño lo ve en Equipo («Por pagarle» ya viene con el descuento, o «Te debe» si se tomó más de lo que ganó), en «Ya le pagué», en el paz y salvo, en Ventas de hoy y por Telegram. No cuenta como venta ni para premios, no entra plata y baja la carga y el inventario. Se borra como cualquier venta (si borra el gratis, el siguiente pasa a ser el gratis).
+- Pruebas: backend 199, frontend 100. Probado en la app local con un trabajador de prueba (quedó desactivado en la base local: «Prueba consumo»).
+- **Por decidir:** hoy se cobra al precio de venta (lo que ya dicen los términos). Si Esteban quiere precio especial para el equipo (al costo, o un precio fijo), es un ajuste nuevo.
+
 ### 2026-11-09
 - **Pago al trabajador en dos partes** (migración V29): en «Ya le pagué» ahora se escoge todo en efectivo, todo por Nequi o **parte y parte** (cuánto en efectivo, el resto Nequi) y queda un solo pago que el trabajador confirma y firma. Si le das menos de lo que le toca, la app pregunta por lo que falta: «Se los pago después» lo deja pendiente y sigue saliendo en «Por pagarle» (antes las cuentas arrancaban de cero sin avisar bien) o «No se los debo».
 - **Gastos** (migración V30): más categorías (Insumos, Trabajadores, Arriendo, Servicios, Publicidad), «＋ Otra categoría» para escribir la propia (queda como chip para la próxima) y pregunta obligatoria «¿De dónde salió la plata?» (caja, Nequi o casa); Mi plata descuenta del lugar correcto y Mis gastos lo muestra.

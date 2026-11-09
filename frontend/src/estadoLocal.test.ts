@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { diaBogota, estadoVisible, resumenVacio } from './estadoLocal'
+import { cargoConsumo, diaBogota, estadoVisible, resumenVacio } from './estadoLocal'
 import type { Estado, Operacion } from './tipos'
 
 const base = (dia = '2026-09-25'): Estado => ({
@@ -91,6 +91,31 @@ describe('estadoVisible', () => {
     expect(e.hoy.efectivo).toBe(0)
     expect(e.hoy.unidades).toBe(2)
     expect(e.hoy.costo).toBe(3000 + 4000)
+  })
+
+  it('lo que se toma el trabajador sale de su carga pero no es venta: el del día gratis y el siguiente se descuenta', () => {
+    const b = base()
+    b.metaEquipo = { unidades: 10, premio: 2000, vendidas: 1, racha: 0 }
+    b.premios = { vendidas: 1, comision: 600, premio: 0, escalones: [], siguiente: null, gratis: 1, diaPromo: false, consumidos: 0, descuento: 0 }
+    const tomar = (uid: string): Operacion => ({ tipo: 'venta', clientUid: uid, productoId: 1, metodo: 'CONSUMO', cantidad: 1, creadaEn: HOY_3PM })
+    const e = estadoVisible(b, [], [tomar('c1'), tomar('c2')], '2026-09-25')!
+
+    expect(e.productos[0].stock).toBe(8)
+    expect(e.hoy.unidades).toBe(1) // sigue siendo solo lo vendido
+    expect(e.hoy.total).toBe(6000)
+    expect(e.hoy.efectivo).toBe(0)
+    expect(e.metaEquipo?.vendidas).toBe(1)
+    expect(e.hoy.porSabor).toEqual([{ sabor: 'Smirnoff', unidades: 3 }])
+    expect(e.premios?.consumidos).toBe(2)
+    expect(e.premios?.descuento).toBe(6000)
+    expect(e.ultimas.slice(0, 2).map(u => u.cargo)).toEqual([6000, 0])
+  })
+
+  it('cargoConsumo cobra solo lo que pasa de los gratis del día', () => {
+    expect(cargoConsumo(6000, 1, 1, 0)).toBe(0)
+    expect(cargoConsumo(6000, 1, 1, 1)).toBe(6000)
+    expect(cargoConsumo(6000, 3, 1, 0)).toBe(12000)
+    expect(cargoConsumo(6000, 2, 0, 0)).toBe(12000)
   })
 
   it('suma las ventas pendientes encima del estado del servidor', () => {

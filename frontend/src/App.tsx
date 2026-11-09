@@ -181,10 +181,12 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
           <div className="esqueleto-grid">{Array.from({ length: 6 }, (_, i) => <i key={i} style={{ '--i': i } as CSSProperties} />)}</div>
         </div>
   } else if (vista === 'vender') {
-    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promo={promo} onVender={(lineas, metodo, fiado) => {
+    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promo={promo}
+      consumo={trabajador && premios ? { gratis: premios.gratis, consumidos: premios.consumidos ?? 0 } : null}
+      onVender={(lineas, metodo, fiado) => {
       const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado, l.efectivo))
       const detalle = lineas.map(l => (l.cantidad > 1 ? l.cantidad + ' ' : '') + l.p.nombre).join(' + ')
-      avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'MIXTO' ? 'Efectivo + Nequi' : metodo === 'REGALO' ? 'Regalo 🎁' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
+      avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'MIXTO' ? 'Efectivo + Nequi' : metodo === 'REGALO' ? 'Regalo 🎁' : metodo === 'CONSUMO' ? 'Te lo tomas tú 🥤' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
         { texto: 'Deshacer', alTocar: () => uids.forEach(clientUid => void caja.deshacer({ clientUid })) })
     }} />
   } else if (vista === 'inventario') {
@@ -261,7 +263,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     <PerfilContexto.Provider value={perfil}>
       <header>
         <div className="hoy-mini">
-          <NumeroAnimado valor={trabajador && premios ? premios.comision + premios.premio : estado?.hoy.total ?? 0} formato={pesos} />
+          <NumeroAnimado valor={trabajador && premios ? Math.max(0, premios.comision + premios.premio - (premios.descuento ?? 0)) : estado?.hoy.total ?? 0} formato={pesos} />
           <small>
             {trabajador && premios ? 'ganado hoy' : 'hoy'} · {estado?.hoy.unidades ?? 0} vendido{estado?.hoy.unidades === 1 ? '' : 's'}
           </small>

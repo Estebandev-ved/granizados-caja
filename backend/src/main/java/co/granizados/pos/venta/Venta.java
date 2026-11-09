@@ -55,6 +55,9 @@ public class Venta {
     /** Se cobró por debajo del precio normal (promoción): ese día los premios del trabajador bajan. */
     private boolean enPromo;
 
+    /** Solo CONSUMO: lo que se le descuenta al trabajador por esta venta (0 = era de los gratis del día). */
+    private long cargoVendedor;
+
     private Instant creadaEn;
 
     /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
@@ -101,8 +104,29 @@ public class Venta {
         return switch (metodo) {
             case EFECTIVO -> total;
             case MIXTO -> montoEfectivo == null ? 0 : montoEfectivo;
-            case NEQUI, FIADO, REGALO -> 0;
+            case NEQUI, FIADO, REGALO, CONSUMO -> 0;
         };
+    }
+
+    /**
+     * El trabajador se lo toma él: no se cobra (total 0) y conserva el precio de lista para saber cuánto descontarle.
+     * No gana comisión por lo que él mismo consume.
+     */
+    public Venta consumo() {
+        this.metodo = MetodoPago.CONSUMO;
+        this.total = 0;
+        this.comisionUnitaria = 0L;
+        this.enPromo = false;
+        return this;
+    }
+
+    public boolean esConsumo() {
+        return metodo == MetodoPago.CONSUMO;
+    }
+
+    /** Cuánto se le descuenta al trabajador por este consumo. */
+    public void cobrarAlVendedor(long cargo) {
+        this.cargoVendedor = cargo;
     }
 
     /** Lo de esta venta que entró por Nequi. */
@@ -110,7 +134,7 @@ public class Venta {
         return switch (metodo) {
             case NEQUI -> total;
             case MIXTO -> total - efectivo();
-            case EFECTIVO, FIADO, REGALO -> 0;
+            case EFECTIVO, FIADO, REGALO, CONSUMO -> 0;
         };
     }
 
@@ -132,6 +156,7 @@ public class Venta {
     public Long getId() { return id; }
     public Long getComisionUnitaria() { return comisionUnitaria; }
     public boolean isEnPromo() { return enPromo; }
+    public long getCargoVendedor() { return cargoVendedor; }
     public Long getVendedorId() { return vendedorId; }
     public String getClientUid() { return clientUid; }
     public Producto getProducto() { return producto; }

@@ -472,6 +472,7 @@ h1, h2, h3, .hoy-mini, .card .v, .qty span, .login-titulo, .big { font-family: v
 .carga-paso span { min-width: 28px; text-align: center; font-size: 20px; font-weight: 800; color: var(--mut) }
 .carga-paso span.on { color: var(--txt) }
 .carga-totales { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 6px 0 10px; text-align: center }
+.carga-totales.cuatro { grid-template-columns: repeat(4, 1fr) }
 .carga-totales div { background: var(--card2); border-radius: var(--r-md); padding: 8px 4px }
 .carga-totales b { display: block; font-size: 22px }
 .carga-totales span { font-size: 11px; color: var(--mut); text-transform: uppercase; letter-spacing: .5px }

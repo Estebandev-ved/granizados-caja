@@ -32,6 +32,9 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
   const [base, setBase] = useState(0)
   const [confirmando, setConfirmando] = useState(false)
   const pagoPendiente = pagos.find(p => p.estado === 'PENDIENTE') ?? null
+  const consumidos = premios?.consumidos ?? 0
+  const descuento = premios?.descuento ?? 0
+  const ganado = premios ? premios.comision + premios.premio - descuento : 0
 
   useEffect(() => {
     let vivo = true
@@ -79,7 +82,7 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
       <div className="mi-hero">
         <div className="mi-hero-texto">
           <span className="mi-hero-saludo">{sesion.nombre ? 'Hola, ' + sesion.nombre : 'Mi día'}</span>
-          <b className="mi-hero-monto">{pesos(premios ? premios.comision + premios.premio : h.total)}</b>
+          <b className="mi-hero-monto">{pesos(premios ? Math.max(0, ganado) : h.total)}</b>
           <span className="mi-hero-pie">{premios ? 'ganado hoy' : 'vendido hoy'} · {h.unidades} granizado{h.unidades === 1 ? '' : 's'}</span>
           {premios?.siguiente && (
             <span className="mi-hero-sig">
@@ -104,7 +107,10 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
           {premios.escalones.length > 0 && (
             <div className="row"><span>Premio del día</span><b>{pesos(premios.premio)}</b></div>
           )}
-          <div className="row"><span><b>Total ganado</b></span><b>{pesos(premios.comision + premios.premio)}</b></div>
+          {descuento > 0 && (
+            <div className="row"><span>{consumidos === 1 ? 'El que te tomaste' : 'Los que te tomaste'}</span><b>−{pesos(descuento)}</b></div>
+          )}
+          <div className="row"><span><b>{ganado < 0 ? 'Quedas debiendo' : 'Total ganado'}</b></span><b>{pesos(Math.abs(ganado))}</b></div>
           {premios.diaPromo && premios.escalones.length > 0 && (
             <p className="mut" style={{ margin: '6px 0 0' }}>
               Hoy es día de promo: se vende más barato, así que los premios son un poco menores que en un día normal.
@@ -135,9 +141,13 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
         <div className="regalo">
           <Personaje nombre="nova" libre />
           <p>
-            {premios.gratis > 0
+            {premios.gratis > consumidos
               ? <><b>Tu granizado del día:</b> tienes derecho a tomarte {premios.gratis === 1 ? '1' : premios.gratis} sin costo, te lo ganaste. Del siguiente en adelante se cobra al precio de venta.</>
-              : <>Los granizados del puesto son para vender. Si te tomas uno, se cobra al precio de venta.</>}
+              : premios.gratis > 0
+                ? <><b>Ya te tomaste el del día.</b> Si quieres otro, se cobra al precio de venta y se descuenta de tu pago.</>
+                : <>Los granizados del puesto son para vender. Si te tomas uno, se cobra al precio de venta y se descuenta de tu pago.</>}
+            {' '}Anótalo en Vender: toca el sabor y luego <b>«Me lo tomo yo»</b>.
+            {consumidos > 0 && <> Hoy llevas {consumidos}{descuento > 0 ? ': se te descuentan ' + pesos(descuento) : ', sin costo'}.</>}
           </p>
         </div>
       )}
@@ -146,9 +156,10 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
         <h3><Icono nombre="caja" /> Lo que llevé hoy</h3>
         {filas.length ? (
           <>
-            <div className="carga-totales">
+            <div className={'carga-totales' + (consumidos > 0 ? ' cuatro' : '')}>
               <div><b>{llevo}</b><span>llevé</span></div>
               <div><b>{h.unidades}</b><span>vendí</span></div>
+              {consumidos > 0 && <div><b>{consumidos}</b><span>me tomé</span></div>}
               <div><b>{queda}</b><span>me quedan</span></div>
             </div>
             {filas.map(f => (
@@ -170,17 +181,17 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
       {estado.ultimas.length ? (
         <div className="list">
           <h3><Icono nombre="reloj" /> Mis ventas de hoy</h3>
-          <p className="mut" style={{ margin: '0 0 6px' }}>Toca una venta para borrarla si te equivocaste.</p>
+          <p className="mut" style={{ margin: '0 0 6px' }}>Toca una para borrarla si te equivocaste.</p>
           {estado.ultimas.map(u => (
             <button type="button" className="pago-fila" key={u.clientUid} onClick={() => setBorrar(u)}>
               <span className={'pago-avatar ' + (u.metodo === 'EFECTIVO' ? 'e' : 'n')}>
                 <Icono nombre={u.metodo === 'EFECTIVO' ? 'billete' : 'celular'} />
               </span>
               <div className="pago-info">
-                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : 'Nequi'}</b>
+                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : u.metodo === 'CONSUMO' ? 'Me lo tomé yo 🥤' : 'Nequi'}</b>
                 <span className="mut">{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}</span>
               </div>
-              <b>{pesos(u.total)}</b>
+              <b>{u.metodo === 'CONSUMO' ? ((u.cargo ?? 0) > 0 ? '−' + pesos(u.cargo ?? 0) : 'gratis') : pesos(u.total)}</b>
             </button>
           ))}
         </div>
@@ -220,6 +231,13 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
               Vendiste {cierre.unidades}: {pesos(cierre.comision)} de comisión
               {cierre.bonos > 0 && <> y {pesos(cierre.bonos)} de premio por la meta</>}.
             </p>
+            {(cierre.consumidos ?? 0) > 0 && (
+              <p>
+                Te tomaste {cierre.consumidos}: {(cierre.consumos ?? 0) > 0
+                  ? <>se te descuentan {pesos(cierre.consumos ?? 0)}, que ya van dentro de lo que entregas.</>
+                  : <>sin costo, {cierre.consumidos === 1 ? 'era el' : 'eran los'} del día.</>}
+              </p>
+            )}
             {cierre.comision + cierre.bonos > 0 && (
               <p className="recaudo-cierre">
                 {cierre.entregar >= 0 ? 'Entrega ' + pesos(cierre.entregar) : 'Te deben ' + pesos(-cierre.entregar)}
@@ -242,8 +260,8 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
       <Sheet abierto={!!borrar} onCerrar={() => setBorrar(null)}>
         {borrar && (
           <>
-            <h2>¿Borrar esta venta?</h2>
-            <p>{borrar.sabor} · {pesos(borrar.total)} · {borrar.hora}</p>
+            <h2>{borrar.metodo === 'CONSUMO' ? '¿Borrar el que te tomaste?' : '¿Borrar esta venta?'}</h2>
+            <p>{borrar.sabor} · {borrar.metodo === 'CONSUMO' ? 'vuelve a tu carga' : pesos(borrar.total)} · {borrar.hora}</p>
             <div className="acciones">
               <button className="big peligro" onClick={() => { void onDeshacer(borrar); setBorrar(null) }}>Sí, borrar</button>
               <button className="big ghost" onClick={() => setBorrar(null)}>No</button>

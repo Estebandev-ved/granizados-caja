@@ -204,19 +204,26 @@ function PagarPanel({ t, guardar, volver }: {
   if (!cuenta) return <p className="mut">Calculando…</p>
   const p = cuenta.pendiente
   const saldoAnterior = cuenta.saldoAnterior ?? 0
-  if (p.comision + p.bonos + saldoAnterior <= 0) {
+  const consumos = p.consumos ?? 0
+  const debido = p.comision + p.bonos - consumos + saldoAnterior
+  if (debido <= 0) {
     return (
       <>
         <h2>Nada por pagarle</h2>
-        <p>{t.nombre} no tiene comisiones pendientes desde su último pago.</p>
+        <p>
+          {debido < 0
+            ? t.nombre + ' se tomó más de lo que lleva ganado: te queda debiendo ' + pesos(-debido) + ', que se le descuentan de lo próximo que venda.'
+            : t.nombre + ' no tiene comisiones pendientes desde su último pago.'}
+        </p>
         <div className="acciones"><button className="big ghost" onClick={volver}>Volver</button></div>
       </>
     )
   }
   return (
     <PagarTrabajador nombre={t.nombre} comision={p.comision} bonos={p.bonos} unidades={p.unidades} saldoAnterior={saldoAnterior}
+      consumos={consumos}
       onPagar={async pago => {
-        const falta = pago.quedaDebiendo ? p.comision + p.bonos + saldoAnterior - pago.monto : 0
+        const falta = pago.quedaDebiendo ? debido - pago.monto : 0
         const mensaje = 'Pago de ' + t.nombre + ' guardado. ' + (falta > 0 ? 'Le quedas debiendo ' + pesos(falta) : 'Sus cuentas arrancan de cero')
         if (await guardar(() => api.pagarTrabajador(t.id, pago), mensaje)) volver()
       }} />
@@ -241,7 +248,8 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
   const cuenta = useCuenta(t)
   const pendiente = cuenta && cuenta !== 'error' ? cuenta.pendiente : null
   const saldoAnterior = cuenta && cuenta !== 'error' ? cuenta.saldoAnterior ?? 0 : 0
-  const porPagar = pendiente ? pendiente.comision + pendiente.bonos + saldoAnterior : t.porPagar ?? 0
+  const consumos = pendiente?.consumos ?? 0
+  const porPagar = pendiente ? pendiente.comision + pendiente.bonos - consumos + saldoAnterior : t.porPagar ?? 0
   const llevo = t.carga.reduce((a, f) => a + f.llevo, 0)
   const vendi = t.carga.reduce((a, f) => a + f.vendi, 0)
 
@@ -275,12 +283,15 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
 
       <div className={'por-pagar' + (porPagar > 0 ? ' hay' : '')}>
         <span className="por-pagar-k">Por pagarle</span>
-        <b>{pesos(porPagar)}</b>
+        <b>{porPagar < 0 ? 'Te debe ' + pesos(-porPagar) : pesos(porPagar)}</b>
         <span className="mut">
           {pendiente
             ? <><Unidades n={pendiente.unidades} />{(cuenta && cuenta !== 'error' && cuenta.desde ? ' desde su último pago' : ' en total')
               + (pendiente.bonos > 0 ? ' · incluye ' + pesos(pendiente.bonos) + ' de premios' : '')
-              + (saldoAnterior > 0 ? ' · más ' + pesos(saldoAnterior) + ' que le quedaste debiendo' : '')}</>
+              + (saldoAnterior > 0 ? ' · más ' + pesos(saldoAnterior) + ' que le quedaste debiendo' : '')
+              + ((pendiente.consumidos ?? 0) > 0
+                ? ' · se tomó ' + pendiente.consumidos + (consumos > 0 ? ': ya van descontados ' + pesos(consumos) : ' (gratis)')
+                : '')}</>
             : 'Calculando…'}
         </span>
         <button className="big primario" onClick={onPagar} disabled={porPagar <= 0}>Ya le pagué {porPagar > 0 ? pesos(porPagar) : ''}</button>
@@ -299,6 +310,7 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
               </div>
               <span className="mut">
                 {fechaHora(p.creadoEn)} · <Unidades n={p.unidades} />
+                {(p.consumos ?? 0) > 0 && <> · se le descontaron {pesos(p.consumos ?? 0)} de lo que se tomó</>}
                 {(p.saldo ?? 0) > 0 && p.estado !== 'ANULADO' && <> · quedaron pendientes {pesos(p.saldo ?? 0)}</>}
                 {p.firma && <> · firmó el paz y salvo: <b>{p.firma}</b></>}
               </span>

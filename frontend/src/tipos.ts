@@ -1,7 +1,8 @@
 // Tipos que devuelve la API del backend (Spring Boot).
 
 export type Tipo = 'NORMAL' | 'CREMOSO' | 'GRANDE' | 'CERVEZA'
-export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO' | 'MIXTO' | 'REGALO'
+/** CONSUMO: un trabajador se toma (o compra) uno de su carga; no entra plata y lo que no era gratis se le descuenta. */
+export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO' | 'MIXTO' | 'REGALO' | 'CONSUMO'
 export type TipoMovimiento = 'ENTRADA' | 'CONTEO' | 'MERMA'
 export type MotivoMerma = 'DANADO' | 'REGALADO' | 'VENCIDO'
 export type EstadoPedido = 'ENVIADO' | 'RECIBIDO' | 'CANCELADO'
@@ -89,6 +90,9 @@ export interface PremiosDia {
   gratis: number
   /** Hoy corre la promo: los premios ya vienen con la rebaja. */
   diaPromo: boolean
+  /** Los que se ha tomado hoy, y lo que se le descuenta por los que pasaron de los gratis. */
+  consumidos?: number
+  descuento?: number
 }
 
 export interface SeccionTerminos {
@@ -176,6 +180,8 @@ export interface PagoEquipo {
   respondidoEn: string | null
   texto: string | null
   firma: string | null
+  /** Lo que se le descontó en este pago por los granizados que se tomó. */
+  consumos?: number
 }
 
 /** Lo que se le debe a un trabajador desde su último pago, más sus pagos recientes. */
@@ -199,6 +205,9 @@ export interface CierreTurno {
   base: number
   entregar: number
   devuelve: FilaCargaEquipo[]
+  /** Los que se tomó hoy y lo que se le descuenta por ellos (ya va sumado en `entregar`). */
+  consumidos?: number
+  consumos?: number
 }
 
 /** Cuentas de un trabajador. `saldo` = efectivo − comisión: positivo, te debe entregar; negativo, le debes. */
@@ -215,6 +224,9 @@ export interface Liquidacion {
   diasMeta: number
   bonos: number
   saldo: number
+  /** Granizados que se tomó él (no cuentan como vendidos) y lo que se le descuenta por los que no eran gratis. */
+  consumidos?: number
+  consumos?: number
 }
 
 export interface VentaReciente {
@@ -223,6 +235,8 @@ export interface VentaReciente {
   sabor: string
   total: number
   metodo: Metodo
+  /** Solo CONSUMO: lo que se le descuenta al trabajador que se lo tomó (0 = era gratis). */
+  cargo?: number
   /** Solo en el celular: todavía no ha subido al servidor. */
   pendiente?: boolean
 }

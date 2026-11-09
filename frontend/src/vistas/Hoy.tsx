@@ -194,10 +194,10 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
                 <Icono nombre={u.metodo === 'EFECTIVO' ? 'billete' : 'celular'} />
               </span>
               <div className="pago-info">
-                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : u.metodo === 'REGALO' ? 'Regalo 🎁' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : 'Nequi'}</b>
+                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : u.metodo === 'REGALO' ? 'Regalo 🎁' : u.metodo === 'CONSUMO' ? 'Se lo tomó el trabajador 🥤' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : 'Nequi'}</b>
                 <span className="mut">{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}</span>
               </div>
-              <b>{pesos(u.total)}</b>
+              <b>{u.metodo === 'CONSUMO' ? ((u.cargo ?? 0) > 0 ? 'le descuentas ' + pesos(u.cargo ?? 0) : 'gratis') : pesos(u.total)}</b>
             </button>
           ))}
           {estado.ultimas.length > 8 && (

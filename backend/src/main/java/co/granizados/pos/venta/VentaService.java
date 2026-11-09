@@ -113,10 +113,14 @@ public class VentaService {
 
         long normal = p.getPrecio() * v.cantidad();
         boolean regalo = v.metodo() == MetodoPago.REGALO;
+        // El trabajador se lo toma él: no entra plata, y lo que pase de los gratis del día se le descuenta de su pago
+        boolean consumo = v.metodo() == MetodoPago.CONSUMO;
         // promo: solo puede bajar el precio; un regalo no cobra nada
-        long cobrado = regalo ? 0 : v.total() == null ? normal : Math.min(v.total(), normal);
+        long cobrado = regalo || consumo ? 0 : v.total() == null ? normal : Math.min(v.total(), normal);
         Instant cuando = cuando(v.creadaEn());
-        Venta venta = new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando, cobrado);
+        Venta venta = consumo
+                ? new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando).consumo() // conserva el precio de lista
+                : new Venta(v.clientUid(), p, v.cantidad(), v.metodo(), cuando, cobrado);
         if (v.metodo() == MetodoPago.MIXTO) {
             // Con varios sabores en un combo el efectivo se reparte por línea: una puede quedar toda en un solo método
             if (v.efectivo() == null || v.efectivo() > cobrado) {
@@ -125,13 +129,17 @@ public class VentaService {
             venta.mixto(v.efectivo());
         }
         // Una venta en promoción (se cobró menos que precio × cantidad) paga la tarifa de promo y baja los premios del día
-        boolean enPromo = !regalo && venta.getTotal() < normal;
+        boolean enPromo = !regalo && !consumo && venta.getTotal() < normal;
         venta.enPromo(enPromo);
         Long vendedor = Sesion.vendedorId();
+        if (consumo && vendedor == null) {
+            throw new IllegalArgumentException("Eso lo anota el trabajador desde su celular. Si es tuyo, usa Regalo");
+        }
         if (vendedor != null) {
             if (v.metodo() == MetodoPago.FIADO) throw new IllegalArgumentException("Los trabajadores no pueden fiar");
             if (regalo) throw new IllegalArgumentException("Los trabajadores no pueden regalar");
-            venta.porVendedor(vendedor).conComision(equipo.comisionPorGranizado(p.getTipo(), enPromo));
+            venta.porVendedor(vendedor);
+            if (!consumo) venta.conComision(equipo.comisionPorGranizado(p.getTipo(), enPromo));
         }
         ventas.saveAndFlush(venta);
         if (v.metodo() == MetodoPago.FIADO) {
@@ -153,6 +161,7 @@ public class VentaService {
         if (antes > minimo && despues <= minimo) {
             eventos.publishEvent(new StockBajo(TenantContext.actual(), p.getId(), nombre, despues, minimo));
         }
+        if (consumo) equipo.anotarConsumo(vendedor, venta, nombre);
         if (vendedor != null) equipo.revisarPocos(vendedor, p.getId(), nombre, v.cantidad());
         return Resultado.REGISTRADA;
     }
@@ -186,8 +195,14 @@ public class VentaService {
         });
         Long productoId = v.getProducto().getId();
         int cantidad = v.getCantidad();
+        boolean eraConsumo = v.esConsumo();
+        Long quien = v.getVendedorId();
+        LocalDate dia = v.getCreadaEn().atZone(zona).toLocalDate();
         ventas.delete(v);
+        ventas.flush();
         productos.sumarStock(productoId, cantidad);
+        // Si borró el que le salía gratis, el siguiente que se tomó ese día pasa a ser el gratis
+        if (eraConsumo && quien != null) equipo.recalcularConsumos(quien, dia);
     }
 
     /**
