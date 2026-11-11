@@ -326,6 +326,10 @@ export interface VentaReciente {
   cargo?: number
   /** Tiene foto del comprobante de pago. */
   comprobante?: boolean
+  /** Quién la hizo: el nombre del trabajador; null o vacío = el dueño. */
+  vendedor?: string | null
+  /** Cuántos granizados fueron (las de un celular sin actualizar no lo traen: se cuenta 1). */
+  cantidad?: number
   /** Solo en el celular: todavía no ha subido al servidor. */
   pendiente?: boolean
 }
@@ -659,6 +663,8 @@ export interface MovimientoPlata {
   monto: number
   lugar: LugarPlata
   clientUid: string | null
+  /** Solo en las ventas: quién las hizo ("Tú" = el dueño, o el nombre del trabajador). */
+  quien?: string | null
 }
 
 export interface OpcionCompra {

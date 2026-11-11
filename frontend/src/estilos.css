@@ -970,3 +970,7 @@ nav button.on svg { animation: salto .35s var(--ease-resorte) }
 .pago-fila.borrada-equipo { border-left: 3px solid var(--primario); padding-left: 10px }
 .cierre-mes p.mut { margin: 8px 0 }
 .list > .acciones-grid .accion:last-child:nth-child(odd) { grid-column: 1 / -1; flex-direction: row; align-items: center }
+.quien-filtro { margin: 4px 0 8px }
+.quien-tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; margin-right: 6px; border-radius: 999px;
+  background: var(--primario-bg2); color: var(--txt) }
+.quien-tag.equipo { background: var(--primario-bg); color: var(--primario-txt) }

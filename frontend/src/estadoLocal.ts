@@ -131,7 +131,7 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
     sumarSabor(e.hoy.porSabor, p.nombre, op.cantidad)
     e.hoy.porSabor.sort((a, b) => b.unidades - a.unidades)
     if (e.hoy.propias) sumarSabor(e.hoy.propias, p.nombre, op.cantidad)
-    e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total: 0, metodo: op.metodo, cargo, pendiente },
+    e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total: 0, metodo: op.metodo, cargo, pendiente, cantidad: op.cantidad },
       ...e.ultimas].slice(0, 40)
     return
   }
@@ -170,7 +170,7 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
     else e.hoy.propias.push({ sabor: p.nombre, unidades: op.cantidad })
   }
 
-  e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total, metodo: op.metodo, pendiente },
+  e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total, metodo: op.metodo, pendiente, cantidad: op.cantidad },
     ...e.ultimas].slice(0, 40)
 }
 

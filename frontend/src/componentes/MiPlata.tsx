@@ -507,6 +507,8 @@ function PanelHistorial({ onCambio, avisar }: { onCambio: (m: string) => void; a
   if (!movs) return <><h2>Movimientos</h2><p className="mut">Cargando…</p></>
 
   const dias = [...new Set(movs.map(m => m.dia))]
+  /** Ese día también vendió alguien del equipo: ahí sí vale la pena decir cuáles fueron tuyas. */
+  const hayEquipo = (dia: string) => movs.some(m => m.dia === dia && m.quien && m.quien !== 'Tú')
   return (
     <>
       <h2>Movimientos</h2>
@@ -522,7 +524,7 @@ function PanelHistorial({ onCambio, avisar }: { onCambio: (m: string) => void; a
                 <div className="pago-info">
                   <b>{m.concepto}</b>
                   <span className="mut">
-                    {m.hora} · {nombreLugar(m.lugar)}
+                    {m.hora} · {nombreLugar(m.lugar)}{m.quien === 'Tú' && hayEquipo(dia) ? ' · las vendiste tú' : ''}
                     {borrable(m) && porBorrar === m.clientUid && <span className="aviso"> · toca otra vez para borrar</span>}
                   </span>
                 </div>

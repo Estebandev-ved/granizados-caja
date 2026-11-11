@@ -16,6 +16,7 @@ import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
 import { diaBogota } from '../estadoLocal'
 import { CATEGORIA_TEXTO, DIAS_ATRAS_GASTO, LUGAR_GASTO, MAX_CATEGORIA, categoriaEscrita, categoriasParaElegir, fechaCorta, mediodiaDe, restarDias } from '../reportes'
+import { deQuien, quienesVendieron, TU } from '../quien'
 import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, Negocio, PedidoSugerido, RecomendacionCompra, SaldoPlata, VentaReciente } from '../tipos'
 
 interface Props {
@@ -40,6 +41,10 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
   const perfil = usePerfil()
   const [panel, setPanel] = useState<Panel | null>(null)
   const [verTodas, setVerTodas] = useState(false)
+  // De quién son las ventas de hoy: el filtro sale solo si vendió alguien más que tú
+  const [quien, setQuien] = useState<string | null>(null)
+  const quienes = quienesVendieron(estado.ultimas)
+  const filtradas = deQuien(estado.ultimas, quienes.some(q => q.nombre === quien) ? quien : null)
   const [negocio, setNegocio] = useState<Negocio | null>(null)
   // Cuántos días lleva el negocio: si no hay señal simplemente no se muestra
   useEffect(() => { api.negocio().then(setNegocio).catch(() => { /* sin señal */ }) }, [])
@@ -190,8 +195,18 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
       {estado.ultimas.length ? (
         <div className="list">
           <h3><Icono nombre="reloj" /> Ventas de hoy</h3>
+          {quienes.length > 1 && (
+            <div className="chips izq quien-filtro">
+              <button type="button" className={quien === null ? 'on' : ''} onClick={() => setQuien(null)}>Todas</button>
+              {quienes.map(q => (
+                <button type="button" key={q.nombre} className={quien === q.nombre ? 'on' : ''} onClick={() => setQuien(q.nombre)}>
+                  {q.nombre === TU ? 'Mías' : q.nombre} · {q.unidades}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="mut" style={{ margin: '0 0 6px' }}>Toca una venta para borrarla si te equivocaste.</p>
-          {(verTodas ? estado.ultimas : estado.ultimas.slice(0, 8)).map(u => (
+          {(verTodas ? filtradas : filtradas.slice(0, 8)).map(u => (
             <button type="button" className="pago-fila" key={u.clientUid}
               onClick={() => setPanel({ tipo: 'deshacer', venta: u })}>
               <span className={'pago-avatar ' + (u.metodo === 'EFECTIVO' ? 'e' : 'n')}>
@@ -200,6 +215,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
               <div className="pago-info">
                 <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : u.metodo === 'REGALO' ? 'Regalo 🎁' : u.metodo === 'CONSUMO' ? 'Se lo tomó el trabajador 🥤' : u.metodo === 'FALTANTE' ? 'Faltó en la carga' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : 'Nequi'}</b>
                 <span className="mut">
+                  {quienes.length > 1 && <span className={'quien-tag' + (u.vendedor ? ' equipo' : '')}>{u.vendedor || 'Tú'}</span>}
                   {u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}
                   {(u.comprobante || fotosEsperando.has(u.clientUid)) && <span title="Tiene foto del comprobante"> · 📎</span>}
                 </span>
@@ -207,9 +223,9 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
               <b>{u.metodo === 'CONSUMO' || u.metodo === 'FALTANTE' ? ((u.cargo ?? 0) > 0 ? 'le descuentas ' + pesos(u.cargo ?? 0) : 'gratis') : pesos(u.total)}</b>
             </button>
           ))}
-          {estado.ultimas.length > 8 && (
+          {filtradas.length > 8 && (
             <button type="button" className="chip-link" onClick={() => setVerTodas(v => !v)}>
-              {verTodas ? 'Ver menos' : 'Ver todas (' + estado.ultimas.length + ')'}
+              {verTodas ? 'Ver menos' : 'Ver todas (' + filtradas.length + ')'}
             </button>
           )}
         </div>

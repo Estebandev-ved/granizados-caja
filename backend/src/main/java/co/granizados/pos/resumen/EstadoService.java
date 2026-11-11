@@ -3,6 +3,7 @@ package co.granizados.pos.resumen;
 import co.granizados.pos.ajustes.AjustesService;
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.equipo.EquipoService;
+import co.granizados.pos.equipo.Vendedor;
 import co.granizados.pos.equipo.Sesion;
 import co.granizados.pos.gasto.GastoRepository;
 import co.granizados.pos.inventario.EntradaInventarioRepository;
@@ -23,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -68,7 +70,9 @@ public class EstadoService {
     /** `cargo` solo en un CONSUMO: lo que se le descuenta al trabajador que se lo tomó (0 = era gratis). */
     public record VentaReciente(String clientUid, String hora, String sabor, long total, MetodoPago metodo, long cargo,
                                 /** Tiene foto del comprobante de pago. */
-                                boolean comprobante) {
+                                boolean comprobante,
+                                /** Quién la hizo: el nombre del trabajador, o null si fue el dueño. */
+                                String vendedor, int cantidad) {
     }
 
     /** La meta del día y los días seguidos cumpliéndola. `valor = 0` significa que está apagada. */
@@ -109,6 +113,7 @@ public class EstadoService {
     private final IngresoRepository ingresosExtra;
     private final AjustesService ajustes;
     private final EquipoService equipo;
+    private final co.granizados.pos.equipo.VendedorRepository vendedores;
     private final co.granizados.pos.venta.ComprobanteService comprobantes;
     private final Clock clock;
     private final ZoneId zona;
@@ -116,7 +121,9 @@ public class EstadoService {
     public EstadoService(ProductoRepository productos, VentaRepository ventas, PedidoService pedidos,
                          GastoRepository gastos, EntradaInventarioRepository movimientos,
                          IngresoRepository ingresosExtra, AjustesService ajustes, EquipoService equipo, Clock clock,
-                         AppProperties props, co.granizados.pos.venta.ComprobanteService comprobantes) {
+                         AppProperties props, co.granizados.pos.venta.ComprobanteService comprobantes,
+                         co.granizados.pos.equipo.VendedorRepository vendedores) {
+        this.vendedores = vendedores;
         this.comprobantes = comprobantes;
         this.productos = productos;
         this.ventas = ventas;
@@ -144,9 +151,14 @@ public class EstadoService {
         List<Venta> delDia = ventasDe(dia);
         Long vendedor = Sesion.vendedorId();
         if (vendedor != null) return estadoDeTrabajador(vendedor, dia, delDia);
+        Map<Long, String> nombres = new HashMap<>();
+        if (delDia.stream().anyMatch(v -> v.getVendedorId() != null)) {
+            for (Vendedor x : vendedores.findAll()) nombres.put(x.getId(), x.getNombre());
+        }
         List<VentaReciente> ultimas = delDia.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
-                        v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor(), false))
+                        v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor(), false,
+                        v.getVendedorId() == null ? null : nombres.getOrDefault(v.getVendedorId(), "Trabajador"), v.getCantidad()))
                 .toList();
         ultimas = conFoto(ultimas);
         List<ProductoDto> activos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream().map(ProductoDto::de).toList();
@@ -169,7 +181,7 @@ public class EstadoService {
                 .toList();
         List<VentaReciente> ultimas = mias.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
-                        v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor(), false))
+                        v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor(), false, null, v.getCantidad()))
                 .toList();
         ultimas = conFoto(ultimas);
         ResumenDia r = resumir(mias, 0, 0, 0);
@@ -186,7 +198,7 @@ public class EstadoService {
         var conFoto = comprobantes.conFoto(lista.stream().map(VentaReciente::clientUid).toList());
         if (conFoto.isEmpty()) return lista;
         return lista.stream().map(u -> conFoto.contains(u.clientUid())
-                ? new VentaReciente(u.clientUid(), u.hora(), u.sabor(), u.total(), u.metodo(), u.cargo(), true) : u).toList();
+                ? new VentaReciente(u.clientUid(), u.hora(), u.sabor(), u.total(), u.metodo(), u.cargo(), true, u.vendedor(), u.cantidad()) : u).toList();
     }
 
     /** Lo gastado desde el primero del mes hasta hoy, por categoría (para los topes de gasto). */

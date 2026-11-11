@@ -111,7 +111,13 @@ public class PlataService {
 
     /** Un renglón del historial. `monto` va con signo; los traslados llevan 0 porque no cambian el total. */
     public record Movimiento(String tipo, String dia, String hora, String concepto, long monto, String lugar,
-                             String clientUid) {
+                             String clientUid,
+                             /** Solo en las ventas: quién las hizo ("Tú" = el dueño, o el nombre del trabajador). */
+                             String quien) {
+
+        public Movimiento(String tipo, String dia, String hora, String concepto, long monto, String lugar, String clientUid) {
+            this(tipo, dia, hora, concepto, monto, lugar, clientUid, null);
+        }
     }
 
     public enum Resultado { REGISTRADA, REPETIDA }
@@ -344,26 +350,33 @@ public class PlataService {
         java.util.function.BinaryOperator<Acum> sumar = (a, b) -> new Acum(a.ultima().isAfter(b.ultima()) ? a.ultima() : b.ultima(),
                 a.total() + b.total(), a.unidades() + b.unidades());
         Map<String, Acum> porDiaYMetodo = new LinkedHashMap<>();
+        Map<Long, String> nombres = new java.util.HashMap<>();
+        for (Vendedor x : vendedores.findAll()) nombres.put(x.getId(), x.getNombre());
         for (Venta v : ventas.entre(desde, hasta)) {
             if (v.getMetodo() == MetodoPago.FIADO || v.getMetodo() == MetodoPago.REGALO || v.esDelTrabajador()) continue; // no movió plata: entra al cobrarlo
             String dia = DIA.format(v.getCreadaEn().atZone(zona));
             // Las unidades de una venta mixta se cuentan una sola vez, del lado que puso más plata
             boolean unidadesEnEfectivo = v.efectivo() >= v.nequi();
+            // Cada quien en su renglón: las del dueño (0) y las de cada trabajador
+            String quien = "|" + (v.getVendedorId() == null ? 0 : v.getVendedorId());
             if (v.efectivo() > 0) {
-                porDiaYMetodo.merge(dia + "|" + MetodoPago.EFECTIVO,
+                porDiaYMetodo.merge(dia + quien + "|" + MetodoPago.EFECTIVO,
                         new Acum(v.getCreadaEn(), v.efectivo(), unidadesEnEfectivo ? v.getCantidad() : 0), sumar);
             }
             if (v.nequi() > 0) {
-                porDiaYMetodo.merge(dia + "|" + MetodoPago.NEQUI,
+                porDiaYMetodo.merge(dia + quien + "|" + MetodoPago.NEQUI,
                         new Acum(v.getCreadaEn(), v.nequi(), unidadesEnEfectivo ? 0 : v.getCantidad()), sumar);
             }
         }
         porDiaYMetodo.forEach((clave, a) -> {
             boolean efectivo = clave.endsWith("|" + MetodoPago.EFECTIVO);
+            long vendedorId = Long.parseLong(clave.split("\\|")[1]);
+            String quien = vendedorId == 0 ? null : nombres.getOrDefault(vendedorId, "Trabajador");
             var z = a.ultima().atZone(zona);
             filas.add(new Fila(a.ultima(), new Movimiento("VENTAS", DIA.format(z), HORA.format(z),
-                    (efectivo ? "Ventas en efectivo" : "Ventas por Nequi") + " · " + a.unidades() + " u.",
-                    a.total(), efectivo ? "CAJA" : "NEQUI", null)));
+                    (efectivo ? "Ventas en efectivo" : "Ventas por Nequi") + (quien == null ? "" : " de " + quien)
+                            + " · " + a.unidades() + " u.",
+                    a.total(), efectivo ? "CAJA" : "NEQUI", null, quien == null ? "Tú" : quien)));
         });
 
         for (Ingreso i : ingresos.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
@@ -384,8 +397,6 @@ public class PlataService {
             filas.add(new Fila(p.getCreadoEn(), new Movimiento("PAGO_PEDIDO", DIA.format(z), HORA.format(z),
                     "Pago a Energy Cocktails", -p.getMonto(), p.getLugar().name(), null)));
         }
-        Map<Long, String> nombres = new java.util.HashMap<>();
-        for (Vendedor v : vendedores.findAll()) nombres.put(v.getId(), v.getNombre());
         for (PagoVendedor p : pagosEquipo.findByMuevePlataTrueAndEstadoNotAndCreadoEnGreaterThanEqual(PagoVendedor.Estado.ANULADO, desde)) {
             var z = p.getCreadoEn().atZone(zona);
             String quien = nombres.getOrDefault(p.getVendedorId(), "trabajador");
