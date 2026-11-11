@@ -18,9 +18,33 @@ import org.springframework.web.server.ResponseStatusException;
 public class ReporteController {
 
     private final ReporteService servicio;
+    private final CierreMesService cierres;
+    private final RespaldoService respaldo;
 
-    public ReporteController(ReporteService servicio) {
+    public ReporteController(ReporteService servicio, CierreMesService cierres, RespaldoService respaldo) {
         this.servicio = servicio;
+        this.cierres = cierres;
+        this.respaldo = respaldo;
+    }
+
+    /** El cierre de un mes (2026-11; sin `mes`, el que va en curso): la ganancia real, con el equipo restado. */
+    @GetMapping("/mes")
+    public CierreMesService.CierreMes mes(@RequestParam(required = false) String mes) {
+        try {
+            return cierres.cierre(mes);
+        } catch (IllegalArgumentException | java.time.format.DateTimeParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
+    /** Copia de todo: un .zip con un CSV por tabla, para guardarla donde quieras. */
+    @GetMapping("/respaldo.zip")
+    public ResponseEntity<byte[]> respaldo() {
+        String nombre = "copia-" + cierres.hoy() + ".zip";
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(nombre).build().toString())
+                .body(respaldo.zip());
     }
 
     @GetMapping

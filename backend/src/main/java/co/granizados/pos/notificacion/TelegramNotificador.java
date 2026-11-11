@@ -2,6 +2,8 @@ package co.granizados.pos.notificacion;
 
 import co.granizados.pos.comun.AppProperties;
 import java.util.Map;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.util.LinkedMultiValueMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -37,6 +39,35 @@ public class TelegramNotificador implements Notificador {
                     .toBodilessEntity();
         } catch (Exception e) {
             log.warn("No se pudo mandar el aviso por Telegram ({}): {}", asunto, e.getMessage());
+        }
+    }
+
+    @Override
+    public void enviarArchivo(String asunto, String texto, String nombreArchivo, byte[] contenido) {
+        if (telegram == null || !telegram.configurado()) {
+            log.info("[aviso sin Telegram] {} ({} con {} bytes)\n{}", asunto, nombreArchivo, contenido.length, texto);
+            return;
+        }
+        // Telegram corta el pie del archivo en 1024 caracteres: el texto largo va como mensaje aparte
+        enviar(asunto, texto);
+        try {
+            var partes = new LinkedMultiValueMap<String, Object>();
+            partes.add("chat_id", telegram.chatId());
+            partes.add("caption", "💾 Copia de seguridad de tus datos. Guárdala.");
+            partes.add("document", new ByteArrayResource(contenido) {
+                @Override
+                public String getFilename() {
+                    return nombreArchivo;
+                }
+            });
+            http.post()
+                    .uri("/bot{token}/sendDocument", telegram.token())
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(partes)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception e) {
+            log.warn("No se pudo mandar el archivo por Telegram ({}): {}", nombreArchivo, e.getMessage());
         }
     }
 }

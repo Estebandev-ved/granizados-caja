@@ -27,9 +27,12 @@ public class PlataController {
     private final TrasladoRepository traslados;
     private final MetaPlataRepository metas;
     private final AporteMetaRepository aportes;
+    private final RetiroRepository retiros;
 
     public PlataController(PlataService servicio, IngresoRepository ingresos, ConteoPlataRepository conteos,
-                           TrasladoRepository traslados, MetaPlataRepository metas, AporteMetaRepository aportes) {
+                           TrasladoRepository traslados, MetaPlataRepository metas, AporteMetaRepository aportes,
+                           RetiroRepository retiros) {
+        this.retiros = retiros;
         this.servicio = servicio;
         this.ingresos = ingresos;
         this.conteos = conteos;
@@ -97,5 +100,17 @@ public class PlataController {
     public void borrarIngreso(@PathVariable String clientUid) {
         if (!ingresos.existsByClientUid(clientUid)) throw new NoEncontradoException("Ingreso no encontrado: " + clientUid);
         servicio.borrarIngreso(clientUid);
+    }
+
+    /** «Me pagué»: lo que el dueño saca del negocio para él. */
+    @PostMapping("/api/plata/retiros")
+    public Respuesta retirar(@Valid @RequestBody PlataService.NuevoRetiro r) {
+        return idempotente(r.clientUid(), () -> servicio.retirar(r), () -> retiros.existsByClientUid(r.clientUid()));
+    }
+
+    @DeleteMapping("/api/plata/retiros/{clientUid}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void borrarRetiro(@PathVariable String clientUid) {
+        servicio.borrarRetiro(clientUid);
     }
 }

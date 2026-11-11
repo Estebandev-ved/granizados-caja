@@ -652,7 +652,7 @@ export interface MetaPlata {
 
 /** Un renglón del historial de la plata; `monto` va con signo y los traslados llevan 0. */
 export interface MovimientoPlata {
-  tipo: 'VENTAS' | 'INGRESO' | 'GASTO' | 'PAGO_PEDIDO' | 'TRASLADO' | 'PAGO_EQUIPO' | 'PRESTAMO'
+  tipo: 'VENTAS' | 'INGRESO' | 'GASTO' | 'PAGO_PEDIDO' | 'TRASLADO' | 'PAGO_EQUIPO' | 'PRESTAMO' | 'RETIRO'
   dia: string
   hora: string
   concepto: string
@@ -689,4 +689,71 @@ export interface SaldoPlata {
   contadoEn: string | null
   ingresos: IngresoPlata[]
   metas: MetaPlata[]
+}
+
+// ------------------------------------------------------------------ control del negocio
+
+/** El cierre de un mes (GET /api/reportes/mes): la ganancia de verdad, con lo del equipo restado. */
+export interface CierreMes {
+  mes: string
+  nombre: string
+  desde: string
+  hasta: string
+  enCurso: boolean
+  diasDelMes: number
+  diasTranscurridos: number
+  diasConVenta: number
+  unidades: number
+  ventas: number
+  costo: number
+  mermas: number
+  /** Sin los de «Trabajadores» (esos van en `equipo`). */
+  gastos: number
+  ingresos: number
+  equipo: number
+  equipoApp: number
+  gastoTrabajadores: number
+  gananciaApp: number
+  gananciaReal: number
+  retiros: number
+  quedaEnNegocio: number
+  proyeccion: number | null
+  gastosPorCategoria: { categoria: string; monto: number }[]
+  equilibrio: {
+    gastosDelMes: number
+    gastoPorDia: number
+    dejaPorGranizado: number
+    granizadosAlDia: number | null
+    promedioAlDia: number
+    diasQueCubrieron: number
+    diasConVenta: number
+  }
+  porSabor: SaborDelMes[]
+  anterior: { mes: string; nombre: string; unidades: number; ventas: number; gastos: number; equipo: number; gananciaReal: number; retiros: number }
+  consejos: string[]
+}
+
+export interface SaborDelMes {
+  sabor: string
+  unidades: number
+  ventas: number
+  costo: number
+  equipo: number
+  ganancia: number
+  porUnidad: number
+  pctGanancia: number
+}
+
+/** Una venta que alguien borró (GET /api/ventas/borradas). */
+export interface VentaBorrada {
+  ventaUid: string
+  deQuien: string
+  borro: string
+  borroTrabajador: boolean
+  sabor: string
+  cantidad: number
+  total: number
+  metodo: string
+  vendidaEn: string
+  borradaEn: string
 }

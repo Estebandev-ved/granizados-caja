@@ -295,4 +295,40 @@ class AislamientoTest extends PruebaIntegracion {
         assertThatThrownBy(() -> como(2, () -> equipo.ponerMeta(juan.id(), 30))).isInstanceOf(NoEncontradoException.class);
         assertThat(como(2, () -> equipo.datosPremios().diasAnalizados())).isZero();
     }
+
+    @Autowired
+    co.granizados.pos.reporte.RespaldoService respaldo;
+
+    @Autowired
+    co.granizados.pos.reporte.CierreMesService cierres;
+
+    @Test
+    void laCopiaLasVentasBorradasYLoQueMePagueSonDeCadaNegocio() throws Exception {
+        como(2, () -> ventas.registrar(new NuevaVenta("camisa-1", idCamisa(), MetodoPago.EFECTIVO, 1)));
+        como(2, () -> { ventas.deshacer("camisa-1"); return null; });
+        como(2, () -> plata.retirar(new PlataService.NuevoRetiro("r-2", 9_000, LugarPlata.CAJA, null)));
+        como(1, () -> ventas.registrar(new NuevaVenta("smirnoff-1", idDe("Smirnoff"), MetodoPago.EFECTIVO, 1)));
+
+        var hoy = java.time.LocalDate.parse("2026-09-25");
+        assertThat(como(1, () -> ventas.borradas(hoy, hoy))).isEmpty();
+        assertThat(como(2, () -> ventas.borradas(hoy, hoy))).hasSize(1);
+        assertThat(como(1, () -> cierres.cierre(null).retiros())).isZero();
+        assertThat(como(2, () -> cierres.cierre(null).retiros())).isEqualTo(9_000);
+        assertThatThrownBy(() -> como(1, () -> { plata.borrarRetiro("r-2"); return null; })).isInstanceOf(NoEncontradoException.class);
+
+        String copia1 = como(1, () -> new String(respaldo.zip(), java.nio.charset.StandardCharsets.ISO_8859_1));
+        String copia2 = como(2, () -> new String(respaldo.zip(), java.nio.charset.StandardCharsets.ISO_8859_1));
+        assertThat(texto(copia1)).contains("smirnoff-1").doesNotContain("camisa-1").doesNotContain("Camisa");
+        assertThat(texto(copia2)).contains("camisa-1").contains("Camisa").doesNotContain("smirnoff-1").doesNotContain("Smirnoff");
+    }
+
+    /** Todo el texto de los CSV del zip, para buscar adentro. */
+    private static String texto(String zipLatin1) throws Exception {
+        var sb = new StringBuilder();
+        try (var z = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(
+                zipLatin1.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1)))) {
+            while (z.getNextEntry() != null) sb.append(new String(z.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        return sb.toString();
+    }
 }

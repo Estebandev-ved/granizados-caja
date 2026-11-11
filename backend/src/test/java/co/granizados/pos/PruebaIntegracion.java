@@ -39,6 +39,8 @@ public abstract class PruebaIntegracion {
         TenantContext.limpiar();
         reloj.poner("2026-09-25T15:00-05:00");
         jdbc.update("delete from deuda");
+        jdbc.update("delete from venta_borrada");
+        jdbc.update("delete from retiro");
         jdbc.update("delete from venta");
         jdbc.update("delete from entrada_inventario");
         jdbc.update("delete from pedido_item");

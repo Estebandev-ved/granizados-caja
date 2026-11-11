@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { Icono } from '../componentes/Icono'
+import { CierreDelMes } from '../componentes/CierreDelMes'
 import { ComparaSemanas } from '../componentes/ComparaSemanas'
+import { VentasBorradas } from '../componentes/VentasBorradas'
 import { HistorialEquipo } from '../componentes/HistorialEquipo'
 import { usePerfil } from '../perfil'
 import { MiPlata } from '../componentes/MiPlata'
@@ -58,6 +60,13 @@ export function Reportes({ avisar }: Props) {
       .catch(e => avisar(e instanceof ApiError ? e.message : 'No se pudo descargar'))
   }
 
+  const copiaDeTodo = () => {
+    avisar('Armando la copia…')
+    api.descargarRespaldo()
+      .then(() => avisar('✓ Copia lista'))
+      .catch(e => avisar(e instanceof ApiError ? e.message : 'No se pudo hacer la copia, revisa la señal'))
+  }
+
   const borrarGasto = (clientUid: string) => {
     vibrar()
     api.borrarGasto(clientUid)
@@ -89,6 +98,8 @@ export function Reportes({ avisar }: Props) {
   return (
     <section>
       <MiPlata avisar={avisar} />
+
+      <CierreDelMes />
 
       <ComparaSemanas />
 
@@ -237,6 +248,12 @@ export function Reportes({ avisar }: Props) {
         </>
         )
       })()}
+
+      {/* Fuera del bloque de arriba: si borraron todas las ventas, el periodo sale vacío y justo ahí hay que verlas */}
+      {!cargando && <VentasBorradas desde={desde} hasta={hasta} />}
+
+      <button className="big ghost" onClick={copiaDeTodo}>💾 Copia de seguridad de todo</button>
+      <p className="mut centro">Un archivo con todas tus ventas, gastos, plata, inventario y equipo, en hojas de Excel. El día 1 de cada mes también te llega por Telegram.</p>
     </section>
   )
 }

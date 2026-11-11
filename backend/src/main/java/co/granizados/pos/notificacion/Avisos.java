@@ -2,6 +2,9 @@ package co.granizados.pos.notificacion;
 
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.equipo.AvisoEquipo;
+import co.granizados.pos.reporte.CierreMesService;
+import co.granizados.pos.reporte.RespaldoService;
+import java.time.YearMonth;
 import co.granizados.pos.venta.StockBajo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,10 +63,30 @@ public class Avisos {
 
         private final Reportes reportes;
         private final Avisos avisos;
+        private final CierreMesService cierres;
+        private final RespaldoService respaldo;
+        private final Notificador notificador;
 
-        Programadas(Reportes reportes, Avisos avisos) {
+        Programadas(Reportes reportes, Avisos avisos, CierreMesService cierres, RespaldoService respaldo,
+                    Notificador notificador) {
             this.reportes = reportes;
             this.avisos = avisos;
+            this.cierres = cierres;
+            this.respaldo = respaldo;
+            this.notificador = notificador;
+        }
+
+        /** El día 1 de cada mes: cómo cerró el mes anterior y la copia de seguridad de todo. */
+        @Scheduled(cron = "${app.tareas.cierre-mensual}", zone = "${app.zona}")
+        void cierreMensual() {
+            try {
+                YearMonth anterior = YearMonth.from(cierres.hoy()).minusMonths(1);
+                var cierre = cierres.cierre(anterior.toString());
+                notificador.enviarArchivo("📅 Cierre de " + cierre.nombre().toLowerCase(java.util.Locale.ROOT),
+                        cierres.textoCierre(cierre), "copia-" + cierres.hoy() + ".zip", respaldo.zip());
+            } catch (Exception e) {
+                log.warn("No se pudo armar el cierre del mes", e);
+            }
         }
 
         @Scheduled(cron = "${app.tareas.cierre-diario}", zone = "${app.zona}")

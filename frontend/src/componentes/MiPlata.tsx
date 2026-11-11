@@ -16,7 +16,7 @@ const LUGARES: { valor: LugarPlata; texto: string }[] = [
 
 const nombreLugar = (l: LugarPlata) => LUGARES.find(x => x.valor === l)?.texto ?? l
 
-type Panel = 'ingreso' | 'traslado' | 'conteo' | 'metas' | 'historial'
+type Panel = 'ingreso' | 'traslado' | 'retiro' | 'conteo' | 'metas' | 'historial'
 
 /**
  * Cuánta plata hay y dónde: efectivo en la caja, efectivo en la casa y Nequi, con lo apartado en metas.
@@ -76,6 +76,10 @@ export function MiPlata({ avisar }: { avisar: (m: string) => void }) {
           <span className="accion-icono"><Icono nombre="billetera" /></span>
           <b>Mis metas</b>
         </button>
+        <button className="accion accion-gasto" onClick={() => setPanel('retiro')}>
+          <span className="accion-icono"><Icono nombre="billete" /></span>
+          <b>Me pagué</b>
+        </button>
         <button className="accion accion-cierre" onClick={() => setPanel('conteo')}>
           <span className="accion-icono"><Icono nombre="candado" /></span>
           <b>Contar mi plata</b>
@@ -86,6 +90,7 @@ export function MiPlata({ avisar }: { avisar: (m: string) => void }) {
       <Sheet abierto={!!panel} onCerrar={() => setPanel(null)}>
         {panel === 'ingreso' && <PanelIngreso onListo={() => listo('✓ Ingreso anotado')} avisar={avisar} />}
         {panel === 'traslado' && <PanelTraslado onListo={() => listo('✓ Plata movida')} avisar={avisar} />}
+        {panel === 'retiro' && <PanelRetiro onListo={() => listo('✓ Anotado lo que te pagaste')} avisar={avisar} />}
         {panel === 'conteo' && <PanelConteo saldo={saldo} onListo={() => listo('✓ Plata contada')} avisar={avisar} />}
         {panel === 'metas' && <PanelMetas saldo={saldo} onCambio={m => listo(m, false)} avisar={avisar} />}
         {panel === 'historial' && <PanelHistorial onCambio={m => listo(m, false)} avisar={avisar} />}
@@ -416,6 +421,9 @@ function MoverMeta({ meta, libre, onVolver, onListo, avisar }: {
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
+/** Lo que se puede borrar desde Movimientos: los ingresos y lo que te pagaste. */
+const borrable = (m: MovimientoPlata) => (m.tipo === 'INGRESO' || m.tipo === 'RETIRO') && !!m.clientUid
+
 function hoyBogota(): string {
   try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(new Date()) } catch { return '' }
 }
@@ -427,6 +435,52 @@ function etiquetaDia(dia: string): string {
 }
 
 /** Todo lo que movió la plata en los últimos días, día por día. */
+/**
+ * «Me pagué»: lo que sacas del negocio para ti. Baja tu plata del lugar de donde salió pero no es un gasto: la ganancia
+ * no cambia. En Reportes → Cierre del mes ves cuánto te pagaste frente a lo que ganó el negocio.
+ */
+function PanelRetiro({ onListo, avisar }: { onListo: () => void; avisar: (m: string) => void }) {
+  const [monto, setMonto] = useState('')
+  const [lugar, setLugar] = useState<LugarPlata>('CAJA')
+  const [nota, setNota] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const uid = useRef(nuevoUid())
+
+  const n = Number(monto)
+  const guardar = async () => {
+    if (!n || enviando) return
+    setEnviando(true)
+    try {
+      await api.retirar({ clientUid: uid.current, monto: n, lugar, nota: nota.trim() })
+      onListo()
+    } catch {
+      setEnviando(false)
+      avisar('⚠️ No se pudo guardar, revisa la señal')
+    }
+  }
+
+  return (
+    <form onSubmit={e => { e.preventDefault(); void guardar() }}>
+      <h2>Me pagué</h2>
+      <p>Lo que sacas del negocio para ti: tu sueldo, tu quincena o plata para tus cosas. Así sabes si el negocio te alcanza para pagarte.</p>
+      <div className="campo">
+        <label htmlFor="retiro-monto">¿Cuánto sacaste?</label>
+        <CampoNumero id="retiro-monto" miles autoFocus placeholder="0" value={monto} onCambio={setMonto} />
+      </div>
+      <p className="mut">¿De dónde salió?</p>
+      <Chips opciones={LUGARES} valor={lugar} onCambio={setLugar} />
+      <div className="campo">
+        <label htmlFor="retiro-nota">Nota (opcional)</label>
+        <input id="retiro-nota" maxLength={80} value={nota} onChange={e => setNota(e.target.value)} placeholder="Ej: quincena" />
+      </div>
+      <p className="mut">No es un gasto: no baja la ganancia, solo tu plata.</p>
+      <button className="big primario" type="submit" disabled={!n || enviando}>
+        {enviando ? 'Guardando…' : n ? `Me pagué ${pesos(n)} de ${nombreLugar(lugar).toLowerCase()}` : 'Escribe cuánto'}
+      </button>
+    </form>
+  )
+}
+
 function PanelHistorial({ onCambio, avisar }: { onCambio: (m: string) => void; avisar: (m: string) => void }) {
   const [movs, setMovs] = useState<MovimientoPlata[] | null>(null)
   const [error, setError] = useState(false)
@@ -436,12 +490,13 @@ function PanelHistorial({ onCambio, avisar }: { onCambio: (m: string) => void; a
   useEffect(() => { void cargar() }, [])
 
   const tocar = async (m: MovimientoPlata) => {
-    if (m.tipo !== 'INGRESO' || !m.clientUid) return
+    if (!borrable(m) || !m.clientUid) return
     if (porBorrar !== m.clientUid) { setPorBorrar(m.clientUid); return }
     try {
-      await api.borrarIngreso(m.clientUid)
+      if (m.tipo === 'RETIRO') await api.borrarRetiro(m.clientUid)
+      else await api.borrarIngreso(m.clientUid)
       setPorBorrar(null)
-      onCambio('Ingreso borrado')
+      onCambio(m.tipo === 'RETIRO' ? 'Borrado lo que te pagaste' : 'Ingreso borrado')
       void cargar()
     } catch {
       avisar('⚠️ No se pudo borrar, revisa la señal')
@@ -455,7 +510,7 @@ function PanelHistorial({ onCambio, avisar }: { onCambio: (m: string) => void; a
   return (
     <>
       <h2>Movimientos</h2>
-      <p className="mut">Lo que movió tu plata en los últimos 14 días. Toca un ingreso dos veces para borrarlo.</p>
+      <p className="mut">Lo que movió tu plata en los últimos 14 días. Toca un ingreso o un «Me pagué» dos veces para borrarlo.</p>
       {!movs.length && <p className="mut">Todavía no hay movimientos.</p>}
       <div className="pedido-lista">
         {dias.map(dia => (
@@ -463,12 +518,12 @@ function PanelHistorial({ onCambio, avisar }: { onCambio: (m: string) => void; a
             <h3>{etiquetaDia(dia)}</h3>
             {movs.filter(m => m.dia === dia).map((m, i) => (
               <button type="button" key={dia + i} className="pago-fila" onClick={() => void tocar(m)}
-                disabled={m.tipo !== 'INGRESO'} style={m.tipo === 'INGRESO' ? undefined : { cursor: 'default' }}>
+                disabled={!borrable(m)} style={borrable(m) ? undefined : { cursor: 'default' }}>
                 <div className="pago-info">
                   <b>{m.concepto}</b>
                   <span className="mut">
                     {m.hora} · {nombreLugar(m.lugar)}
-                    {m.tipo === 'INGRESO' && porBorrar === m.clientUid && <span className="aviso"> · toca otra vez para borrar</span>}
+                    {borrable(m) && porBorrar === m.clientUid && <span className="aviso"> · toca otra vez para borrar</span>}
                   </span>
                 </div>
                 {m.tipo === 'TRASLADO'

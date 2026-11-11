@@ -52,3 +52,5 @@ app:
     cierre-diario: "0 0 21 * * *"
     pedido-semanal: "0 0 19 * * SUN"
     resumen-semanal: "0 0 8 * * MON"
+    # El día 1 de cada mes a las 8am: cierre del mes anterior y copia de seguridad por Telegram
+    cierre-mensual: "0 0 8 1 * *"

@@ -2,7 +2,7 @@ import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequest
 import type {
   BaseVueltos, CategoriaGasto, CierreTurno, EntregaEquipo, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
-  TipoMovimiento, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios,
+  TipoMovimiento, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios, CierreMes, VentaBorrada,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -119,6 +119,30 @@ async function pedirBlob(ruta: string): Promise<Blob> {
     throw new ApiError(r.status, mensaje)
   }
   return r.blob()
+}
+
+/**
+ * Entrega un archivo: en el iPhone abre la hoja de compartir (AirDrop, WhatsApp, Archivos); si no se puede, lo descarga.
+ */
+async function compartirOBajar(blob: Blob, nombre: string): Promise<void> {
+  const archivo = new File([blob], nombre, { type: blob.type })
+  if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [archivo] })) {
+    try {
+      await navigator.share({ files: [archivo], title: nombre })
+      return
+    } catch (e) {
+      // El usuario cerró la hoja o el navegador no lo dejó: seguimos con la descarga
+      if (e instanceof DOMException && e.name === 'AbortError') return
+    }
+  }
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nombre
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
 /** Mismo token, pero el cuerpo es texto (el CSV de los reportes). */
@@ -257,6 +281,18 @@ export const api = {
   aportarMeta: (metaId: number, a: { clientUid: string; monto: number }) =>
     pedir<{ estado: string }>('POST', '/api/plata/metas/' + metaId + '/aporte', a),
   borrarMeta: (metaId: number) => pedir<void>('DELETE', '/api/plata/metas/' + metaId),
+  /** «Me pagué»: lo que el dueño saca del negocio para él. */
+  retirar: (r: { clientUid: string; monto: number; lugar: LugarPlata; nota: string }) =>
+    pedir<{ estado: string }>('POST', '/api/plata/retiros', r),
+  borrarRetiro: (clientUid: string) => pedir<void>('DELETE', '/api/plata/retiros/' + encodeURIComponent(clientUid)),
+  /** El cierre de un mes (2026-11); sin mes, el que va en curso. */
+  cierreMes: (mes?: string) => pedir<CierreMes>('GET', '/api/reportes/mes' + (mes ? '?mes=' + mes : '')),
+  ventasBorradas: (desde: string, hasta: string) => pedir<VentaBorrada[]>('GET', `/api/ventas/borradas?desde=${desde}&hasta=${hasta}`),
+  /** La copia de todo (.zip con un Excel por tabla). En el iPhone la comparte; si no se puede, la descarga. */
+  descargarRespaldo: async () => {
+    const blob = await pedirBlob('/api/reportes/respaldo.zip')
+    await compartirOBajar(blob, 'copia-' + new Date().toISOString().slice(0, 10) + '.zip')
+  },
   movimientosPlata: (dias = 14) => pedir<MovimientoPlata[]>('GET', '/api/plata/movimientos?dias=' + dias),
   recomendacion: () => pedir<RecomendacionCompra>('GET', '/api/pedido/recomendacion'),
   borrarIngreso: (clientUid: string) => pedir<void>('DELETE', '/api/ingresos/' + encodeURIComponent(clientUid)),
@@ -276,27 +312,7 @@ export const api = {
   /** El CSV del periodo. En el iPhone lo comparte (AirDrop, WhatsApp, Archivos); si no se puede, lo descarga. */
   descargarReporte: async (desde: string, hasta: string) => {
     const texto = await pedirTexto(`/api/reportes/ventas.csv?desde=${desde}&hasta=${hasta}`)
-    const nombre = `ventas-${desde}_${hasta}.csv`
-    const archivo = new File([texto], nombre, { type: 'text/csv;charset=utf-8' })
-
-    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [archivo] })) {
-      try {
-        await navigator.share({ files: [archivo], title: nombre })
-        return
-      } catch (e) {
-        // El usuario cerró la hoja o el navegador no lo dejó: seguimos con la descarga
-        if (e instanceof DOMException && e.name === 'AbortError') return
-      }
-    }
-
-    const url = URL.createObjectURL(new Blob([texto], { type: 'text/csv;charset=utf-8' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = nombre
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 10000)
+    await compartirOBajar(new Blob([texto], { type: 'text/csv;charset=utf-8' }), `ventas-${desde}_${hasta}.csv`)
   },
   crearProducto: (d: DatosProducto) => pedir<Producto>('POST', '/api/productos', d),
   editarProducto: (id: number, d: DatosProducto) => pedir<Producto>('PUT', '/api/productos/' + id, d),

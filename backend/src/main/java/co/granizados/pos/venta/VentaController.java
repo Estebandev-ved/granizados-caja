@@ -8,6 +8,10 @@ import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
+import java.time.LocalDate;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -57,6 +61,16 @@ public class VentaController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deshacer(@PathVariable String clientUid) {
         servicio.deshacer(clientUid);
+    }
+
+    /** Las ventas que se borraron en ese rango, con quién las borró. Solo el dueño (RolFiltro). */
+    @GetMapping("/borradas")
+    public List<VentaService.Borrada> borradas(@RequestParam String desde, @RequestParam String hasta) {
+        try {
+            return servicio.borradas(LocalDate.parse(desde), LocalDate.parse(hasta));
+        } catch (IllegalArgumentException | java.time.format.DateTimeParseException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fechas inválidas", e);
+        }
     }
 
     /** Ventas históricas de otro sistema, en CSV (fecha;sabor;cantidad;precioUnitario[;metodo]). No toca el stock. */

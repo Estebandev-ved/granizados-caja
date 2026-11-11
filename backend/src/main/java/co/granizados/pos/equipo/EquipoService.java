@@ -388,7 +388,7 @@ public class EquipoService {
      * Lo que gana el trabajador por una venta: la tarifa por granizado que quedó congelada al vender o, en las ventas
      * de antes (o de un negocio sin tarifas), su porcentaje del total.
      */
-    private static long comisionDe(Venta venta, Vendedor vendedor) {
+    public static long comisionDe(Venta venta, Vendedor vendedor) {
         Long porUnidad = venta.getComisionUnitaria();
         if (porUnidad != null) return porUnidad * venta.getCantidad();
         return venta.getTotal() * vendedor.getComisionPct() / 100;

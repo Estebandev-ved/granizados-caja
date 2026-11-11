@@ -40,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   caja  = conteo + ventas en efectivo + ingresos − gastos − pagos al proveedor ± traslados
  *   casa  = conteo + ingresos − gastos − pagos al proveedor ± traslados
  *   nequi = conteo + ventas por Nequi + ingresos − gastos − pagos al proveedor ± traslados
+ * Lo que el dueño saca para él («Me pagué», tabla `retiro`) también resta del lugar de donde salió.
  * Cada gasto sale del lugar que se escogió al anotarlo (los de antes, de la caja).
  * Los pagos al equipo («Ya le pagué», desde V32) y los préstamos al trabajador también salen de donde se escogió:
  * el efectivo de la caja o la casa y lo de Nequi, de Nequi. Los pagos de antes eran solo constancia y no restan.
@@ -85,6 +86,14 @@ public class PlataService {
             @Max(1_000_000_000) @Min(-1_000_000_000) long monto) {
     }
 
+    /** «Me pagué»: plata que el dueño saca del negocio para él. Resta de Mi plata, no de la ganancia. */
+    public record NuevoRetiro(
+            @NotBlank @Size(max = 64) String clientUid,
+            @Positive @Max(1_000_000_000) long monto,
+            @NotNull LugarPlata lugar,
+            @Size(max = 80) String nota) {
+    }
+
     public record IngresoDto(String clientUid, String concepto, long monto, LugarPlata lugar, Instant creadoEn,
                              boolean cuentaGanancia) {
     }
@@ -124,13 +133,16 @@ public class PlataService {
     private final PagoVendedorRepository pagosEquipo;
     private final PrestamoVendedorRepository prestamos;
     private final VendedorRepository vendedores;
+    private final RetiroRepository retiros;
     private final Clock clock;
     private final ZoneId zona;
 
     public PlataService(IngresoRepository ingresos, ConteoPlataRepository conteos, PagoProveedorRepository pagos,
                         TrasladoRepository traslados, MetaPlataRepository metas, AporteMetaRepository aportes,
                         VentaRepository ventas, GastoRepository gastos, PagoVendedorRepository pagosEquipo,
-                        PrestamoVendedorRepository prestamos, VendedorRepository vendedores, Clock clock, AppProperties props) {
+                        PrestamoVendedorRepository prestamos, VendedorRepository vendedores, RetiroRepository retiros, Clock clock,
+                        AppProperties props) {
+        this.retiros = retiros;
         this.pagosEquipo = pagosEquipo;
         this.prestamos = prestamos;
         this.vendedores = vendedores;
@@ -161,6 +173,21 @@ public class PlataService {
     @Transactional
     public void borrarIngreso(String clientUid) {
         ingresos.findByClientUid(clientUid).ifPresent(ingresos::delete);
+    }
+
+    @Transactional
+    public Resultado retirar(NuevoRetiro r) {
+        if (retiros.existsByClientUid(r.clientUid())) return Resultado.REPETIDA;
+        String nota = r.nota() == null || r.nota().isBlank() ? null : r.nota().trim();
+        retiros.saveAndFlush(new Retiro(r.clientUid(), r.monto(), r.lugar(), nota, clock.instant()));
+        return Resultado.REGISTRADA;
+    }
+
+    @Transactional
+    public void borrarRetiro(String clientUid) {
+        Retiro r = retiros.findByClientUid(clientUid)
+                .orElseThrow(() -> new NoEncontradoException("No encontré esa plata que sacaste: " + clientUid));
+        retiros.delete(r);
     }
 
     @Transactional
@@ -284,6 +311,14 @@ public class PlataService {
                 case NEQUI -> nequi -= p.getMonto();
             }
         }
+        // Lo que el dueño sacó para él
+        for (Retiro r : retiros.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
+            switch (r.getLugar()) {
+                case CAJA -> caja -= r.getMonto();
+                case CASA -> casa -= r.getMonto();
+                case NEQUI -> nequi -= r.getMonto();
+            }
+        }
         long total = caja + casa + nequi;
         return new Saldo(caja, casa, nequi, total, apartado, total - apartado, desde, recientes, listaMetas);
     }
@@ -369,6 +404,12 @@ public class PlataService {
             filas.add(new Fila(p.getCreadoEn(), new Movimiento("PRESTAMO", DIA.format(z), HORA.format(z),
                     "Le presté a " + nombres.getOrDefault(p.getVendedorId(), "trabajador") + (p.getNota() == null ? "" : " · " + p.getNota()),
                     -p.getMonto(), p.getLugar().name(), null)));
+        }
+        for (Retiro r : retiros.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
+            var z = r.getCreadoEn().atZone(zona);
+            filas.add(new Fila(r.getCreadoEn(), new Movimiento("RETIRO", DIA.format(z), HORA.format(z),
+                    "Me pagué" + (r.getNota() == null ? "" : " · " + r.getNota()), -r.getMonto(), r.getLugar().name(),
+                    r.getClientUid())));
         }
         for (Traslado t : traslados.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
             var z = t.getCreadoEn().atZone(zona);

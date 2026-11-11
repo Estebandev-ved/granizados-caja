@@ -2,7 +2,11 @@ package co.granizados.pos.venta;
 
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.comun.Pesos;
+import co.granizados.pos.equipo.AvisoEquipo;
 import co.granizados.pos.equipo.EquipoService;
+import co.granizados.pos.equipo.Vendedor;
+import co.granizados.pos.equipo.VendedorRepository;
 import co.granizados.pos.equipo.Sesion;
 import co.granizados.pos.fiado.Deuda;
 import co.granizados.pos.fiado.DeudaRepository;
@@ -84,11 +88,16 @@ public class VentaService {
     private final ProductoRepository productos;
     private final ApplicationEventPublisher eventos;
     private final EquipoService equipo;
+    private final VentaBorradaRepository borradas;
+    private final VendedorRepository vendedores;
     private final Clock clock;
     private final ZoneId zona;
 
     public VentaService(VentaRepository ventas, DeudaRepository deudas, ProductoRepository productos,
-                        ApplicationEventPublisher eventos, Clock clock, AppProperties props, EquipoService equipo) {
+                        ApplicationEventPublisher eventos, Clock clock, AppProperties props, EquipoService equipo,
+                        VentaBorradaRepository borradas, VendedorRepository vendedores) {
+        this.borradas = borradas;
+        this.vendedores = vendedores;
         this.ventas = ventas;
         this.deudas = deudas;
         this.productos = productos;
@@ -200,11 +209,57 @@ public class VentaService {
         boolean eraConsumo = v.esConsumo();
         Long quien = v.getVendedorId();
         LocalDate dia = v.getCreadaEn().atZone(zona).toLocalDate();
+        // Queda constancia de lo borrado: una venta cobrada y después borrada no desaparece sin dejar huella
+        Instant ahora = clock.instant();
+        borradas.save(new VentaBorrada(v, vendedor, ahora));
+        if (vendedor != null) avisarBorrada(v, vendedor, ahora);
         ventas.delete(v);
         ventas.flush();
         productos.sumarStock(productoId, cantidad);
         // Si borró el que le salía gratis, el siguiente que se tomó ese día pasa a ser el gratis
         if (eraConsumo && quien != null) equipo.recalcularConsumos(quien, dia);
+    }
+
+    /** Una venta borrada como la ve el dueño. `deQuien` y `borro` dicen "Tú" cuando fue el dueño. */
+    public record Borrada(String ventaUid, String deQuien, String borro, boolean borroTrabajador, String sabor, int cantidad,
+                          long total, String metodo, Instant vendidaEn, Instant borradaEn) {
+    }
+
+    /** Las ventas borradas entre dos días de Bogotá (ambos incluidos), lo más nuevo primero. */
+    @Transactional(readOnly = true)
+    public List<Borrada> borradas(LocalDate desde, LocalDate hasta) {
+        if (hasta.isBefore(desde)) throw new IllegalArgumentException("El rango está al revés");
+        Map<Long, String> nombres = new HashMap<>();
+        for (Vendedor x : vendedores.findAll()) nombres.put(x.getId(), x.getNombre());
+        return borradas.findByBorradaEnGreaterThanEqualAndBorradaEnLessThanOrderByBorradaEnDescIdDesc(
+                        desde.atStartOfDay(zona).toInstant(), hasta.plusDays(1).atStartOfDay(zona).toInstant()).stream()
+                .map(b -> new Borrada(b.getVentaUid(),
+                        b.getVendedorId() == null ? "Tú" : nombres.getOrDefault(b.getVendedorId(), "Trabajador"),
+                        b.getBorroVendedorId() == null ? "Tú" : nombres.getOrDefault(b.getBorroVendedorId(), "Trabajador"),
+                        b.getBorroVendedorId() != null, b.getSabor(), b.getCantidad(), b.getTotal(), b.getMetodo(),
+                        b.getVendidaEn(), b.getBorradaEn()))
+                .toList();
+    }
+
+    /** Cuando un trabajador borra una venta, el dueño se entera por Telegram (con cuántas lleva borradas hoy). */
+    private void avisarBorrada(Venta v, Long vendedor, Instant ahora) {
+        String quien = vendedores.findById(vendedor).map(Vendedor::getNombre).orElse("Un trabajador");
+        Instant inicioDia = LocalDate.ofInstant(ahora, zona).atStartOfDay(zona).toInstant();
+        long hoy = borradas.countByBorroVendedorIdAndBorradaEnGreaterThanEqual(vendedor, inicioDia);
+        var hora = java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.US);
+        String metodo = switch (v.getMetodo()) {
+            case EFECTIVO -> "en efectivo";
+            case NEQUI -> "por Nequi";
+            case MIXTO -> "mitad efectivo y mitad Nequi";
+            case CONSUMO -> "(se la había tomado él)";
+            default -> v.getMetodo().name().toLowerCase(java.util.Locale.ROOT);
+        };
+        String texto = quien + " borró " + v.getCantidad() + " " + v.getProducto().nombre() + " de " + Pesos.formato(v.getTotal())
+                + " " + metodo + ".\nLa había anotado a las " + hora.format(v.getCreadaEn().atZone(zona))
+                + " y la borró a las " + hora.format(ahora.atZone(zona)) + "."
+                + (hoy > 1 ? "\nYa van " + hoy + " ventas borradas hoy." : "")
+                + "\nSi no te cuadra, pregúntale. Lo ves en Reportes → Ventas borradas.";
+        eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "🗑️ Borraron una venta", texto));
     }
 
     /**

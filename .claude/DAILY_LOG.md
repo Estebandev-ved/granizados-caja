@@ -40,6 +40,15 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-11 (cierre)
+- **Cierre del mes (Reportes, arriba):** la ganancia real del mes con lo del equipo restado (comisiones + premios − consumos − faltantes; si lo anotado como gasto «Trabajadores» es más, se toma eso y no se cuenta dos veces). Estado de resultados (vendiste, producto, gastos, equipo, mermas, otros ingresos, ganancia real, te pagaste, le quedó al negocio), comparación con el mes anterior, proyección del mes en curso, consejos y meses anteriores con ‹ ›. `GET /api/reportes/mes`, `CierreMesService`.
+- **Punto de equilibrio** (granizados al día que cubren los gastos, contra los que se venden) y **lo que deja cada sabor** ya pagada la comisión, dentro del cierre.
+- **«Me pagué» en Mi plata (migración V35, tabla `retiro`):** lo que el dueño saca para él. Resta del lugar escogido, no toca la ganancia, sale en Movimientos (se borra con dos toques) y en el cierre del mes.
+- **Rastro de ventas borradas (V35, `venta_borrada`):** toda venta deshecha queda anotada (qué, de quién, quién la borró, cuándo). Si la borra un trabajador, Telegram al dueño con cuántas lleva hoy. Reportes → Ventas borradas (sale aunque el periodo quede vacío).
+- **Copia de seguridad:** botón en Reportes que baja un .zip con un CSV por tabla (sin PIN, Face ID ni fotos) y el día 1 de cada mes a las 8am llega por Telegram con el cierre del mes anterior (`app.tareas.cierre-mensual`, `RespaldoService`, `Notificador.enviarArchivo`).
+- Pruebas: backend 234 (`CierreMesTest` y aislamiento), frontend 121 (`cierre.test.ts`). Probado en la app local contra PostgreSQL: migración V35, «Me pagué», cierre, venta borrada y copia.
+- **Por revisar en producción:** que el envío del .zip por Telegram funcione con el bot real (el día 1 de diciembre o probando el endpoint).
+
 ### 2026-11-11 (noche)
 - **Equipo con estilo de empresa** (Ajustes → Equipo): indicadores en una franja (activos, vendido hoy, por pagar), personal como tabla con monto y estado a la derecha, etiquetas rectas, y el panel de cada trabajador con ficha, cuadrícula de indicadores (vendido, carga, meta, base) y secciones plegables con su resumen (préstamos, entregas, base, carga, faltantes, ventas, datos). Pagos y premios abajo, también plegables. Solo cambia esa pantalla (`.equipo-vista`, `Plegable.tsx`).
 - **El trabajador sabe cuánto gana:** en Vender, «Con esta venta ganas $X» (con la tarifa de promo cuando aplica) y en Mi día «Lo que ganas por granizado», con aviso de que en promo cada uno deja menos y los premios bajan.
