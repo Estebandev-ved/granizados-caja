@@ -3,6 +3,7 @@ import { aEntero, pesos } from '../formato'
 import type { Param } from '../tipos'
 import { Icono } from './Icono'
 import { PremiosInteligentes } from './PremiosInteligentes'
+import { Plegable } from './Plegable'
 
 const TARIFAS = [
   { clave: 'COMISION_NORMAL', titulo: 'Granizado Normal' },
@@ -126,6 +127,8 @@ export function TarifasEquipo({ params, onGuardar }: { params: Param[]; onGuarda
 
   return (
     <>
+      <Plegable icono="moneda" titulo="Comisión por granizado"
+        resumen={TARIFAS.filter(t => numeros[t.clave] > 0).map(t => pesos(numeros[t.clave])).join(' · ') || 'Por porcentaje'}>
       <div className="list">
         <h3><Icono nombre="moneda" /> Comisión por granizado</h3>
         <p className="ayuda">Lo que gana cada trabajador por cada granizado que vende. Con todas en $0 gana su porcentaje.</p>
@@ -135,6 +138,10 @@ export function TarifasEquipo({ params, onGuardar }: { params: Param[]; onGuarda
         ))}
       </div>
 
+      </Plegable>
+
+      <Plegable icono="ticket" titulo="Días de promo"
+        resumen={(numeros.COMISION_PROMO > 0 ? pesos(numeros.COMISION_PROMO) + ' c/u' : 'Tarifa normal') + (rebaja > 0 ? ' · premios −' + pesos(rebaja) : '')}>
       <div className="list">
         <h3><Icono nombre="ticket" /> Días de promo</h3>
         <p className="ayuda">Cuando se vende con la promo hay menos margen: por eso la comisión y los premios son un poco menores.</p>
@@ -144,6 +151,9 @@ export function TarifasEquipo({ params, onGuardar }: { params: Param[]; onGuarda
           onCambio={n => poner('PREMIO_REBAJA_PROMO', n)} />
       </div>
 
+      </Plegable>
+
+      <Plegable icono="trofeo" titulo="Premios del día" resumen={ordenados.length ? ordenados.length + ' escalones' : 'Sin premios'} abierto={!!error}>
       <div className="list">
         <h3><Icono nombre="trofeo" /> Premios del día</h3>
         <p className="ayuda">Mientras más granizados venda en el día, más gana. Cada escalón es lo que lleva en total, no se suma al anterior.</p>
@@ -175,12 +185,18 @@ export function TarifasEquipo({ params, onGuardar }: { params: Param[]; onGuarda
         </button>
       </div>
 
+      </Plegable>
+
+      <Plegable icono="grafico" titulo="¿Te convienen los premios?" resumen="Análisis">
       <PremiosInteligentes escalones={escalones} rebaja={rebaja}
         onUsar={(nuevos, nuevaRebaja) => {
           setEscalones(nuevos)
           if (nuevaRebaja !== null) poner('PREMIO_REBAJA_PROMO', nuevaRebaja)
         }} />
 
+      </Plegable>
+
+      <Plegable icono="vaso" titulo="Granizados de regalo" resumen={numeros.GRANIZADOS_GRATIS ? numeros.GRANIZADOS_GRATIS + ' por día' : 'Ninguno'}>
       <div className="list">
         <h3><Icono nombre="vaso" /> Granizados de regalo</h3>
         <p className="ayuda">Los que el trabajador puede tomarse sin pagar por cada día que trabaja.</p>
@@ -189,6 +205,8 @@ export function TarifasEquipo({ params, onGuardar }: { params: Param[]; onGuarda
             formato={n => (n === 0 ? 'Ninguno' : n + ' por día')} onCambio={n => poner('GRANIZADOS_GRATIS', n)} />
         </div>
       </div>
+
+      </Plegable>
 
       {hayCambios && (
         <div className="guardar-barra">

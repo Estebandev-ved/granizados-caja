@@ -41,6 +41,7 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 ## Cambios
 
 ### 2026-11-11 (noche)
+- **Equipo con estilo de empresa** (Ajustes → Equipo): indicadores en una franja (activos, vendido hoy, por pagar), personal como tabla con monto y estado a la derecha, etiquetas rectas, y el panel de cada trabajador con ficha, cuadrícula de indicadores (vendido, carga, meta, base) y secciones plegables con su resumen (préstamos, entregas, base, carga, faltantes, ventas, datos). Pagos y premios abajo, también plegables. Solo cambia esa pantalla (`.equipo-vista`, `Plegable.tsx`).
 - **El trabajador sabe cuánto gana:** en Vender, «Con esta venta ganas $X» (con la tarifa de promo cuando aplica) y en Mi día «Lo que ganas por granizado», con aviso de que en promo cada uno deja menos y los premios bajan.
 - **Premios inteligentes (Ajustes → Equipo):** con las ventas de las últimas 4 semanas la app calcula cuánto vende un trabajador en un día normal y cuánto te deja cada granizado. A cada premio le dice si paga un día normal, si te hace perder, si se lleva casi todo lo extra o si les sirve a los dos. Sugiere premios donde él se lleva el 35 % de lo que vende de más («Usar estos» y luego Guardar).
 - **Meta del día del trabajador (migración V34):** al entrar a Vender le pregunta cuántos se siente capaz de vender, con lo que ganaría en cada opción; al cumplirla, «¿Vas por más?». La cuenta nunca vuelve a cero. El dueño ve la meta en Equipo.

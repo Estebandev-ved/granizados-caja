@@ -14,6 +14,7 @@ import { EntregasDelTrabajador } from './EntregaAlDueno'
 import { FaltantePanel } from './FaltantePanel'
 import { NOMBRE_LUGAR, PrestamosPanel } from './PrestamosPanel'
 import { Icono } from './Icono'
+import { Plegable } from './Plegable'
 import { Sheet } from './Sheet'
 import { Unidades } from './Unidades'
 
@@ -56,12 +57,15 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
   return (
     <>
       <div className="equipo-resumen">
-        <div><b>{lista?.filter(t => t.activo).length ?? 0}</b><span>en el equipo</span></div>
-        <div><b>{pesos(lista?.reduce((a, t) => a + t.totalHoy, 0) ?? 0)}</b><span>vendido hoy</span></div>
-        <div className={porPagarTotal > 0 ? 'alerta' : ''}><b>{pesos(porPagarTotal)}</b><span>por pagar</span></div>
+        <div><span>Activos</span><b>{lista?.filter(t => t.activo).length ?? 0}</b></div>
+        <div><span>Vendido hoy</span><b>{pesos(lista?.reduce((a, t) => a + t.totalHoy, 0) ?? 0)}</b></div>
+        <div className={porPagarTotal > 0 ? 'alerta' : ''}><span>Por pagar</span><b>{pesos(porPagarTotal)}</b></div>
       </div>
-      <div className="list">
-        <h3><Icono nombre="cara" /> Tu equipo</h3>
+      <div className="list eq-lista">
+        <div className="eq-encabezado">
+          <h3>Personal</h3>
+          <button type="button" className="chico-ghost fuerte" onClick={() => setPanel({ tipo: 'nuevo' })}>+ Agregar</button>
+        </div>
         {lista?.map(t => {
           const llevo = t.carga.reduce((a, f) => a + f.llevo, 0)
           const vendi = t.carga.reduce((a, f) => a + f.vendi, 0)
@@ -71,7 +75,7 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
               onKeyDown={e => { if (e.key === 'Enter') setPanel({ tipo: 'ver', id: t.id }) }}>
               <span className="eq-avatar">{t.nombre.trim().charAt(0).toUpperCase()}</span>
               <div className="eq-info">
-                <div className="sabor-cabeza"><b>{t.nombre}</b><b>{pesos(t.totalHoy)}</b></div>
+                <b className="eq-nombre">{t.nombre}</b>
                 <div className="eq-etiquetas">
                   {!t.activo && <span className="eq-tag">Desactivado</span>}
                   {t.ultimoPago === 'DISPUTADO' && <span className="eq-tag mal">Dice que no le pagaron</span>}
@@ -91,17 +95,19 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
                     <div className="eq-barra-pista"><div className="eq-barra-barra" style={{ width: Math.min(100, Math.round(vendi * 100 / llevo)) + '%' }} /></div>
                     <span className="mut">{vendi} de {llevo} · quedan {llevo - vendi}</span>
                   </div>
-                ) : <span className="mut">{t.activo ? 'Sin carga hoy' : ''}</span>}
+                ) : <span className="mut eq-sin">{t.activo ? 'Sin carga hoy' : ''}</span>}
               </div>
+              <div className="eq-monto">
+                <b>{pesos(t.totalHoy)}</b>
+                <small>{t.unidadesHoy} vendido{t.unidadesHoy === 1 ? '' : 's'}</small>
+              </div>
+              <span className="eq-flecha" aria-hidden="true">›</span>
             </div>
           )
         })}
         {lista && !lista.length && (
           <p className="mut">Todavía no tienes a nadie. Agrega a quien venda contigo: entra con su PIN, solo ve Vender y su día.</p>
         )}
-      </div>
-      <div className="acciones" style={{ marginBottom: 14 }}>
-        <button className="big primario" onClick={() => setPanel({ tipo: 'nuevo' })}>Agregar a alguien</button>
       </div>
 
       <Sheet abierto={!!panel} onCerrar={() => setPanel(null)}>
@@ -282,16 +288,23 @@ function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, 
         <span className="eq-avatar grande">{t.nombre.trim().charAt(0).toUpperCase()}</span>
         <div>
           <h2>{t.nombre}</h2>
-          <p>{t.activo ? 'Comisión ' + t.comisionPct + '%' : 'Desactivado: ya no puede entrar'}</p>
+          <p>{t.activo ? 'Vendedor' : 'Desactivado: ya no puede entrar'}{t.frecuenciaPago ? ' · cobra ' + NOMBRE_PAGO[t.frecuenciaPago] : ''}</p>
         </div>
       </div>
       <div className="eq-datos">
-        <span>{t.frecuenciaPago ? 'Cobra ' + NOMBRE_PAGO[t.frecuenciaPago] : 'Aún no escoge cuándo cobrar'}</span>
-        <span>
+        <span className={'eq-tag ' + (t.terminosAceptadosEn ? 'ok' : 'aviso-tag')}>
           {t.terminosAceptadosEn
-            ? '✓ Términos aceptados el ' + new Date(t.terminosAceptadosEn).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', timeZone: 'America/Bogota' })
-            : 'Sin aceptar los términos'}
+            ? 'Términos aceptados ' + new Date(t.terminosAceptadosEn).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', timeZone: 'America/Bogota' })
+            : 'Sin aceptar términos'}
         </span>
+        {!t.frecuenciaPago && <span className="eq-tag">Sin frecuencia de pago</span>}
+      </div>
+
+      <div className="eq-kpis">
+        <div><span>Vendido hoy</span><b>{pesos(t.totalHoy)}</b><small>{t.unidadesHoy} granizado{t.unidadesHoy === 1 ? '' : 's'}</small></div>
+        <div><span>Carga</span><b>{llevo ? vendi + ' / ' + llevo : '—'}</b><small>{llevo ? 'quedan ' + (llevo - vendi) : 'sin carga hoy'}</small></div>
+        <div><span>Meta de hoy</span><b>{t.metaHoy ?? '—'}</b><small>{t.metaHoy != null ? (t.unidadesHoy >= t.metaHoy ? 'cumplida' : 'faltan ' + (t.metaHoy - t.unidadesHoy)) : 'no la ha puesto'}</small></div>
+        <div><span>Base para vueltos</span><b>{pesos(t.baseHoy ?? 0)}</b><small>{(t.baseHoy ?? 0) > 0 ? 'la devuelve al cerrar' : 'no le has pasado'}</small></div>
       </div>
 
       <div className={'por-pagar' + (porPagar > 0 ? ' hay' : '')}>
@@ -313,6 +326,8 @@ function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, 
       </div>
 
       {cuenta && cuenta !== 'error' && cuenta.pagos.length > 0 && (
+        <Plegable icono="moneda" titulo="Historial de pagos" resumen={ETIQUETA_PAGO[cuenta.pagos[0].estado]}
+          alerta={cuenta.pagos[0].estado === 'PENDIENTE' || cuenta.pagos[0].estado === 'DISPUTADO'}>
         <div className="list">
           <h3><Icono nombre="moneda" /> Sus pagos</h3>
           {cuenta.pagos.map(p => (
@@ -340,14 +355,23 @@ function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, 
             </div>
           ))}
         </div>
+        </Plegable>
       )}
 
-      <PrestamosPanel t={t} prestamos={prestamos} onCambio={onCambioBase} />
+      <Plegable icono="billetera" titulo="Préstamos" resumen={prestado > 0 ? pesos(prestado) + ' por descontar' : 'Ninguno'} alerta={prestado > 0}>
+        <PrestamosPanel t={t} prestamos={prestamos} onCambio={onCambioBase} />
+      </Plegable>
 
-      <EntregasDelTrabajador id={t.id} version={String(t.entregaPendiente ?? 0) + (t.ultimaEntrega ?? '')} onCambio={onCambioBase} />
+      <Plegable icono="billete" titulo="Entregas de plata" resumen={(t.entregaPendiente ?? 0) > 0 ? pesos(t.entregaPendiente ?? 0) + ' por confirmar' : 'Al día'}
+        alerta={(t.entregaPendiente ?? 0) > 0} abierto={(t.entregaPendiente ?? 0) > 0}>
+        <EntregasDelTrabajador id={t.id} version={String(t.entregaPendiente ?? 0) + (t.ultimaEntrega ?? '')} onCambio={onCambioBase} />
+      </Plegable>
 
-      <BaseVueltosPanel t={t} onCambio={onCambioBase} />
+      <Plegable icono="billete" titulo="Base para vueltos" resumen={(t.baseHoy ?? 0) > 0 ? pesos(t.baseHoy ?? 0) + ' hoy' : 'Sin base hoy'}>
+        <BaseVueltosPanel t={t} onCambio={onCambioBase} />
+      </Plegable>
 
+      <Plegable icono="caja" titulo="Carga de hoy" resumen={llevo ? 'vendió ' + vendi + ' de ' + llevo : 'Sin carga'}>
       <div className="list">
         <h3><Icono nombre="caja" /> Su carga de hoy</h3>
         {t.carga.length > 0 ? (
@@ -376,8 +400,13 @@ function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, 
         </div>
       </div>
 
-      <FaltantePanel t={t} productos={productos} onCambio={onCambioBase} />
+      </Plegable>
 
+      <Plegable icono="alerta" titulo="Faltantes" resumen="Si las cuentas no dan">
+        <FaltantePanel t={t} productos={productos} onCambio={onCambioBase} />
+      </Plegable>
+
+      <Plegable icono="grafico" titulo="Ventas y cuentas" resumen="Hoy, 7 y 15 días">
       <div className="list">
         <h3><Icono nombre="reloj" /> Lo que ha vendido</h3>
         <div className="chips">
@@ -416,6 +445,9 @@ function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, 
         )}
       </div>
 
+      </Plegable>
+
+      <Plegable icono="candado" titulo="Datos y acceso" resumen={'Comisión ' + t.comisionPct + '%'}>
       <div className="acciones">
         <button className="big ghost" onClick={() => setEditando(e => !e)}>{editando ? 'Cerrar edición' : 'Cambiar nombre, PIN o comisión'}</button>
       </div>
@@ -453,6 +485,7 @@ function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, 
           {t.activo ? 'Desactivar (ya no puede entrar)' : 'Volver a activar'}
         </button>
       </div>
+      </Plegable>
     </>
   )
 }

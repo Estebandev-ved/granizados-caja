@@ -263,10 +263,11 @@ export function Ajustes({ avisar, onCambio }: Props) {
   } else if (seccion === 'equipo') {
     titulo = 'Equipo'
     cuerpo = (
-      <>
-        <TarifasEquipo params={params} onGuardar={guardarTarifas} />
+      <div className="equipo-vista">
         <Equipo productos={productos} avisar={avisar} />
-      </>
+        <h2 className="eq-seccion">Pagos y premios</h2>
+        <TarifasEquipo params={params} onGuardar={guardarTarifas} />
+      </div>
     )
   } else if (seccion === 'seguridad') {
     titulo = 'Seguridad'

@@ -852,3 +852,89 @@ nav button.on svg { animation: salto .35s var(--ease-resorte) }
   .interruptor, .interruptor i, .pp-barra span { transition: none }
 }
 .bienvenida-pie { position: sticky; bottom: 0; background: var(--bg); padding-bottom: 4px }
+
+/* ---------------------------------------------------------------- Equipo con estilo de empresa
+   Ajustes → Equipo: sobrio y ordenado. Indicadores arriba, lista tipo tabla, etiquetas rectas, secciones plegables
+   con su resumen y menos relleno de color. Todo con las variables del tema, así sirve en claro y oscuro. */
+.plegable { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 8px; overflow: hidden }
+.plegable-cabeza { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 10px 14px; background: none; border: 0;
+  color: var(--txt); text-align: left; font: inherit; cursor: pointer }
+.plegable-icono { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: var(--r-sm); background: var(--card2); color: var(--mut) }
+.plegable-icono svg { width: 16px; height: 16px }
+.plegable-texto { flex: 1; min-width: 0; display: grid; gap: 1px }
+.plegable-titulo { font-size: 15px; font-weight: 600 }
+.plegable-resumen { font-size: 12.5px; color: var(--mut) }
+.plegable-resumen.alerta { color: var(--warn-txt); font-weight: 600 }
+.plegable-flecha { flex: none; color: var(--mut); font-size: 20px; line-height: 1; transition: transform .2s }
+.plegable.abierto .plegable-flecha { transform: rotate(90deg) }
+.plegable.abierto .plegable-cabeza { border-bottom: 1px solid var(--line) }
+.plegable-cuerpo { padding: 4px 14px 12px }
+.plegable-cuerpo > .list, .plegable-cuerpo > .premios-intel { background: none; border: 0; border-radius: 0; padding: 0; margin: 0; box-shadow: none }
+.plegable-cuerpo > .list > h3:first-child { display: none }
+.plegable-cuerpo > .list > h3:first-child + * { border-top: 0 }
+
+.equipo-vista .eq-seccion { font-family: var(--font-body); font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase;
+  color: var(--mut); margin: 22px 2px 8px }
+.equipo-vista .list { border-radius: var(--r); box-shadow: none }
+.equipo-vista .list h3 { font-size: 11px; letter-spacing: .8px; font-weight: 700 }
+.equipo-vista .big { border-radius: var(--r); padding: 13px 12px; font-size: 16px; box-shadow: none }
+.equipo-vista .chips button { border-radius: var(--r) }
+.equipo-vista .ayuda, .equipo-vista .list .ayuda { font-size: 12.5px }
+
+/* Indicadores del equipo: una sola franja con divisiones */
+.equipo-vista .equipo-resumen { gap: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin-bottom: 10px }
+.equipo-vista .equipo-resumen div { background: none; border: 0; border-radius: 0; border-left: 1px solid var(--line); padding: 10px 12px; text-align: left;
+  display: grid; gap: 2px }
+.equipo-vista .equipo-resumen div:first-child { border-left: 0 }
+.equipo-vista .equipo-resumen span { font-size: 10.5px; font-weight: 700; letter-spacing: .6px }
+.equipo-vista .equipo-resumen b { font-size: 18px }
+.equipo-vista .equipo-resumen .alerta { background: none; box-shadow: inset 0 3px 0 var(--primario) }
+.equipo-vista .equipo-resumen .alerta b { color: var(--primario-txt) }
+
+/* La lista del personal como tabla */
+.equipo-vista .eq-lista { padding: 0 }
+.equipo-vista .eq-encabezado { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line);
+  background: var(--card2) }
+.equipo-vista .eq-encabezado h3 { padding: 0 }
+.equipo-vista .eq-fila { align-items: center; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--line) }
+.equipo-vista .eq-encabezado + .eq-fila { border-top: 0 }
+.equipo-vista .eq-fila:active { background: var(--card2) }
+.equipo-vista .eq-info { gap: 5px }
+.equipo-vista .eq-nombre { font-size: 15px; font-weight: 700 }
+.equipo-vista .eq-sin { font-size: 12px }
+.equipo-vista .eq-monto { display: grid; justify-items: end; gap: 1px; flex: none }
+.equipo-vista .eq-monto b { font-family: var(--font-head); font-size: 15px }
+.equipo-vista .eq-monto small { font-size: 11px; color: var(--mut) }
+.equipo-vista .eq-flecha { flex: none; color: var(--mut); font-size: 20px }
+.equipo-vista .eq-lista > .mut { padding: 12px 14px }
+.equipo-vista .eq-avatar { width: 36px; height: 36px; border-radius: var(--r); background: var(--card2); color: var(--txt); border: 1px solid var(--line);
+  font-size: 15px; font-weight: 700 }
+.equipo-vista .eq-avatar.grande { width: 48px; height: 48px; font-size: 20px }
+.equipo-vista .eq-barra-pista { height: 4px; border-radius: var(--r-sm) }
+.equipo-vista .eq-barra-barra { border-radius: var(--r-sm) }
+.equipo-vista .eq-barra .mut { font-size: 11.5px }
+
+/* Etiquetas de estado: rectas, cortas y sin relleno fuerte */
+.equipo-vista .eq-tag { border-radius: var(--r-sm); padding: 2px 7px; font-size: 11px; font-weight: 600; letter-spacing: .1px }
+.equipo-vista .eq-tag.pagar { background: none; border-color: var(--primario); color: var(--primario-txt) }
+
+/* Panel de un trabajador */
+.equipo-vista .eq-cabeza { gap: 14px; padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid var(--line) }
+.equipo-vista .eq-cabeza h2 { font-size: 20px }
+.equipo-vista .eq-cabeza p { font-size: 13px; color: var(--mut) }
+.equipo-vista .eq-datos { flex-direction: row; flex-wrap: wrap; gap: 6px; margin-bottom: 12px }
+.equipo-vista .eq-kpis { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; margin-bottom: 10px }
+.equipo-vista .eq-kpis div { display: grid; gap: 2px; padding: 10px 12px; border-top: 1px solid var(--line); border-left: 1px solid var(--line) }
+.equipo-vista .eq-kpis div:nth-child(-n+2) { border-top: 0 }
+.equipo-vista .eq-kpis div:nth-child(odd) { border-left: 0 }
+.equipo-vista .eq-kpis span { font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--mut) }
+.equipo-vista .eq-kpis b { font-family: var(--font-head); font-size: 18px }
+.equipo-vista .eq-kpis small { font-size: 11.5px; color: var(--mut) }
+.equipo-vista .por-pagar { justify-items: stretch; text-align: left; background: var(--card); border-radius: var(--r); padding: 12px 14px; gap: 2px;
+  box-shadow: inset 3px 0 0 var(--line) }
+.equipo-vista .por-pagar.hay { background: var(--card); border-color: var(--line); box-shadow: inset 3px 0 0 var(--primario) }
+.equipo-vista .por-pagar b { font-size: 26px }
+.equipo-vista .por-pagar .mut { font-size: 12.5px }
+.equipo-vista .por-pagar .big { margin-top: 10px }
+.equipo-vista .pago-hist { font-size: 13.5px }
+.equipo-vista .chico-ghost { border-radius: var(--r-sm) }
