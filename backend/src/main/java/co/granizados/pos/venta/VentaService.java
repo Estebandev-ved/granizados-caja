@@ -132,6 +132,7 @@ public class VentaService {
         boolean enPromo = !regalo && !consumo && venta.getTotal() < normal;
         venta.enPromo(enPromo);
         Long vendedor = Sesion.vendedorId();
+        if (v.metodo() == MetodoPago.FALTANTE) throw new IllegalArgumentException("Los faltantes se anotan en Equipo");
         if (consumo && vendedor == null) {
             throw new IllegalArgumentException("Eso lo anota el trabajador desde su celular. Si es tuyo, usa Regalo");
         }
@@ -189,6 +190,7 @@ public class VentaService {
         if (vendedor != null && !vendedor.equals(v.getVendedorId())) {
             throw new NoEncontradoException("Venta no encontrada: " + clientUid);
         }
+        if (vendedor != null && v.esFaltante()) throw new IllegalArgumentException("Eso lo anotó el dueño: habla con él");
         deudas.findByVentaUid(clientUid).ifPresent(d -> {
             if (d.estaPagada()) throw new IllegalArgumentException("Ese fiado ya se cobró, no se puede deshacer");
             deudas.delete(d);

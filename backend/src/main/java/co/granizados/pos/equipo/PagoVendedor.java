@@ -45,6 +45,13 @@ public class PagoVendedor {
     private long bonos;
     /** Lo que se le descontó por los granizados que se tomó (ya está restado de lo que se le debía). */
     private long consumos;
+    /** Lo que se le descontó por préstamos (adelantos) y por faltantes de su carga. */
+    private long prestamos;
+    private long faltantes;
+    /** Los pagos nuevos restan de Mi plata: el efectivo sale de `lugarEfectivo` (caja o casa) y el resto, de Nequi. */
+    private boolean muevePlata;
+    @Enumerated(EnumType.STRING)
+    private co.granizados.pos.plata.LugarPlata lugarEfectivo;
     private int unidades;
     private long totalVendido;
     private long efectivo;
@@ -98,6 +105,25 @@ public class PagoVendedor {
     }
 
     public long getConsumos() { return consumos; }
+
+    /** Lo que se le descontó por préstamos y faltantes. */
+    public PagoVendedor conDescuentos(long prestamos, long faltantes) {
+        this.prestamos = prestamos;
+        this.faltantes = faltantes;
+        return this;
+    }
+
+    /** Desde V32 «Ya le pagué» sale de Mi plata: el efectivo de `lugar` (caja o casa) y lo de Nequi, de Nequi. */
+    public PagoVendedor saleDe(co.granizados.pos.plata.LugarPlata lugar) {
+        this.muevePlata = true;
+        this.lugarEfectivo = lugar;
+        return this;
+    }
+
+    public long getPrestamos() { return prestamos; }
+    public long getFaltantes() { return faltantes; }
+    public boolean isMuevePlata() { return muevePlata; }
+    public co.granizados.pos.plata.LugarPlata getLugarEfectivo() { return lugarEfectivo; }
 
     public void anular() {
         this.estado = Estado.ANULADO;

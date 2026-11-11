@@ -5,10 +5,12 @@ import { PrimerosPasos } from './componentes/PrimerosPasos'
 import { leerPerfil, PerfilContexto } from './perfil'
 import { NumeroAnimado } from './componentes/NumeroAnimado'
 import { api, sesion } from './api'
+import { adjuntarComprobante } from './comprobantes'
 import { AvisoActualizacion } from './componentes/AvisoActualizacion'
 import { BarraLogros } from './componentes/BarraLogros'
 import { BarraMeta } from './componentes/BarraMeta'
 import { BarraPremios } from './componentes/BarraPremios'
+import { MetaDelDia } from './componentes/MetaDelDia'
 import { PagoPreferido } from './componentes/PagoPreferido'
 import { NOMBRE_PAGO } from './pagos'
 import { TerminosTrabajo } from './componentes/TerminosTrabajo'
@@ -19,7 +21,7 @@ import { nivelAlcanzado } from './logros'
 import { hitoNuevo } from './ritmo'
 import { useToast, type AccionToast } from './componentes/Toast'
 import { pesos, vibrar } from './formato'
-import { leerPromo, promoVigente } from './promo'
+import { leerPromos, promosVigentes } from './promo'
 import type { Terminos } from './tipos'
 import { useCaja, type EstadoSync } from './useCaja'
 import { Ajustes } from './vistas/Ajustes'
@@ -159,10 +161,9 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
   // La promo que corre hoy: viene del servidor, así el dueño la prende desde Ajustes y la venden todos
   const textoPromo = estado?.promo
   const diaEstado = estado?.dia
-  const promo = useMemo(() => {
-    const p = leerPromo(textoPromo)
-    return diaEstado && promoVigente(p, diaEstado) ? p : null
-  }, [textoPromo, diaEstado])
+  const promos = useMemo(
+    () => (diaEstado ? promosVigentes(leerPromos(textoPromo), diaEstado) : []),
+    [textoPromo, diaEstado])
 
   // Bienvenida: solo al dueño, una vez, y solo si su caja está recién estrenada (sin meta ni ventas hoy)
   const [bienvenidaVista, setBienvenidaVista] = useState(() => {
@@ -181,10 +182,16 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
           <div className="esqueleto-grid">{Array.from({ length: 6 }, (_, i) => <i key={i} style={{ '--i': i } as CSSProperties} />)}</div>
         </div>
   } else if (vista === 'vender') {
-    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promo={promo}
+    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promos={promos}
       consumo={trabajador && premios ? { gratis: premios.gratis, consumidos: premios.consumidos ?? 0 } : null}
-      onVender={(lineas, metodo, fiado) => {
+      tarifas={trabajador ? premios?.tarifas ?? null : null}
+      onVender={(lineas, metodo, fiado, foto) => {
       const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado, l.efectivo))
+      if (foto) {
+        adjuntarComprobante(uids, foto)
+          .then(() => avisar('📎 Foto del comprobante guardada'))
+          .catch(() => avisar('⚠️ La venta quedó, pero no se pudo leer la foto. Agrégala en Mi día.'))
+      }
       const detalle = lineas.map(l => (l.cantidad > 1 ? l.cantidad + ' ' : '') + l.p.nombre).join(' + ')
       avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'MIXTO' ? 'Efectivo + Nequi' : metodo === 'REGALO' ? 'Regalo 🎁' : metodo === 'CONSUMO' ? 'Te lo tomas tú 🥤' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
         { texto: 'Deshacer', alTocar: () => uids.forEach(clientUid => void caja.deshacer({ clientUid })) })
@@ -202,7 +209,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       onCancelar={caja.cancelarPedido}
       avisar={avisar} />
   } else if (vista === 'hoy' && trabajador) {
-    contenido = <MiDia estado={estado} pago={terminos?.frecuenciaPago ?? null} onDeshacer={caja.deshacer}
+    contenido = <MiDia estado={estado} pago={terminos?.frecuenciaPago ?? null} onDeshacer={caja.deshacer} avisar={avisar}
       onElegirPago={async f => {
         try {
           setTerminos(await api.elegirPago(f))
@@ -263,7 +270,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     <PerfilContexto.Provider value={perfil}>
       <header>
         <div className="hoy-mini">
-          <NumeroAnimado valor={trabajador && premios ? Math.max(0, premios.comision + premios.premio - (premios.descuento ?? 0)) : estado?.hoy.total ?? 0} formato={pesos} />
+          <NumeroAnimado valor={trabajador && premios ? Math.max(0, premios.comision + premios.premio - (premios.descuento ?? 0) - (premios.faltantes ?? 0)) : estado?.hoy.total ?? 0} formato={pesos} />
           <small>
             {trabajador && premios ? 'ganado hoy' : 'hoy'} · {estado?.hoy.unidades ?? 0} vendido{estado?.hoy.unidades === 1 ? '' : 's'}
           </small>
@@ -289,6 +296,19 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       {estado && trabajador && premios && premios.escalones.length > 0 && (
         <div className="meta-envoltorio">
           <BarraPremios premios={premios} />
+        </div>
+      )}
+      {estado && trabajador && premios && vista === 'vender' && (
+        <div className="meta-envoltorio">
+          <MetaDelDia premios={premios} dia={estado.dia} onMeta={async n => {
+            try {
+              await api.ponerMeta(n)
+              await caja.recargar()
+              avisar('💪 Tu meta de hoy: ' + n)
+            } catch (e) {
+              avisar('⚠️ ' + (e instanceof Error ? e.message : 'No se pudo guardar, revisa la señal'))
+            }
+          }} />
         </div>
       )}
       <main><div className="vista" key={vista}>

@@ -14,7 +14,7 @@ import { useInstalarPWA } from '../instalarPwa'
 import { ErrorReintento } from '../componentes/ErrorReintento'
 import { PerfilAjustes } from '../componentes/PerfilAjustes'
 import { RUBROS, textoPerfil, leerPerfil, type Perfil } from '../perfil'
-import { leerPromo, nombrePromo, promoVigente, textoDias } from '../promo'
+import { leerPromos, nombrePromo, promoVigente } from '../promo'
 import type { DatosProducto, Param, Producto, Tipo } from '../tipos'
 
 const PRECIO_POR_TIPO: Record<Tipo, number> = { NORMAL: 6000, CREMOSO: 7000, GRANDE: 10000, CERVEZA: 5000 }
@@ -161,7 +161,8 @@ export function Ajustes({ avisar, onCambio }: Props) {
   const conocidas = new Set(Object.values(CLAVES).flat())
   const otras = params.filter(p => !conocidas.has(p.clave))
 
-  const promo = leerPromo(param('PROMO')?.valor)
+  const promos = leerPromos(param('PROMO')?.valor)
+  const promosHoy = promos.filter(p => promoVigente(p))
   const activos = productos.filter(p => p.activo).length
   const metaDiaria = aEntero(param('META_DIARIA')?.valor ?? '')
   const perfilActual = leerPerfil(param('PERFIL')?.valor)
@@ -188,7 +189,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
           <h3>Mi negocio</h3>
           <Entrada icono="caja" titulo="Perfil del negocio" detalle={perfilActual.nombre ? perfilActual.nombre + ' · ' + RUBROS[perfilActual.rubro].titulo : 'Nombre y rubro'} onClick={() => setPanel({ tipo: 'perfil' })} />
           <Entrada icono="vaso" titulo="Sabores y precios" detalle={`${activos} en la caja`} onClick={() => abrir('sabores')} />
-          <Entrada icono="ticket" titulo="Promoción" detalle={promoVigente(promo) ? nombrePromo(promo, pesos) : promo.activa && promo.dias.length ? nombrePromo(promo, pesos) + ' · los ' + textoDias(promo.dias) : 'Apagada'} onClick={() => abrir('promo')} />
+          <Entrada icono="ticket" titulo="Promoción" detalle={promosHoy.length ? promosHoy.map(p => nombrePromo(p, pesos)).join(' · ') : promos.some(p => p.activa && p.dias.length) ? 'Programadas' : promos.length ? 'Apagadas' : 'Ninguna'} onClick={() => abrir('promo')} />
           <Entrada icono="trofeo" titulo="Metas y premios" detalle={metaDiaria ? 'Meta ' + pesos(metaDiaria) : 'Sin meta'} onClick={() => abrir('metas')} />
           {perfilActual.equipo && <Entrada icono="cara" titulo="Equipo" detalle="Trabajadores, PIN y cargas" onClick={() => abrir('equipo')} />}
         </div>
@@ -256,7 +257,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
   } else if (seccion === 'promo') {
     titulo = 'Promoción'
     cuerpo = (
-      <PromoAjustes valor={param('PROMO')?.valor ?? ''} avisar={avisar}
+      <PromoAjustes valor={param('PROMO')?.valor ?? ''} avisar={avisar} productos={productos} params={params}
         onGuardar={async json => { await api.guardarConfig('PROMO', json); await cargar(); await onCambio() }} />
     )
   } else if (seccion === 'equipo') {

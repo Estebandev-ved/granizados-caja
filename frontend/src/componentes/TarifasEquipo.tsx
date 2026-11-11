@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { aEntero, pesos } from '../formato'
 import type { Param } from '../tipos'
 import { Icono } from './Icono'
+import { PremiosInteligentes } from './PremiosInteligentes'
 
 const TARIFAS = [
   { clave: 'COMISION_NORMAL', titulo: 'Granizado Normal' },
@@ -173,6 +174,12 @@ export function TarifasEquipo({ params, onGuardar }: { params: Param[]; onGuarda
           + Agregar escalón
         </button>
       </div>
+
+      <PremiosInteligentes escalones={escalones} rebaja={rebaja}
+        onUsar={(nuevos, nuevaRebaja) => {
+          setEscalones(nuevos)
+          if (nuevaRebaja !== null) poner('PREMIO_REBAJA_PROMO', nuevaRebaja)
+        }} />
 
       <div className="list">
         <h3><Icono nombre="vaso" /> Granizados de regalo</h3>

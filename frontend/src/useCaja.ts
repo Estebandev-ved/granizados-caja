@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError } from './api'
 import { cargarCola, guardarCola, subirPendientes } from './cola'
+import { subirComprobantes } from './comprobantes'
 import { diaBogota, estadoVisible, nuevoUid } from './estadoLocal'
 import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, Metodo, MotivoMerma, Operacion, Producto, VentaReciente } from './tipos'
 
@@ -97,6 +98,7 @@ export function useCaja(avisar: (mensaje: string) => void) {
       return
     }
     espera.current = 0
+    void subirComprobantes() // las fotos de comprobantes que esperaban señal
     if (colaRef.current.length) return sincronizar() // llegaron más mientras subía
     return refrescar()
   }, [refrescar, setCola])
@@ -121,7 +123,7 @@ export function useCaja(avisar: (mensaje: string) => void) {
       espera.current = 0
       void sincronizar().then(refrescar)
     }
-    const conSenal = () => { setEnLinea(true); espera.current = 0; void sincronizar() }
+    const conSenal = () => { setEnLinea(true); espera.current = 0; void sincronizar(); void subirComprobantes() }
     const sinSenal = () => setEnLinea(false)
     const reloj = setInterval(() => setHoy(diaBogota()), 60_000)
     // Lo que venden o cambian otros celulares aparece solo, sin tener que salir y volver a la app

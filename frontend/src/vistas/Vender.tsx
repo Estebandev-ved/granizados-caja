@@ -8,9 +8,10 @@ import { TarjetaProducto } from '../componentes/TarjetaProducto'
 import { CampoNumero } from '../componentes/CampoNumero'
 import { aEntero, pesos, vibrar } from '../formato'
 import { ChuloVenta } from '../componentes/ChuloVenta'
+import { BotonFoto } from '../componentes/FotoComprobante'
 import { etiquetaTipo, usePerfil } from '../perfil'
-import { aplicaPromo, nombrePromo, repartirEfectivo, repartirTotal, totalMezclado, type Promo } from '../promo'
-import type { Metodo, PorSabor, Producto, Tipo } from '../tipos'
+import { aplicaPromo, cobrarLineas, nombrePromo, promoDe, totalConPromos, totalMezclado, type LineaCobrada, type Promo } from '../promo'
+import type { Metodo, PorSabor, Producto, TarifasDia, Tipo } from '../tipos'
 
 interface Props {
   productos: Producto[]
@@ -18,29 +19,58 @@ interface Props {
   porSabor: PorSabor[]
   /** Un trabajador no arma su carga (se la da el dueño), no fía y lo que ve como stock es lo que le queda. */
   trabajador?: boolean
-  /** La promoción que está corriendo hoy (viene del servidor, igual para todos), o null. */
-  promo: Promo | null
+  /** Las promociones que corren hoy (vienen del servidor, iguales para todos). */
+  promos: Promo[]
+  /** Solo un trabajador: lo que gana por granizado, para decirle cuánto gana con cada venta. */
+  tarifas?: TarifasDia | null
   /** Solo un trabajador: cuántos puede tomarse gratis al día y cuántos lleva hoy. Con esto sale «Me lo tomo yo». */
   consumo?: { gratis: number; consumidos: number } | null
-  /** Una línea por sabor. `total` solo viene cuando hubo promo (lo realmente cobrado en esa línea). */
-  onVender: (lineas: { p: Producto; cantidad: number; total?: number; efectivo?: number }[], metodo: Metodo, fiado?: { cliente: string; telefono: string }) => void
+  /**
+   * Una línea por sabor. `total` solo viene cuando hubo promo (lo realmente cobrado en esa línea).
+   * `foto`: el comprobante de Nequi que se tomó al cobrar.
+   */
+  onVender: (lineas: Linea[], metodo: Metodo, fiado?: { cliente: string; telefono: string }, foto?: File) => void
 }
+
+type Linea = LineaCobrada
+
+const CLAVE_RAPIDO = 'gz_rapido'
+
 
 type Filtro = 'todos' | Tipo
 const TIPOS: Tipo[] = ['NORMAL', 'CREMOSO', 'GRANDE', 'CERVEZA']
 
-export function Vender({ productos, porSabor, trabajador = false, promo, consumo = null, onVender }: Props) {
+export function Vender({ productos, porSabor, trabajador = false, promos, consumo = null, tarifas = null, onVender }: Props) {
   const perfil = usePerfil()
   const [ok, setOk] = useState(0)
   const [elegido, setElegido] = useState<Producto | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('todos')
   // La promo se configura en Ajustes y viene del servidor; aquí solo se aplica
-  const hayPromo = !!promo && productos.some(p => aplicaPromo(promo, p))
+  const enJuego = promos.filter(pr => productos.some(p => aplicaPromo(pr, p)))
   // Lo que llevo hoy: cuántos de cada sabor saqué a vender
   const [cargaGuardada, setCarga] = useState(() => (trabajador ? null : leerCarga()))
   // La carga de ayer no vale hoy: si la app queda abierta pasada la medianoche, no puede seguir contando
   const carga = cargaGuardada?.dia === diaBogota() ? cargaGuardada : null
   const [armando, setArmando] = useState(false)
+  // Varios a la vez: cuando llega mucha gente, cada toque en un sabor suma uno y al final se cobra todo junto
+  const [rapido, setRapido] = useState(() => { try { return localStorage.getItem(CLAVE_RAPIDO) === '1' } catch { return false } })
+  const [bandeja, setBandeja] = useState<Record<number, number>>({})
+  const cambiarRapido = () => {
+    const nuevo = !rapido
+    setRapido(nuevo)
+    setBandeja({})
+    try { localStorage.setItem(CLAVE_RAPIDO, nuevo ? '1' : '0') } catch { /* modo privado */ }
+  }
+  const sumar = (p: Producto, n: number) => {
+    vibrar()
+    setBandeja(b => {
+      const c = Math.max(0, Math.min(99, (b[p.id] ?? 0) + n))
+      const nueva = { ...b }
+      if (c) nueva[p.id] = c
+      else delete nueva[p.id]
+      return nueva
+    })
+  }
 
   const tiposPresentes = useMemo(
     () => TIPOS.filter(t => productos.some(p => p.tipo === t)),
@@ -85,8 +115,12 @@ export function Vender({ productos, porSabor, trabajador = false, promo, consumo
 
   return (
     <section>
-      {hayPromo && promo && (
-        <div className="promo-aviso"><b>{nombrePromo(promo, pesos)}</b> · promo prendida</div>
+      {enJuego.length > 0 && (
+        <div className="promo-aviso">
+          {enJuego.map((pr, i) => <span key={i}>{i > 0 && ' · '}<b>{nombrePromo(pr, pesos)}</b></span>)}
+          {' '}· promo{enJuego.length > 1 ? 's' : ''} prendida{enJuego.length > 1 ? 's' : ''}
+          {tarifas && tarifas.porcentaje === null && tarifas.promo > 0 && <> · en promo ganas {pesos(tarifas.promo)} c/u</>}
+        </div>
       )}
       {!trabajador && (
         <button type="button" className={'carga-boton' + (carga ? ' on' : '')} onClick={() => setArmando(true)}>
@@ -97,7 +131,12 @@ export function Vender({ productos, porSabor, trabajador = false, promo, consumo
       {trabajador && !productos.some(p => p.stock > 0) && (
         <p className="aviso" style={{ textAlign: 'center' }}>No tienes nada cargado. Pídele al dueño que te anote lo que sacas a vender.</p>
       )}
-      <div className="modo">Toca un producto para vender</div>
+      <div className="modo modo-fila">
+        <span>{rapido ? 'Un toque por cada uno que vendiste' : 'Toca un producto para vender'}</span>
+        <button type="button" className={'chip-rapido' + (rapido ? ' on' : '')} aria-pressed={rapido} onClick={cambiarRapido}>
+          ⚡ Varios a la vez
+        </button>
+      </div>
       {tiposPresentes.length > 1 && (
         <div className="chips categorias">
           <button className={filtro === 'todos' ? 'on' : ''} onClick={() => setFiltro('todos')}>Todos</button>
@@ -107,22 +146,34 @@ export function Vender({ productos, porSabor, trabajador = false, promo, consumo
         </div>
       )}
       <div className="grid">
-        {orden.map((p, i) => <TarjetaProducto key={p.id} p={p} indice={i} onClick={() => setElegido(p)} restante={queda(p)} />)}
+        {orden.map((p, i) => (
+          <TarjetaProducto key={p.id} p={p} indice={i} restante={queda(p)} marcados={rapido ? bandeja[p.id] ?? 0 : 0}
+            onClick={() => (rapido ? sumar(p, 1) : setElegido(p))} />
+        ))}
         {!orden.length && <p className="mut" style={{ gridColumn: '1/-1', textAlign: 'center', padding: '20px 0' }}>Nada por aquí</p>}
       </div>
+      {rapido && (
+        <Bandeja productos={productos} bandeja={bandeja} promos={promos} trabajador={trabajador} tarifas={tarifas}
+          onQuitar={p => sumar(p, -1)} onVaciar={() => setBandeja({})}
+          onCobrar={(lineas, metodo) => {
+            setBandeja({})
+            onVender(lineas, metodo)
+            setOk(n => n + 1)
+          }} />
+      )}
       {ok > 0 && <ChuloVenta key={ok} />}
       <Sheet abierto={armando} onCerrar={() => setArmando(false)}>
         <CargaDelDia productos={productos} actual={carga} onGuardar={guardar} onLimpiar={limpiar} />
       </Sheet>
       <Sheet abierto={!!elegido} onCerrar={() => setElegido(null)}>
         {elegido && (
-          <PanelVenta p={elegido} queda={queda(elegido)} trabajador={trabajador} consumo={trabajador ? consumo : null} promo={promo && aplicaPromo(promo, elegido) ? promo : null}
-            otros={promo && aplicaPromo(promo, elegido)
-              ? orden.filter(o => o.id !== elegido.id && aplicaPromo(promo, o) && !agotado(o))
+          <PanelVenta p={elegido} queda={queda(elegido)} trabajador={trabajador} consumo={trabajador ? consumo : null} tarifas={tarifas} promo={promoDe(promos, elegido)}
+            otros={promoDe(promos, elegido)
+              ? orden.filter(o => o.id !== elegido.id && promoDe(promos, o) === promoDe(promos, elegido) && !agotado(o))
               : []}
-            onPagar={(metodo, lineas, fiado) => {
+            onPagar={(metodo, lineas, fiado, foto) => {
               setElegido(null)
-              onVender(lineas, metodo, fiado)
+              onVender(lineas, metodo, fiado, foto)
               setOk(n => n + 1)
             }} />
         )}
@@ -131,8 +182,9 @@ export function Vender({ productos, porSabor, trabajador = false, promo, consumo
   )
 }
 
-function PanelVenta({ p, promo, otros, queda, trabajador, consumo, onPagar }: {
+function PanelVenta({ p, promo, otros, queda, trabajador, consumo, tarifas, onPagar }: {
   p: Producto
+  tarifas: TarifasDia | null
   /** Solo un trabajador: los gratis del día y los que ya se tomó. */
   consumo: { gratis: number; consumidos: number } | null
   promo: Promo | null
@@ -141,7 +193,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, onPagar }: {
   /** Lo que te queda de la carga de hoy (undefined = no hay carga, null = ese sabor no lo llevas). */
   queda?: number | null
   trabajador: boolean
-  onPagar: (m: Metodo, lineas: { p: Producto; cantidad: number; total?: number; efectivo?: number }[], fiado?: { cliente: string; telefono: string }) => void
+  onPagar: (m: Metodo, lineas: Linea[], fiado?: { cliente: string; telefono: string }, foto?: File) => void
 }) {
   const perfil = usePerfil()
   const [fiando, setFiando] = useState(false)
@@ -165,19 +217,11 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, onPagar }: {
   const [efectivoTxt, setEfectivoTxt] = useState('')
   const pagado = useRef(false) // un doble toque en Nequi no puede registrar dos ventas
 
-  const pagar = (m: Metodo, fiado?: { cliente: string; telefono: string }, enEfectivo?: number) => {
+  const pagar = (m: Metodo, fiado?: { cliente: string; telefono: string }, enEfectivo?: number, foto?: File) => {
     if (pagado.current) return
     pagado.current = true
     vibrar()
-    // Si mezcló sabores, el total del combo se reparte entre las líneas (la API guarda una venta por sabor)
-    const sinCobro = m === 'REGALO' || m === 'CONSUMO' // el servidor pone lo que vale: un regalo nada, un consumo lo que se descuenta
-    const partes = sinCobro ? lineas.map(() => 0) : repartirTotal(lineas, total)
-    // Pago dividido: lo pagado en efectivo se reparte igual entre las líneas, el resto de cada una es Nequi
-    const efectivos = m === 'MIXTO' && enEfectivo !== undefined ? repartirEfectivo(partes, enEfectivo) : []
-    onPagar(m, lineas.map((l, i) => ({
-      p: l.p, cantidad: l.cantidad, total: m === 'REGALO' ? 0 : m === 'CONSUMO' ? undefined : promo && partes[i] < l.p.precio * l.cantidad ? partes[i] : undefined,
-      efectivo: m === 'MIXTO' ? efectivos[i] : undefined,
-    })), fiado)
+    onPagar(m, cobrarLineas(lineas, m, promo ? [promo] : [], enEfectivo), fiado, foto)
   }
 
   // Con carga armada manda lo que llevas en la mano; si no, el inventario de la casa
@@ -206,6 +250,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, onPagar }: {
         {pesos(total)}
         {promo && total < normal && <small>promo {nombrePromo(promo, pesos)}</small>}
       </div>
+      {tarifas && <p className="ganas-venta">Con esta venta ganas <b>{pesos(ganasCon(tarifas, cobrarLineas(lineas, 'EFECTIVO', promo ? [promo] : [])))}</b></p>}
       <p className={'panel-sub' + (disponible - cantidad < 0 ? ' aviso' : '')}>
         {unidades > cantidad ? unidades + ' unidades · ' : ''}{
           disponible <= 0
@@ -308,6 +353,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, onPagar }: {
             <button className="big nequi" onClick={() => pagar('NEQUI')}>Nequi</button>
             <button className="big cash" onClick={() => pagar('EFECTIVO')}>Efectivo</button>
           </div>
+          <BotonFoto camara onFoto={f => pagar('NEQUI', undefined, undefined, f)}>📷 Nequi con foto del comprobante</BotonFoto>
           <button type="button" className="link fiado-boton" onClick={() => setMixto(true)}>Pagó mitad y mitad (efectivo + Nequi)</button>
           {!trabajador && perfil.fiados && <button type="button" className="link fiado-boton" onClick={() => setFiando(true)}>Fiado (paga después)</button>}
           {!trabajador && <button type="button" className="link fiado-boton" onClick={() => pagar('REGALO')}>🎁 Regalo (sello de fidelidad)</button>}
@@ -320,4 +366,102 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, onPagar }: {
       )}
     </>
   )
+}
+
+/**
+ * Lo que va en "Varios a la vez": una fila por sabor (tocarla quita uno), el total con la promo si aplica y los botones
+ * para cobrar todo junto. Si pagaron unos en efectivo y otros por Nequi, «Mitad y mitad» pregunta cuánto fue en efectivo.
+ */
+function Bandeja({ productos, bandeja, promos, trabajador, tarifas, onQuitar, onVaciar, onCobrar }: {
+  tarifas: TarifasDia | null
+  productos: Producto[]
+  bandeja: Record<number, number>
+  promos: Promo[]
+  trabajador: boolean
+  onQuitar: (p: Producto) => void
+  onVaciar: () => void
+  onCobrar: (lineas: Linea[], metodo: Metodo) => void
+}) {
+  const [mixto, setMixto] = useState(false)
+  const [efectivoTxt, setEfectivoTxt] = useState('')
+  const cobrando = useRef(false) // un doble toque no puede registrar dos veces lo mismo
+  const lineas = productos.filter(p => bandeja[p.id]).map(p => ({ p, cantidad: bandeja[p.id] }))
+  const unidades = lineas.reduce((a, l) => a + l.cantidad, 0)
+  const normal = lineas.reduce((a, l) => a + l.p.precio * l.cantidad, 0)
+  const total = totalConPromos(promos, lineas)
+  const enEfectivo = aEntero(efectivoTxt)
+  const mixtoValido = enEfectivo > 0 && enEfectivo < total
+
+  const cobrar = (m: Metodo, efectivo?: number) => {
+    if (cobrando.current || !lineas.length) return
+    cobrando.current = true
+    vibrar()
+    onCobrar(cobrarLineas(lineas, m, promos, efectivo), m)
+    setMixto(false)
+    setEfectivoTxt('')
+    window.setTimeout(() => { cobrando.current = false }, 400)
+  }
+
+  return (
+    <>
+      <div style={{ height: lineas.length ? 210 : 70 }} aria-hidden="true" />
+      <div className="bandeja" role="region" aria-label="Varios a la vez">
+        {lineas.length ? (
+          <>
+            <div className="bandeja-items">
+              {lineas.map(l => (
+                <button type="button" key={l.p.id} onClick={() => onQuitar(l.p)} aria-label={'Quitar un ' + l.p.nombre}>
+                  {l.cantidad}× {l.p.sabor} <span aria-hidden="true">−</span>
+                </button>
+              ))}
+            </div>
+            <div className="bandeja-total">
+              <b>{unidades} · {pesos(total)}</b>
+              {total < normal && <small>con promo · ahorran {pesos(normal - total)}</small>}
+              {tarifas && <small>· ganas {pesos(ganasCon(tarifas, cobrarLineas(lineas, 'EFECTIVO', promos)))}</small>}
+              <button type="button" className="link" onClick={onVaciar}>Vaciar</button>
+            </div>
+            <div className="pay">
+              <button className="big nequi" onClick={() => cobrar('NEQUI')}>Nequi</button>
+              <button className="big cash" onClick={() => cobrar('EFECTIVO')}>Efectivo</button>
+            </div>
+            <button type="button" className="link fiado-boton" onClick={() => setMixto(true)}>Unos en efectivo y otros por Nequi</button>
+          </>
+        ) : (
+          <p className="mut" style={{ margin: 0, textAlign: 'center' }}>
+            Toca un sabor por cada granizado que vendiste{trabajador ? '' : ' (o vendiste en el rato)'}. Al final cobras todo junto.
+          </p>
+        )}
+      </div>
+      <Sheet abierto={mixto} onCerrar={() => setMixto(false)}>
+        <form className="fiado-form" onSubmit={e => { e.preventDefault(); if (mixtoValido) cobrar('MIXTO', enEfectivo) }}>
+          <h2>{unidades} por {pesos(total)}</h2>
+          <div className="campo">
+            <label htmlFor="bandeja-efectivo">¿Cuánto te pagaron en efectivo en total?</label>
+            <CampoNumero id="bandeja-efectivo" miles autoFocus value={efectivoTxt} onCambio={setEfectivoTxt} placeholder="Ej. 12.000" />
+          </div>
+          <p className={enEfectivo >= total && enEfectivo > 0 ? 'aviso' : 'mut'}>
+            {enEfectivo <= 0
+              ? 'Lo que falte se cuenta como Nequi'
+              : enEfectivo >= total
+                ? 'Tiene que ser menos de ' + pesos(total) + ' (si todo fue en efectivo usa Efectivo)'
+                : 'Efectivo ' + pesos(enEfectivo) + ' + Nequi ' + pesos(total - enEfectivo)}
+          </p>
+          <button className="big primario" type="submit" disabled={!mixtoValido}>Cobrar {pesos(total)}</button>
+          <button className="big ghost" type="button" onClick={() => setMixto(false)}>Cancelar</button>
+        </form>
+      </Sheet>
+    </>
+  )
+}
+
+/** Lo que gana el trabajador con esas líneas: su tarifa (la de promo si se cobró por debajo del precio) o su %. */
+function ganasCon(t: TarifasDia, lineas: LineaCobrada[]): number {
+  return lineas.reduce((a, l) => {
+    const cobrado = l.total ?? l.p.precio * l.cantidad
+    if (t.porcentaje !== null) return a + Math.floor(cobrado * t.porcentaje / 100)
+    const tarifa = l.p.tipo === 'CREMOSO' ? t.cremoso : l.p.tipo === 'GRANDE' ? t.grande : l.p.tipo === 'CERVEZA' ? t.cerveza : t.normal
+    const enPromo = cobrado < l.p.precio * l.cantidad && t.promo > 0
+    return a + (enPromo ? t.promo : tarifa) * l.cantidad
+  }, 0)
 }

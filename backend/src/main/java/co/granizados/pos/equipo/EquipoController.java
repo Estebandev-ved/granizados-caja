@@ -59,7 +59,39 @@ public class EquipoController {
     /** "Ya le pagué": guarda el pago y reinicia sus cuentas. */
     @PostMapping("/{id}/pagos")
     public EquipoService.PagoDto pagar(@PathVariable Long id, @Valid @RequestBody EquipoService.NuevoPago nuevo) {
-        return servicio.pagar(id, nuevo.metodo(), nuevo.monto(), nuevo.montoEfectivo(), Boolean.TRUE.equals(nuevo.quedaDebiendo()));
+        return servicio.pagar(id, nuevo.metodo(), nuevo.monto(), nuevo.montoEfectivo(), Boolean.TRUE.equals(nuevo.quedaDebiendo()),
+                nuevo.lugarEfectivo());
+    }
+
+    /** «Le presté plata»: sale de Mi plata y se le descuenta en el próximo pago. */
+    @PostMapping("/{id}/prestamos")
+    public EquipoService.PrestamoDto prestar(@PathVariable Long id, @Valid @RequestBody EquipoService.NuevoPrestamo nuevo) {
+        return servicio.prestar(id, nuevo);
+    }
+
+    /** Borra un préstamo anotado por error (solo si todavía no se le descontó). */
+    @org.springframework.web.bind.annotation.DeleteMapping("/prestamos/{prestamoId}")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void quitarPrestamo(@PathVariable Long prestamoId) {
+        servicio.quitarPrestamo(prestamoId);
+    }
+
+    /** Faltaron granizados de su carga al cuadrar: se le descuentan al precio de venta. */
+    @PostMapping("/{id}/faltantes")
+    public EquipoService.FilaCarga faltante(@PathVariable Long id, @Valid @RequestBody EquipoService.NuevoFaltante nuevo) {
+        return servicio.anotarFaltante(id, nuevo);
+    }
+
+    /** Lo que dicen las ventas de las últimas semanas para armar premios que convengan (Ajustes → Equipo). */
+    @GetMapping("/premios/datos")
+    public EquipoService.DatosPremios datosPremios() {
+        return servicio.datosPremios();
+    }
+
+    /** Para Reportes: por trabajador, lo de cada día, sus pagos y sus préstamos en el rango. */
+    @GetMapping("/historial")
+    public List<EquipoService.Historial> historial(@RequestParam LocalDate desde, @RequestParam LocalDate hasta) {
+        return servicio.historial(desde, hasta);
     }
 
     /** Plata de la caja que le pasas para dar vueltos (se la devuelve al cerrar). */

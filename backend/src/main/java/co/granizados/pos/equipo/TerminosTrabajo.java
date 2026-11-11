@@ -63,17 +63,25 @@ final class TerminosTrabajo {
 
         secciones.add(new Seccion("El efectivo y el producto", List.of(
                 "Cuenta lo que te entregan cuando lo recibes.",
+                "Cuando te paguen por Nequi o por transferencia, toma la foto del comprobante en la app al anotar la venta.",
                 "Al terminar tocas \"Terminé mi día\" y entregas el efectivo que te muestra la app. El Nequi entra directo a la cuenta del negocio.",
-                "Si algo falta o se daña, se habla contigo y se revisa con calma.")));
+                "Al final se cuadran las cuentas: lo que te entregaron, lo que vendiste, lo que te tomaste y lo que devuelves.",
+                "Si las cuentas no dan, lo revisamos juntos con calma para ver qué pudo pasar.",
+                "Si falta producto y no hay cómo explicarlo, cada granizado que falte se te descuenta de tu pago al precio de venta"
+                        + " (no al precio al que lo compramos).")));
+
+        secciones.add(new Seccion("Préstamos", List.of(
+                "Si te prestamos plata (un adelanto), queda anotado en la app con la fecha y el monto.",
+                "Se te descuenta de tu próximo pago. Lo ves en Mi día mientras esté pendiente.")));
 
         int gratis = numero(cfg.get("GRANIZADOS_GRATIS"), 1);
         List<String> tuyo = new ArrayList<>();
         if (gratis > 0) {
             tuyo.add("Te lo ganaste: puedes tomarte " + (gratis == 1 ? "1 granizado" : gratis + " granizados")
                     + " por día de trabajo, sin costo.");
-            tuyo.add("Del siguiente en adelante se cobra al precio de venta. Se anota y se descuenta al hacer cuentas.");
+            tuyo.add("Del siguiente en adelante se cobra al precio de venta. Lo anotas en la app con \"Me lo tomo yo\" y se descuenta de tu pago.");
         } else {
-            tuyo.add("Los granizados del puesto son para vender. Si te tomas uno, se cobra al precio de venta y se descuenta al hacer cuentas.");
+            tuyo.add("Los granizados del puesto son para vender. Si te tomas uno, lo anotas con \"Me lo tomo yo\": se cobra al precio de venta y se descuenta de tu pago.");
         }
         secciones.add(new Seccion("Tu granizado", tuyo));
 

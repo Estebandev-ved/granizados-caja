@@ -771,7 +771,7 @@ class EquipoTest extends PruebaIntegracion {
         var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
         mvc.perform(con(entrar("1111"), post("/api/ventas")).content(venta("a-1", "EFECTIVO", 2, ""))).andExpect(status().isOk());
 
-        var abono = equipo.pagar(juan.id(), PagoVendedor.Metodo.EFECTIVO, 1000L, null, true);
+        var abono = equipo.pagar(juan.id(), PagoVendedor.Metodo.EFECTIVO, 1000L, null, true, null);
         assertThat(abono.saldo()).isEqualTo(200);
         assertThat(abono.texto()).contains("queda pendiente un saldo de $200").doesNotContain("no se me debe");
 

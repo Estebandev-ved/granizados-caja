@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { Icono } from '../componentes/Icono'
 import { ComparaSemanas } from '../componentes/ComparaSemanas'
+import { HistorialEquipo } from '../componentes/HistorialEquipo'
+import { usePerfil } from '../perfil'
 import { MiPlata } from '../componentes/MiPlata'
 import { Personaje } from '../componentes/Personaje'
 import { diaBogota } from '../estadoLocal'
@@ -15,6 +17,7 @@ interface Props {
 }
 
 export function Reportes({ avisar }: Props) {
+  const perfil = usePerfil()
   const [periodo, setPeriodo] = useState<Periodo>('semana')
   const [propios, setPropios] = useState(() => {
     const hoy = diaBogota()
@@ -227,6 +230,8 @@ export function Reportes({ avisar }: Props) {
               </ul>
             </section>
           )}
+
+          {perfil.equipo && <HistorialEquipo desde={desde} hasta={hasta} />}
 
           <button className="big ghost" onClick={exportar}>Descargar CSV</button>
         </>

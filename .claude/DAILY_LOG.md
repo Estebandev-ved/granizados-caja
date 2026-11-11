@@ -40,6 +40,29 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-11 (noche)
+- **El trabajador sabe cuánto gana:** en Vender, «Con esta venta ganas $X» (con la tarifa de promo cuando aplica) y en Mi día «Lo que ganas por granizado», con aviso de que en promo cada uno deja menos y los premios bajan.
+- **Premios inteligentes (Ajustes → Equipo):** con las ventas de las últimas 4 semanas la app calcula cuánto vende un trabajador en un día normal y cuánto te deja cada granizado. A cada premio le dice si paga un día normal, si te hace perder, si se lleva casi todo lo extra o si les sirve a los dos. Sugiere premios donde él se lleva el 35 % de lo que vende de más («Usar estos» y luego Guardar).
+- **Meta del día del trabajador (migración V34):** al entrar a Vender le pregunta cuántos se siente capaz de vender, con lo que ganaría en cada opción; al cumplirla, «¿Vas por más?». La cuenta nunca vuelve a cero. El dueño ve la meta en Equipo.
+- Pruebas: backend 224, frontend 116. Probado en la app local con un trabajador de prueba (y el análisis con números de ejemplo, porque la base local casi no tiene ventas del equipo).
+- **Pendiente:** con los premios de hoy (12:$2.500, 15:$4.000, 20:$8.000…) y un día normal de unos 16, los de 12 y 15 pagan sin que venda más. Revisarlo en Ajustes → Equipo con las ventas reales antes de subirle los bonos.
+
+### 2026-11-11 (tarde)
+- **Varias promos a la vez:** «3 refrescantes x $16.000» y «2 cremosos x $14.000» pueden correr juntas (hasta 3), cada una con su nombre, sus tipos y sus días. En una misma compra cada una arma sus combos.
+- **¿Me sale rentable?:** al crear o editar una promo, la app calcula por combo lo que cobras, lo que te cuesta el producto, lo que le pagas al trabajador y lo que te queda, y dice si te sale rentable, si deja muy poquito o si pierdes. Sugiere a cuánto cobrarla para que quede el 20 % y avisa a qué productos el combo no les hace descuento (ej. Crema de whisky cremoso está en $6.000, así que 2 x $14.000 no le aplica).
+- **Seguimiento de gastos (migración V33):** en Hoy, «Gastos del mes» con lo gastado por categoría y un tope para cada una. Avisa lo que se pasó y lo que va en 80 %, con cuánto queda por día; al anotar un gasto dice cuánto llevas en esa categoría.
+- Pruebas: backend 217, frontend 110. Probado en la app local (las dos promos quedaron guardadas en la base local).
+
+### 2026-11-11
+- **«Ya le pagué» resta de Mi plata** (migración V32), solo los pagos de hoy en adelante: el efectivo sale de la caja o de la casa (se escoge al pagar) y lo de Nequi, de Nequi. Aparece en Movimientos. No toca la ganancia.
+- **Préstamos al trabajador:** Equipo → «Le presté plata» (cuánto, de dónde y para qué). Sale de Mi plata y se le descuenta solo en el próximo pago (sale en el paz y salvo); él lo ve en Mi día.
+- **Faltantes:** si las cuentas no dan y no hay explicación, Equipo → «Le faltaron granizados»: se le descuentan al **precio de venta** (no al costo). Los términos ahora lo dicen (cuadrar, revisar juntos, descuento al precio de venta), más préstamos y foto del comprobante; los trabajadores tienen que aceptarlos otra vez.
+- **Foto del comprobante:** en Vender, «📷 Nequi con foto del comprobante» abre la cámara y anota la venta con la foto. También se agrega o se ve tocando la venta en Mi día o Hoy (📎). Sin señal espera en el celular. Se borran solas a los 30 días (traen el nombre del cliente).
+- **Varios a la vez:** botón en Vender para cuando llega mucha gente: un toque por cada granizado y se cobra todo junto (efectivo, Nequi o parte y parte), con la promo bien repartida.
+- **Historial del equipo en Reportes:** por trabajador, vendido, días, comisión, premios, lo que se tomó, faltantes, pagos y préstamos, día por día.
+- Pruebas: backend 214, frontend 102. Probado en la app local (venta rápida con promo y pago mixto, faltante, préstamo, foto) y luego se borraron los datos de prueba.
+- **Falta probar en el iPhone real:** que la cámara abra con «Nequi con foto» en Safari 16 y que la foto se vea bien.
+
 ### 2026-11-09 (tarde)
 - **«Me lo tomo yo»** (migración V31, método `CONSUMO`): el trabajador toca el sabor en Vender y luego «Me lo tomo yo». El del día sale gratis (`GRANIZADOS_GRATIS`) y del siguiente en adelante se le descuenta al precio de venta de lo que se le paga: lo ve en Mi día (los que se tomó, cuánto se descuenta, «me tomé» en la carga) y al cerrar el día; el dueño lo ve en Equipo («Por pagarle» ya viene con el descuento, o «Te debe» si se tomó más de lo que ganó), en «Ya le pagué», en el paz y salvo, en Ventas de hoy y por Telegram. No cuenta como venta ni para premios, no entra plata y baja la carga y el inventario. Se borra como cualquier venta (si borra el gratis, el siguiente pasa a ser el gratis).
 - Pruebas: backend 199, frontend 100. Probado en la app local con un trabajador de prueba (quedó desactivado en la base local: «Prueba consumo»).

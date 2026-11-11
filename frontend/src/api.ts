@@ -2,7 +2,7 @@ import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequest
 import type {
   BaseVueltos, CategoriaGasto, CierreTurno, EntregaEquipo, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
-  TipoMovimiento,
+  TipoMovimiento, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -106,6 +106,21 @@ async function pedir<T>(metodo: string, ruta: string, cuerpo?: unknown): Promise
   return (texto ? JSON.parse(texto) : null) as T
 }
 
+/** Mismo token, pero el cuerpo es binario (la foto de un comprobante). */
+async function pedirBlob(ruta: string): Promise<Blob> {
+  const headers: Record<string, string> = {}
+  const token = sesion.token
+  if (token) headers.Authorization = 'Bearer ' + token
+  const r = await fetch(BASE + ruta, { headers })
+  if (r.status === 401) sesion.cerrar()
+  if (!r.ok) {
+    let mensaje = 'Error ' + r.status
+    try { mensaje = (await r.json()).error ?? mensaje } catch { /* sin cuerpo */ }
+    throw new ApiError(r.status, mensaje)
+  }
+  return r.blob()
+}
+
 /** Mismo token, pero el cuerpo es texto (el CSV de los reportes). */
 async function pedirTexto(ruta: string): Promise<string> {
   const headers: Record<string, string> = {}
@@ -154,7 +169,7 @@ type RespuestaMovimiento = { clientUid: string; estado: string; error: string | 
 type GastoApi = { clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; creadoEn: string; lugar?: LugarPlata }
 
 /** «Ya le pagué»: `montoEfectivo` solo con MIXTO; `quedaDebiendo` deja pendiente lo que falte. */
-export type DatosPagoEquipo = { metodo: MetodoPagoEquipo; monto: number; montoEfectivo?: number; quedaDebiendo: boolean }
+export type DatosPagoEquipo = { metodo: MetodoPagoEquipo; monto: number; montoEfectivo?: number; quedaDebiendo: boolean; lugarEfectivo?: LugarPlata }
 type ArqueoApi = { clientUid: string; contado: number; nota: string | null; creadoEn: string; casa?: number; nequi?: number }
 
 export const api = {
@@ -183,6 +198,20 @@ export const api = {
   pagarTrabajador: (id: number, pago: DatosPagoEquipo) =>
     pedir<PagoEquipo>('POST', '/api/equipo/' + id + '/pagos', pago),
   anularPagoTrabajador: (pagoId: number) => pedir<PagoEquipo>('POST', '/api/equipo/pagos/' + pagoId + '/anular'),
+  prestar: (id: number, d: { monto: number; lugar: LugarPlata; nota?: string }) =>
+    pedir<PrestamoEquipo>('POST', '/api/equipo/' + id + '/prestamos', d),
+  quitarPrestamo: (prestamoId: number) => pedir<void>('DELETE', '/api/equipo/prestamos/' + prestamoId),
+  anotarFaltante: (id: number, productoId: number, cantidad: number) =>
+    pedir<FilaCargaEquipo>('POST', '/api/equipo/' + id + '/faltantes', { productoId, cantidad }),
+  historialEquipo: (desde: string, hasta: string) =>
+    pedir<HistorialTrabajador[]>('GET', '/api/equipo/historial?desde=' + desde + '&hasta=' + hasta),
+  misPrestamos: () => pedir<PrestamoEquipo[]>('GET', '/api/mi-turno/prestamos'),
+  ponerMeta: (meta: number) => pedir<PremiosDia>('POST', '/api/mi-turno/meta', { meta }),
+  datosPremios: () => pedir<DatosPremios>('GET', '/api/equipo/premios/datos'),
+  /** La foto del comprobante de una venta, como data URL ya comprimido. */
+  subirComprobante: (ventaUid: string, imagen: string) => pedir<void>('POST', '/api/comprobantes', { ventaUid, imagen }),
+  /** La foto como Blob (se pide con el token, así que no sirve un <img src> directo). */
+  verComprobante: (ventaUid: string) => pedirBlob('/api/comprobantes/' + encodeURIComponent(ventaUid)),
   /** El trabajador: sus pagos recientes y su respuesta a "¿te pagaron?". */
   misPagos: () => pedir<PagoEquipo[]>('GET', '/api/mi-turno/pagos'),
   responderPago: (id: number, recibido: boolean, firma?: string) =>

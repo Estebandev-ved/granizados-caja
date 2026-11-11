@@ -11,11 +11,13 @@ import { pesos } from '../formato'
 import { PagoPreferido } from '../componentes/PagoPreferido'
 import { NOMBRE_PAGO } from '../pagos'
 import { TerminosTrabajo } from '../componentes/TerminosTrabajo'
-import type { CierreTurno, Estado, FrecuenciaPago, PagoEquipo, Terminos, VentaReciente } from '../tipos'
+import { ComprobanteDeVenta, useComprobantesPendientes } from '../componentes/FotoComprobante'
+import type { CierreTurno, Estado, FrecuenciaPago, PagoEquipo, PrestamoEquipo, Terminos, VentaReciente } from '../tipos'
 
 /** El día de un trabajador: lo suyo y nada más (sin costos, ganancia ni lo de los demás). */
-export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
+export function MiDia({ estado, pago, onElegirPago, onDeshacer, avisar }: {
   estado: Estado
+  avisar: (m: string) => void
   pago: FrecuenciaPago | null
   onElegirPago: (f: FrecuenciaPago) => Promise<void>
   onDeshacer: (v: VentaReciente) => Promise<void>
@@ -34,12 +36,17 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
   const pagoPendiente = pagos.find(p => p.estado === 'PENDIENTE') ?? null
   const consumidos = premios?.consumidos ?? 0
   const descuento = premios?.descuento ?? 0
-  const ganado = premios ? premios.comision + premios.premio - descuento : 0
+  const faltantes = premios?.faltantes ?? 0
+  const ganado = premios ? premios.comision + premios.premio - descuento - faltantes : 0
+  const [prestamos, setPrestamos] = useState<PrestamoEquipo[]>([])
+  const prestado = prestamos.reduce((a, p) => a + p.monto, 0)
+  const fotosEsperando = useComprobantesPendientes()
 
   useEffect(() => {
     let vivo = true
     api.miBase().then(b => { if (vivo) setBase(b.total) }).catch(() => { /* se vuelve a pedir al abrir */ })
     api.misPagos().then(l => { if (vivo) setPagos(l) }).catch(() => { /* sin señal: se vuelve a pedir al abrir */ })
+    api.misPrestamos().then(l => { if (vivo) setPrestamos(l) }).catch(() => { /* sin señal */ })
     return () => { vivo = false }
   }, [])
 
@@ -110,10 +117,47 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
           {descuento > 0 && (
             <div className="row"><span>{consumidos === 1 ? 'El que te tomaste' : 'Los que te tomaste'}</span><b>−{pesos(descuento)}</b></div>
           )}
+          {faltantes > 0 && (
+            <div className="row"><span>Faltaron en tu carga</span><b>−{pesos(faltantes)}</b></div>
+          )}
           <div className="row"><span><b>{ganado < 0 ? 'Quedas debiendo' : 'Total ganado'}</b></span><b>{pesos(Math.abs(ganado))}</b></div>
           {premios.diaPromo && premios.escalones.length > 0 && (
             <p className="mut" style={{ margin: '6px 0 0' }}>
               Hoy es día de promo: se vende más barato, así que los premios son un poco menores que en un día normal.
+            </p>
+          )}
+        </div>
+      )}
+
+      {prestado > 0 && (
+        <div className="pago-pendiente base-vueltos">
+          <span>
+            Te prestaron {pesos(prestado)}{prestamos.length > 1 ? ' (' + prestamos.length + ' veces)' : prestamos[0]?.nota ? ' · ' + prestamos[0].nota : ''}.
+            {' '}Se te descuenta de tu próximo pago.
+          </span>
+        </div>
+      )}
+
+      {premios?.tarifas && (
+        <div className="list">
+          <h3><Icono nombre="vaso" /> Lo que ganas por granizado</h3>
+          {premios.tarifas.porcentaje !== null ? (
+            <p className="mut" style={{ margin: 0 }}>Ganas el {premios.tarifas.porcentaje}% de lo que vendes.</p>
+          ) : (
+            <>
+              <div className="row"><span>Normal</span><b>{pesos(premios.tarifas.normal)}</b></div>
+              {premios.tarifas.cremoso > 0 && <div className="row"><span>Cremoso</span><b>{pesos(premios.tarifas.cremoso)}</b></div>}
+              {premios.tarifas.grande > 0 && <div className="row"><span>Grande</span><b>{pesos(premios.tarifas.grande)}</b></div>}
+              {premios.tarifas.cerveza > 0 && <div className="row"><span>Cerveza</span><b>{pesos(premios.tarifas.cerveza)}</b></div>}
+              {premios.tarifas.promo > 0 && <div className="row"><span>Vendido en promo (cualquiera)</span><b>{pesos(premios.tarifas.promo)}</b></div>}
+            </>
+          )}
+          {(premios.tarifas.promo > 0 || premios.tarifas.rebajaPromo > 0) && (
+            <p className={premios.diaPromo ? 'aviso' : 'mut'} style={{ margin: '6px 0 0' }}>
+              {premios.diaPromo ? 'Hoy hay promo: ' : 'Los días de promo '}
+              {premios.tarifas.porcentaje === null && premios.tarifas.promo > 0 ? 'cada granizado que vendas en promo te deja ' + pesos(premios.tarifas.promo) : 'el granizado sale más barato'}
+              {premios.tarifas.rebajaPromo > 0 ? ' y los premios bajan ' + pesos(premios.tarifas.rebajaPromo) : ''}
+              . Los que vendas sueltos te dejan lo normal.
             </p>
           )}
         </div>
@@ -181,17 +225,20 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
       {estado.ultimas.length ? (
         <div className="list">
           <h3><Icono nombre="reloj" /> Mis ventas de hoy</h3>
-          <p className="mut" style={{ margin: '0 0 6px' }}>Toca una para borrarla si te equivocaste.</p>
+          <p className="mut" style={{ margin: '0 0 6px' }}>Toca una para agregarle la foto del comprobante o borrarla si te equivocaste.</p>
           {estado.ultimas.map(u => (
             <button type="button" className="pago-fila" key={u.clientUid} onClick={() => setBorrar(u)}>
               <span className={'pago-avatar ' + (u.metodo === 'EFECTIVO' ? 'e' : 'n')}>
                 <Icono nombre={u.metodo === 'EFECTIVO' ? 'billete' : 'celular'} />
               </span>
               <div className="pago-info">
-                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : u.metodo === 'CONSUMO' ? 'Me lo tomé yo 🥤' : 'Nequi'}</b>
-                <span className="mut">{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}</span>
+                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : u.metodo === 'CONSUMO' ? 'Me lo tomé yo 🥤' : u.metodo === 'FALTANTE' ? 'Faltó en tu carga' : 'Nequi'}</b>
+                <span className="mut">
+                  {u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}
+                  {(u.comprobante || fotosEsperando.has(u.clientUid)) && <span title="Tiene foto del comprobante"> · 📎</span>}
+                </span>
               </div>
-              <b>{u.metodo === 'CONSUMO' ? ((u.cargo ?? 0) > 0 ? '−' + pesos(u.cargo ?? 0) : 'gratis') : pesos(u.total)}</b>
+              <b>{u.metodo === 'CONSUMO' || u.metodo === 'FALTANTE' ? ((u.cargo ?? 0) > 0 ? '−' + pesos(u.cargo ?? 0) : 'gratis') : pesos(u.total)}</b>
             </button>
           ))}
         </div>
@@ -231,6 +278,9 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
               Vendiste {cierre.unidades}: {pesos(cierre.comision)} de comisión
               {cierre.bonos > 0 && <> y {pesos(cierre.bonos)} de premio por la meta</>}.
             </p>
+            {(cierre.faltantes ?? 0) > 0 && (
+              <p>Faltaron granizados en tu carga: se te descuentan {pesos(cierre.faltantes ?? 0)} al precio de venta, que ya van dentro de lo que entregas.</p>
+            )}
             {(cierre.consumidos ?? 0) > 0 && (
               <p>
                 Te tomaste {cierre.consumidos}: {(cierre.consumos ?? 0) > 0
@@ -260,12 +310,29 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer }: {
       <Sheet abierto={!!borrar} onCerrar={() => setBorrar(null)}>
         {borrar && (
           <>
-            <h2>{borrar.metodo === 'CONSUMO' ? '¿Borrar el que te tomaste?' : '¿Borrar esta venta?'}</h2>
-            <p>{borrar.sabor} · {borrar.metodo === 'CONSUMO' ? 'vuelve a tu carga' : pesos(borrar.total)} · {borrar.hora}</p>
-            <div className="acciones">
-              <button className="big peligro" onClick={() => { void onDeshacer(borrar); setBorrar(null) }}>Sí, borrar</button>
-              <button className="big ghost" onClick={() => setBorrar(null)}>No</button>
-            </div>
+            {borrar.metodo === 'FALTANTE' ? (
+              <>
+                <h2>Faltó en tu carga</h2>
+                <p>{borrar.sabor} · se te descuentan {pesos(borrar.cargo ?? 0)} al precio de venta · {borrar.hora}</p>
+                <p className="mut">Lo anotó el dueño al cuadrar las cuentas. Si crees que es un error, háblalo con él.</p>
+                <div className="acciones"><button className="big ghost" onClick={() => setBorrar(null)}>Listo</button></div>
+              </>
+            ) : (
+              <>
+                <h2>{borrar.metodo === 'CONSUMO' ? 'El que te tomaste' : 'Tu venta'}</h2>
+                <p>{borrar.sabor} · {borrar.metodo === 'CONSUMO' ? 'salió de tu carga' : pesos(borrar.total)} · {borrar.hora}</p>
+                {(borrar.metodo === 'NEQUI' || borrar.metodo === 'MIXTO') && (
+                  <ComprobanteDeVenta ventaUid={borrar.clientUid} tiene={!!borrar.comprobante}
+                    esperando={fotosEsperando.has(borrar.clientUid)} avisar={avisar} />
+                )}
+                <div className="acciones">
+                  <button className="big peligro" onClick={() => { void onDeshacer(borrar); setBorrar(null) }}>
+                    {borrar.metodo === 'CONSUMO' ? 'Borrarlo (vuelve a tu carga)' : 'Borrar esta venta'}
+                  </button>
+                  <button className="big ghost" onClick={() => setBorrar(null)}>Cerrar</button>
+                </div>
+              </>
+            )}
           </>
         )}
       </Sheet>

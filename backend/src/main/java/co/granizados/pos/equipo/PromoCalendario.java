@@ -5,8 +5,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * ¿Está corriendo la promoción en un día? Lee el JSON que guarda Ajustes (ajuste PROMO) con la misma regla del celular:
- * con días de la semana manda el calendario; si no, "solo hoy" (el día en que se prendió) o hasta que se apague.
+ * ¿Está corriendo alguna promoción en un día? Lee el JSON que guarda Ajustes (ajuste PROMO: una promo o una lista de
+ * promos) con la misma regla del celular: con días de la semana manda el calendario; si no, "solo hoy" (el día en que
+ * se prendió) o hasta que se apague.
  */
 final class PromoCalendario {
 
@@ -18,8 +19,20 @@ final class PromoCalendario {
     private PromoCalendario() {
     }
 
+    /** Cada promo es un objeto plano (sin objetos adentro): basta con partir el texto por llaves. */
+    private static final Pattern OBJETO = Pattern.compile("\\{[^{}]*\\}");
+
     static boolean vigente(String json, LocalDate dia) {
-        if (json == null || json.isBlank() || !ACTIVA.matcher(json).find()) return false;
+        if (json == null || json.isBlank()) return false;
+        Matcher objetos = OBJETO.matcher(json);
+        while (objetos.find()) {
+            if (vigenteUna(objetos.group(), dia)) return true;
+        }
+        return false;
+    }
+
+    private static boolean vigenteUna(String json, LocalDate dia) {
+        if (!ACTIVA.matcher(json).find()) return false;
         Matcher dias = DIAS.matcher(json);
         if (dias.find() && !dias.group(1).isBlank()) {
             for (String d : dias.group(1).split(",")) {

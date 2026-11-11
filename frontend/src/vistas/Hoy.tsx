@@ -8,11 +8,14 @@ import { usePerfil } from '../perfil'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { hitoDeRacha } from '../ritmo'
 import { ConsejoNova } from '../componentes/ConsejoNova'
+import { ComprobanteDeVenta, useComprobantesPendientes } from '../componentes/FotoComprobante'
+import { GastosDelMes } from '../componentes/GastosDelMes'
+import { avanceDe, avisoAlGastar, leerTopes, type Topes } from '../topes'
 import { Personaje } from '../componentes/Personaje'
 import { Sheet } from '../componentes/Sheet'
 import { pesos, vibrar } from '../formato'
 import { diaBogota } from '../estadoLocal'
-import { DIAS_ATRAS_GASTO, LUGAR_GASTO, MAX_CATEGORIA, categoriaEscrita, categoriasParaElegir, fechaCorta, mediodiaDe, restarDias } from '../reportes'
+import { CATEGORIA_TEXTO, DIAS_ATRAS_GASTO, LUGAR_GASTO, MAX_CATEGORIA, categoriaEscrita, categoriasParaElegir, fechaCorta, mediodiaDe, restarDias } from '../reportes'
 import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, Negocio, PedidoSugerido, RecomendacionCompra, SaldoPlata, VentaReciente } from '../tipos'
 
 interface Props {
@@ -33,6 +36,7 @@ type Panel =
   | { tipo: 'cierre'; contado: string; casa: string; nequi: string; nota: string; cargando: boolean; guardado: ArqueoHoy | null; sinSenal: boolean; saldo: SaldoPlata | null }
 
 export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGasto, onCerrarCaja, avisar }: Props) {
+  const fotosEsperando = useComprobantesPendientes()
   const perfil = usePerfil()
   const [panel, setPanel] = useState<Panel | null>(null)
   const [verTodas, setVerTodas] = useState(false)
@@ -194,10 +198,13 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
                 <Icono nombre={u.metodo === 'EFECTIVO' ? 'billete' : 'celular'} />
               </span>
               <div className="pago-info">
-                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : u.metodo === 'REGALO' ? 'Regalo 🎁' : u.metodo === 'CONSUMO' ? 'Se lo tomó el trabajador 🥤' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : 'Nequi'}</b>
-                <span className="mut">{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}</span>
+                <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : u.metodo === 'REGALO' ? 'Regalo 🎁' : u.metodo === 'CONSUMO' ? 'Se lo tomó el trabajador 🥤' : u.metodo === 'FALTANTE' ? 'Faltó en la carga' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : 'Nequi'}</b>
+                <span className="mut">
+                  {u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}
+                  {(u.comprobante || fotosEsperando.has(u.clientUid)) && <span title="Tiene foto del comprobante"> · 📎</span>}
+                </span>
               </div>
-              <b>{u.metodo === 'CONSUMO' ? ((u.cargo ?? 0) > 0 ? 'le descuentas ' + pesos(u.cargo ?? 0) : 'gratis') : pesos(u.total)}</b>
+              <b>{u.metodo === 'CONSUMO' || u.metodo === 'FALTANTE' ? ((u.cargo ?? 0) > 0 ? 'le descuentas ' + pesos(u.cargo ?? 0) : 'gratis') : pesos(u.total)}</b>
             </button>
           ))}
           {estado.ultimas.length > 8 && (
@@ -207,6 +214,8 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           )}
         </div>
       ) : <div className="vacio"><Personaje nombre="sofia" />Aún no hay ventas hoy</div>}
+
+      <GastosDelMes estado={estado} avisar={avisar} onRecargar={onRecargar} />
 
       <div className="acciones">
         <button className="accion accion-pedido" onClick={() => void abrirPedido()}>
@@ -265,11 +274,16 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
           />
         )}
         {panel?.tipo === 'gasto' && (
-          <PanelGasto usadas={estado.categoriasGasto} onGuardar={(categoria, concepto, monto, lugar, dia) => {
+          <PanelGasto usadas={estado.categoriasGasto} gastosMes={estado.gastosMes ?? {}} topes={leerTopes(estado.topesGasto)}
+            onGuardar={(categoria, concepto, monto, lugar, dia) => {
             setPanel(null)
             vibrar()
             onGasto(categoria, concepto, monto, lugar, dia ? mediodiaDe(dia) : undefined)
-            avisar('✓ Gasto de ' + pesos(monto) + ' anotado' + (dia ? ' para el ' + fechaCorta(dia) : '') + ' · ' + LUGAR_GASTO[lugar].replace(/^D/, 'd'))
+            // Si el gasto es de este mes y con él la categoría llega a su tope, se avisa en vez del "anotado"
+            const delMes = !dia || dia.slice(0, 7) === diaBogota().slice(0, 7)
+            const tope = leerTopes(estado.topesGasto)[categoria] ?? 0
+            const aviso = delMes ? avisoAlGastar(avanceDe(categoria, estado.gastosMes?.[categoria] ?? 0, tope), monto) : null
+            avisar(aviso ?? '✓ Gasto de ' + pesos(monto) + ' anotado' + (dia ? ' para el ' + fechaCorta(dia) : '') + ' · ' + LUGAR_GASTO[lugar].replace(/^D/, 'd'))
           }} />
         )}
         {panel?.tipo === 'cierre' && (
@@ -286,9 +300,13 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
         )}
         {panel?.tipo === 'deshacer' && (
           <>
-            <h2>¿Borrar esta venta?</h2>
-            <p>{panel.venta.sabor} · {pesos(panel.venta.total)} · {panel.venta.hora}</p>
-            <p className="mut">El sabor vuelve al inventario y la plata sale del día.</p>
+            <h2>{panel.venta.metodo === 'FALTANTE' ? 'Faltante de la carga' : 'Esta venta'}</h2>
+            <p>{panel.venta.sabor} · {panel.venta.metodo === 'FALTANTE' ? 'le descuentas ' + pesos(panel.venta.cargo ?? 0) : pesos(panel.venta.total)} · {panel.venta.hora}</p>
+            {(panel.venta.metodo === 'NEQUI' || panel.venta.metodo === 'MIXTO') && (
+              <ComprobanteDeVenta ventaUid={panel.venta.clientUid} tiene={!!panel.venta.comprobante}
+                esperando={fotosEsperando.has(panel.venta.clientUid)} avisar={avisar} />
+            )}
+            <p className="mut">Si la borras, el sabor vuelve al inventario{panel.venta.metodo === 'FALTANTE' ? ' y ya no se le descuenta.' : ' y la plata sale del día.'}</p>
             <div className="pay">
               <button className="big ghost" onClick={() => setPanel(null)}>Cancelar</button>
               <button className="big rojo" onClick={() => { setPanel(null); void onDeshacer(panel.venta) }}>Borrar venta</button>
@@ -561,8 +579,11 @@ const LUGARES_GASTO: { valor: LugarPlata; texto: string }[] = [
  * Gasto del día: monto, categoría (las de la app, las propias que ya usó o una nueva) y de dónde salió la plata.
  * Va a la cola, así que sirve sin señal.
  */
-function PanelGasto({ usadas, onGuardar }: {
+function PanelGasto({ usadas, gastosMes, topes, onGuardar }: {
   usadas?: readonly string[] | null
+  /** Lo gastado este mes por categoría y los topes: para decirle cómo va antes de guardar. */
+  gastosMes: Record<string, number>
+  topes: Topes
   /** `dia` solo si el gasto fue otro día ("2026-11-05"); sin él, es de ahora. */
   onGuardar: (categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata, dia?: string) => void
 }) {
@@ -580,6 +601,8 @@ function PanelGasto({ usadas, onGuardar }: {
   const n = Number(monto)
   const elegida = nueva === null ? categoria : categoriaEscrita(nueva)
   const falta = !n ? 'Escribe cuánto gastaste' : !elegida ? 'Escribe el nombre de la categoría' : !lugar ? 'Escoge de dónde salió la plata' : null
+  const llevaMes = gastosMes[elegida] ?? 0
+  const topeMes = topes[elegida] ?? 0
   const guardar = () => {
     if (hecho.current || falta || !lugar) return
     hecho.current = true
@@ -638,6 +661,12 @@ function PanelGasto({ usadas, onGuardar }: {
         )}
         {dia !== hoy && <small>Cuenta para el {fechaCorta(dia)}: no le baja la ganancia a hoy.</small>}
       </div>
+      {elegida && (llevaMes > 0 || topeMes > 0) && (
+        <p className={topeMes > 0 && llevaMes + n > topeMes ? 'aviso' : 'mut'}>
+          Este mes llevas {pesos(llevaMes)} en {CATEGORIA_TEXTO[elegida] ?? elegida}
+          {topeMes > 0 && <> de {pesos(topeMes)}{llevaMes + n > topeMes ? ': con este te pasas del tope' : ''}</>}.
+        </p>
+      )}
       <div className="campo">
         <label htmlFor="gasto-concepto">Para qué (opcional)</label>
         <input id="gasto-concepto" maxLength={120} value={concepto}

@@ -11,6 +11,8 @@ import { NOMBRE_PAGO } from '../pagos'
 import { CampoNumero } from './CampoNumero'
 import { BaseVueltosPanel } from './BaseVueltosPanel'
 import { EntregasDelTrabajador } from './EntregaAlDueno'
+import { FaltantePanel } from './FaltantePanel'
+import { NOMBRE_LUGAR, PrestamosPanel } from './PrestamosPanel'
 import { Icono } from './Icono'
 import { Sheet } from './Sheet'
 import { Unidades } from './Unidades'
@@ -77,6 +79,11 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
                   {(t.entregaPendiente ?? 0) > 0 && <span className="eq-tag aviso-tag">Dice que te entregó {pesos(t.entregaPendiente ?? 0)}</span>}
                   {t.ultimoPago === 'CONFIRMADO' && <span className="eq-tag ok">Pago confirmado ✓</span>}
                   {(t.porPagar ?? 0) > 0 && <span className="eq-tag pagar">Por pagar {pesos(t.porPagar ?? 0)}</span>}
+                  {t.metaHoy != null && (
+                    <span className={'eq-tag ' + (t.unidadesHoy >= t.metaHoy ? 'ok' : '')}>
+                      Se propuso {t.metaHoy}{t.unidadesHoy >= t.metaHoy ? ' ✓' : ' · va en ' + t.unidadesHoy}
+                    </span>
+                  )}
                   {!t.terminosAceptadosEn && t.activo && <span className="eq-tag">Sin aceptar términos</span>}
                 </div>
                 {llevo > 0 ? (
@@ -104,7 +111,7 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
           }} />
         )}
         {panel?.tipo === 'ver' && trabajador && (
-          <PanelTrabajador t={trabajador}
+          <PanelTrabajador t={trabajador} productos={activos}
             onCarga={() => setPanel({ tipo: 'carga', id: trabajador.id })}
             onAgregar={() => setPanel({ tipo: 'agregar', id: trabajador.id })}
             onPagar={() => setPanel({ tipo: 'pagar', id: trabajador.id })}
@@ -205,14 +212,16 @@ function PagarPanel({ t, guardar, volver }: {
   const p = cuenta.pendiente
   const saldoAnterior = cuenta.saldoAnterior ?? 0
   const consumos = p.consumos ?? 0
-  const debido = p.comision + p.bonos - consumos + saldoAnterior
+  const faltantes = p.faltantes ?? 0
+  const prestamos = (cuenta.prestamos ?? []).reduce((a, x) => a + x.monto, 0)
+  const debido = p.comision + p.bonos - consumos - faltantes - prestamos + saldoAnterior
   if (debido <= 0) {
     return (
       <>
         <h2>Nada por pagarle</h2>
         <p>
           {debido < 0
-            ? t.nombre + ' se tomó más de lo que lleva ganado: te queda debiendo ' + pesos(-debido) + ', que se le descuentan de lo próximo que venda.'
+            ? 'Con lo que se tomó, lo que faltó y lo que le prestaste, ' + t.nombre + ' te queda debiendo ' + pesos(-debido) + ': se le descuenta de lo próximo que gane.'
             : t.nombre + ' no tiene comisiones pendientes desde su último pago.'}
         </p>
         <div className="acciones"><button className="big ghost" onClick={volver}>Volver</button></div>
@@ -221,7 +230,7 @@ function PagarPanel({ t, guardar, volver }: {
   }
   return (
     <PagarTrabajador nombre={t.nombre} comision={p.comision} bonos={p.bonos} unidades={p.unidades} saldoAnterior={saldoAnterior}
-      consumos={consumos}
+      consumos={consumos} faltantes={faltantes} prestamos={prestamos}
       onPagar={async pago => {
         const falta = pago.quedaDebiendo ? debido - pago.monto : 0
         const mensaje = 'Pago de ' + t.nombre + ' guardado. ' + (falta > 0 ? 'Le quedas debiendo ' + pesos(falta) : 'Sus cuentas arrancan de cero')
@@ -230,8 +239,9 @@ function PagarPanel({ t, guardar, volver }: {
   )
 }
 
-function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, onCambioBase }: {
+function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, onCambiar, onCambioBase }: {
   t: Trabajador
+  productos: Producto[]
   onCambioBase: () => void
   onCarga: () => void
   onAgregar: () => void
@@ -249,7 +259,10 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
   const pendiente = cuenta && cuenta !== 'error' ? cuenta.pendiente : null
   const saldoAnterior = cuenta && cuenta !== 'error' ? cuenta.saldoAnterior ?? 0 : 0
   const consumos = pendiente?.consumos ?? 0
-  const porPagar = pendiente ? pendiente.comision + pendiente.bonos - consumos + saldoAnterior : t.porPagar ?? 0
+  const faltantes = pendiente?.faltantes ?? 0
+  const prestamos = cuenta && cuenta !== 'error' ? cuenta.prestamos ?? [] : []
+  const prestado = prestamos.reduce((a, x) => a + x.monto, 0)
+  const porPagar = pendiente ? pendiente.comision + pendiente.bonos - consumos - faltantes - prestado + saldoAnterior : t.porPagar ?? 0
   const llevo = t.carga.reduce((a, f) => a + f.llevo, 0)
   const vendi = t.carga.reduce((a, f) => a + f.vendi, 0)
 
@@ -291,7 +304,9 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
               + (saldoAnterior > 0 ? ' · más ' + pesos(saldoAnterior) + ' que le quedaste debiendo' : '')
               + ((pendiente.consumidos ?? 0) > 0
                 ? ' · se tomó ' + pendiente.consumidos + (consumos > 0 ? ': ya van descontados ' + pesos(consumos) : ' (gratis)')
-                : '')}</>
+                : '')
+              + (faltantes > 0 ? ' · faltaron ' + (pendiente.unidadesFaltantes ?? 0) + ': ya van descontados ' + pesos(faltantes) : '')
+              + (prestado > 0 ? ' · le prestaste ' + pesos(prestado) + ', ya va descontado' : '')}</>
             : 'Calculando…'}
         </span>
         <button className="big primario" onClick={onPagar} disabled={porPagar <= 0}>Ya le pagué {porPagar > 0 ? pesos(porPagar) : ''}</button>
@@ -311,6 +326,9 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
               <span className="mut">
                 {fechaHora(p.creadoEn)} · <Unidades n={p.unidades} />
                 {(p.consumos ?? 0) > 0 && <> · se le descontaron {pesos(p.consumos ?? 0)} de lo que se tomó</>}
+                {(p.faltantes ?? 0) > 0 && <> · {pesos(p.faltantes ?? 0)} de faltantes</>}
+                {(p.prestamos ?? 0) > 0 && <> · {pesos(p.prestamos ?? 0)} de préstamos</>}
+                {p.lugarEfectivo && p.metodo !== 'NEQUI' && <> · el efectivo salió de {NOMBRE_LUGAR[p.lugarEfectivo]}</>}
                 {(p.saldo ?? 0) > 0 && p.estado !== 'ANULADO' && <> · quedaron pendientes {pesos(p.saldo ?? 0)}</>}
                 {p.firma && <> · firmó el paz y salvo: <b>{p.firma}</b></>}
               </span>
@@ -323,6 +341,8 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
           ))}
         </div>
       )}
+
+      <PrestamosPanel t={t} prestamos={prestamos} onCambio={onCambioBase} />
 
       <EntregasDelTrabajador id={t.id} version={String(t.entregaPendiente ?? 0) + (t.ultimaEntrega ?? '')} onCambio={onCambioBase} />
 
@@ -356,6 +376,8 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
         </div>
       </div>
 
+      <FaltantePanel t={t} productos={productos} onCambio={onCambioBase} />
+
       <div className="list">
         <h3><Icono nombre="reloj" /> Lo que ha vendido</h3>
         <div className="chips">
@@ -378,6 +400,12 @@ function PanelTrabajador({ t, onCarga, onAgregar, onPagar, onAnular, onCambiar, 
               <div className="row">
                 <span>Premio por meta ({cuentas.diasMeta} día{cuentas.diasMeta === 1 ? '' : 's'})</span><b>{pesos(cuentas.bonos)}</b>
               </div>
+            )}
+            {(cuentas.consumidos ?? 0) > 0 && (
+              <div className="row"><span>Se tomó {cuentas.consumidos}</span><b>{(cuentas.consumos ?? 0) > 0 ? '−' + pesos(cuentas.consumos ?? 0) : 'gratis'}</b></div>
+            )}
+            {(cuentas.faltantes ?? 0) > 0 && (
+              <div className="row"><span>Faltaron {cuentas.unidadesFaltantes}</span><b>−{pesos(cuentas.faltantes ?? 0)}</b></div>
             )}
             <div className="row">
               <span>{cuentas.saldo >= 0 ? 'Te debe entregar' : 'Le debes'}</span>

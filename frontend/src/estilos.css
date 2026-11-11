@@ -52,6 +52,62 @@ header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bot
 .dot.pendiente { background: var(--warn); box-shadow: 0 0 8px var(--warn) } .dot.sin-senal { background: var(--bad); box-shadow: 0 0 8px var(--bad) }
 
 main { padding: 0 12px calc(90px + var(--safe-b)) }
+.modo-fila { display: flex; justify-content: space-between; align-items: center; gap: 8px }
+.chip-rapido { flex: none; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: var(--r-full);
+  border: 1px solid var(--line); background: var(--card); color: var(--txt) }
+.chip-rapido.on { background: var(--primario); border-color: transparent; color: #fff }
+.prod { position: relative }
+.prod.marcado { border-color: var(--primario); box-shadow: 0 0 0 2px var(--primario-bg) }
+.prod-marca { position: absolute; top: -8px; right: -6px; min-width: 26px; height: 26px; padding: 0 7px; border-radius: var(--r-full);
+  background: var(--primario); color: #fff; font-weight: 800; font-size: 14px; display: grid; place-items: center }
+.bandeja { position: fixed; left: 0; right: 0; bottom: calc(62px + var(--safe-b)); z-index: 5; background: var(--card);
+  border-top: 1px solid var(--line); box-shadow: 0 -8px 24px var(--sombra); padding: 10px 16px 8px; display: grid; gap: 8px }
+.bandeja-items { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none }
+.bandeja-items button { flex: none; border: 1px solid var(--line); background: var(--card2); color: var(--txt); border-radius: var(--r-full);
+  padding: 6px 10px; font-size: 13px; font-weight: 600 }
+.bandeja-total { display: flex; align-items: baseline; gap: 8px }
+.bandeja-total b { font-family: var(--font-head); font-size: 20px }
+.bandeja-total small { color: var(--mut) }
+.bandeja-total .link { margin-left: auto }
+.bandeja .pay .big { padding-top: 12px; padding-bottom: 12px }
+.historial-eq { padding-bottom: 12px }
+.historial-cabeza { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 4px 0 8px; color: var(--txt); text-align: left }
+.historial-nombre { flex: 1; display: grid; gap: 2px; min-width: 0 }
+.rentable { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 12px 14px; margin: 4px 0 14px; background: var(--card2) }
+.rentable > b { display: block; font-family: var(--font-head); font-size: 16px; margin-bottom: 6px }
+.rentable p { margin: 6px 0 0; font-size: 13px }
+.rentable.bien { border-color: var(--ok) }
+.rentable.bien > b { color: var(--ok-txt) }
+.rentable.justo { border-color: var(--warn) }
+.rentable.justo > b { color: var(--warn-txt) }
+.rentable.mal { border-color: var(--primario) }
+.rentable.mal > b { color: var(--primario-txt) }
+.gastos-mes-total { display: grid; gap: 2px; margin-bottom: 8px }
+.gastos-mes-total b { font-family: var(--font-head); font-size: 24px }
+.gastos-mes .aviso, .gastos-mes .mut { margin: 4px 0 8px }
+.tope-fila { padding: 6px 0 }
+.tope-pista { height: 8px; border-radius: var(--r-full); background: var(--card2); border: 1px solid var(--line); margin-top: 6px; overflow: hidden }
+.tope-barra { height: 100%; border-radius: var(--r-full); background: var(--ok) }
+.tope-pista.casi .tope-barra { background: var(--warn) }
+.tope-pista.pasado .tope-barra { background: var(--primario) }
+.tope-campo { display: grid; grid-template-columns: 1fr 140px; align-items: center; gap: 10px; margin-bottom: 8px }
+.tope-campo label { margin: 0 }
+.premio-analisis { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--line) }
+.premios-sugeridos { display: grid; gap: 4px; margin-top: 10px; padding: 12px; border-radius: var(--r-lg); background: var(--card2); border: 1px solid var(--line) }
+.ganas-venta { text-align: center; margin: -4px 0 8px; color: var(--ok-txt) }
+.meta-propia { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: 10px 14px; font-size: 14px }
+.meta-propia.pregunta { display: grid; justify-items: start; gap: 6px; border-color: var(--primario); background: var(--primario-bg) }
+.meta-propia .personaje, .meta-propia .personaje.figura { width: auto; height: 64px; max-width: none; margin: 0 }
+.meta-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 8px; width: 100% }
+.meta-opciones button { display: grid; gap: 2px; justify-items: center; padding: 10px 4px; border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--card); color: var(--txt) }
+.meta-opciones button b { font-family: var(--font-head); font-size: 20px }
+.meta-opciones button small { font-size: 11px; color: var(--mut) }
+.meta-otra { display: flex; gap: 8px; align-items: center; width: 100% }
+.meta-otra input { max-width: 110px }
+.comprobante { display: grid; gap: 8px; margin: 10px 0 }
+.comprobante-foto { width: 100%; max-height: 60vh; object-fit: contain; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--card2) }
 .modo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); margin: 14px 4px 8px }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
 

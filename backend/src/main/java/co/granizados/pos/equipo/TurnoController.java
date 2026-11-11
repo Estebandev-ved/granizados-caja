@@ -55,6 +55,21 @@ public class TurnoController {
         return servicio.misPagos(vendedor());
     }
 
+    public record Meta(@jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(500) int meta) {
+    }
+
+    /** «¿Cuántos te sientes capaz de vender hoy?»: su meta del día (la puede subir cuando la cumple). */
+    @PostMapping("/meta")
+    public EquipoService.PremiosDia meta(@Valid @RequestBody Meta cuerpo) {
+        return servicio.ponerMeta(vendedor(), cuerpo.meta());
+    }
+
+    /** Lo que le han prestado y todavía no se le descuenta. */
+    @GetMapping("/prestamos")
+    public java.util.List<EquipoService.PrestamoDto> prestamos() {
+        return servicio.prestamosPendientes(vendedor());
+    }
+
     /** La base para vueltos que lleva hoy. */
     @GetMapping("/base")
     public EquipoService.BaseDia base() {

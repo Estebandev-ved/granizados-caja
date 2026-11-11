@@ -104,7 +104,7 @@ public class Venta {
         return switch (metodo) {
             case EFECTIVO -> total;
             case MIXTO -> montoEfectivo == null ? 0 : montoEfectivo;
-            case NEQUI, FIADO, REGALO, CONSUMO -> 0;
+            case NEQUI, FIADO, REGALO, CONSUMO, FALTANTE -> 0;
         };
     }
 
@@ -124,6 +124,27 @@ public class Venta {
         return metodo == MetodoPago.CONSUMO;
     }
 
+    /** Faltó en la carga del trabajador: no se cobra a nadie, conserva el precio de lista y no deja comisión. */
+    public Venta faltante() {
+        this.metodo = MetodoPago.FALTANTE;
+        this.total = 0;
+        this.comisionUnitaria = 0L;
+        this.enPromo = false;
+        return this;
+    }
+
+    public boolean esFaltante() {
+        return metodo == MetodoPago.FALTANTE;
+    }
+
+    /**
+     * Salió de la carga del trabajador pero no es una venta: se lo tomó él o faltó. No cuenta como vendido (meta,
+     * premios, unidades) y su `cargoVendedor` se le descuenta del pago.
+     */
+    public boolean esDelTrabajador() {
+        return metodo == MetodoPago.CONSUMO || metodo == MetodoPago.FALTANTE;
+    }
+
     /** Cuánto se le descuenta al trabajador por este consumo. */
     public void cobrarAlVendedor(long cargo) {
         this.cargoVendedor = cargo;
@@ -134,7 +155,7 @@ public class Venta {
         return switch (metodo) {
             case NEQUI -> total;
             case MIXTO -> total - efectivo();
-            case EFECTIVO, FIADO, REGALO, CONSUMO -> 0;
+            case EFECTIVO, FIADO, REGALO, CONSUMO, FALTANTE -> 0;
         };
     }
 

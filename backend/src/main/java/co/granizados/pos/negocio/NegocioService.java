@@ -34,6 +34,7 @@ public class NegocioService {
             new Ajuste("GRANIZADOS_GRATIS", "1", "Granizados que el trabajador puede tomarse gratis por día de trabajo"),
             new Ajuste("PAGO_NEQUI", "", "Tu número de Nequi para que te paguen lo fiado. Ej: 3001234567"),
             new Ajuste("PAGO_BREB", "", "Tu llave Bre-B para que te paguen lo fiado"),
+            new Ajuste("TOPES_GASTO", "", "Tope de gasto al mes por categoría (lo edita Hoy → Gastos del mes)"),
             new Ajuste("PERFIL", "", "Perfil del negocio (lo edita la bienvenida y Ajustes → Mi negocio)"),
             new Ajuste("PAGO_PRESENCIAL", "", "Dónde te pueden pagar en persona. Ej: en la U, bloque 4, en horas de almuerzo"));
 

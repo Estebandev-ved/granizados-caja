@@ -83,6 +83,10 @@ function aplicar(e: Estado, op: Operacion, hoy: string, pendiente: boolean) {
     case 'gasto':
       // Un gasto de otro día no contamina "hoy"
       if (diaBogota(op.creadaEn) === hoy) e.hoy.gastos += op.monto
+      // Pero sí cuenta en el mes si es de este mes (para los topes de gasto)
+      if (e.gastosMes && diaBogota(op.creadaEn).slice(0, 7) === hoy.slice(0, 7)) {
+        e.gastosMes[op.categoria] = (e.gastosMes[op.categoria] ?? 0) + op.monto
+      }
       return
     case 'arqueo':
       // El cierre no mueve ni el stock ni el total: solo se sube

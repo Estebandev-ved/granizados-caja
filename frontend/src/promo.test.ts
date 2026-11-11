@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aplicaPromo, diaSemana, leerPromo, PROMO_INICIAL, promoVigente, serializarPromo, textoDias, repartirEfectivo, repartirTotal, totalConPromo, totalMezclado, type Promo } from './promo'
+import { aplicaPromo, diaSemana, leerPromo, PROMO_INICIAL, promoVigente, serializarPromo, textoDias, repartirEfectivo, repartirTotal, totalConPromo, totalMezclado, cobrarLineas, leerPromos, serializarPromos, totalConPromos, rentabilidad, nombrePromo, type Promo } from './promo'
 import type { Producto } from './tipos'
 
 const prod = (tipo: Producto['tipo'], precio: number): Producto =>
@@ -103,5 +103,74 @@ describe('promo con sabores distintos', () => {
     expect(partes[1]).toBeLessThanOrEqual(4000)
     expect(repartirEfectivo([6000, 6000], 20000)).toEqual([6000, 6000])
     expect(repartirEfectivo([6000, 6000], 0)).toEqual([0, 0])
+  })
+})
+
+describe('cobrarLineas (varios a la vez)', () => {
+  const smirnoff = { id: 1, sabor: 'Smirnoff', tipo: 'NORMAL', nombre: 'Smirnoff', precio: 6000, costo: 0, stock: 9, stockMinimo: 2, activo: true, orden: 1 } as const
+  const margarita = { ...smirnoff, id: 2, sabor: 'Margarita', nombre: 'Margarita' }
+  const cremoso = { ...smirnoff, id: 3, sabor: 'Piña', nombre: 'Piña cremoso', tipo: 'CREMOSO', precio: 7000 } as const
+  const promo2x10 = { ...PROMO_INICIAL, activa: true }
+
+  it('sin promo cada línea va a precio normal (sin total) y el efectivo se reparte en un pago mixto', () => {
+    const lineas = [{ p: smirnoff, cantidad: 2 }, { p: cremoso, cantidad: 1 }]
+    const r = cobrarLineas(lineas, 'MIXTO', [], 10000)
+    expect(r.map(l => l.total)).toEqual([undefined, undefined])
+    expect(r.reduce((a, l) => a + (l.efectivo ?? 0), 0)).toBe(10000)
+  })
+
+  it('con promo mezcla sabores en el combo y el cremoso de afuera va normal', () => {
+    const lineas = [{ p: smirnoff, cantidad: 1 }, { p: margarita, cantidad: 1 }, { p: cremoso, cantidad: 1 }]
+    const total = totalMezclado(promo2x10, lineas)
+    expect(total).toBe(10000 + 7000)
+    const r = cobrarLineas(lineas, 'EFECTIVO', [promo2x10])
+    expect(r.reduce((a, l) => a + (l.total ?? l.p.precio * l.cantidad), 0)).toBe(17000)
+    expect(r[2].total).toBeUndefined()
+  })
+})
+
+describe('varias promos a la vez', () => {
+  const normal = (id: number, sabor: string): Producto => ({ id, sabor, tipo: 'NORMAL', nombre: sabor, precio: 6000, costo: 3000, stock: 9, stockMinimo: 2, activo: true, orden: id })
+  const cremoso = (id: number, sabor: string, precio: number): Producto => ({ ...normal(id, sabor), tipo: 'CREMOSO', nombre: sabor + ' cremoso', precio, costo: 4000 })
+  const refrescantes: Promo = { ...PROMO_INICIAL, activa: true, soloHoy: false, cantidad: 3, precio: 16000, tipos: ['NORMAL'], nombre: 'refrescantes' }
+  const cremosos: Promo = { ...PROMO_INICIAL, activa: true, soloHoy: false, cantidad: 2, precio: 14000, tipos: ['CREMOSO'], nombre: 'cremosos' }
+
+  it('se guardan como lista y una promo vieja (un objeto) se lee como lista de una', () => {
+    const texto = serializarPromos([refrescantes, cremosos])
+    expect(texto.length).toBeLessThan(500)
+    expect(leerPromos(texto).map(p => nombrePromo(p, n => '$' + n))).toEqual(['3 refrescantes x $16000', '2 cremosos x $14000'])
+    expect(leerPromos('{"activa":true,"cantidad":2,"precio":10000,"tipos":["NORMAL"]}')).toHaveLength(1)
+    expect(leerPromos('')).toEqual([])
+  })
+
+  it('en la misma compra cada promo arma sus combos', () => {
+    const lineas = [
+      { p: normal(1, 'Smirnoff'), cantidad: 2 }, { p: normal(2, 'Mojito'), cantidad: 1 },
+      { p: cremoso(3, 'Piña', 8000), cantidad: 2 },
+    ]
+    expect(totalConPromos([refrescantes, cremosos], lineas)).toBe(16000 + 14000)
+    const r = cobrarLineas(lineas, 'NEQUI', [refrescantes, cremosos])
+    expect(r.reduce((a, l) => a + (l.total ?? l.p.precio * l.cantidad), 0)).toBe(30000)
+  })
+
+  it('dice si la promo es rentable después de pagarle al trabajador', () => {
+    const tarifas = { NORMAL: 1000, CREMOSO: 1500, GRANDE: 2000, CERVEZA: 0, PROMO: 0 }
+    const r = rentabilidad(refrescantes, [normal(1, 'Smirnoff')], tarifas)
+    // 16.000 − 3 × 3.000 de producto − 3 × 1.000 del trabajador = 4.000 (25 %)
+    expect(r.quedaConTrabajador).toBe(4000)
+    expect(r.pct).toBe(25)
+    expect(r.veredicto).toBe('bien')
+
+    const caro = rentabilidad({ ...refrescantes, precio: 11000 }, [normal(1, 'Smirnoff')], tarifas)
+    expect(caro.veredicto).toBe('pierde')
+    expect(caro.sugerido).toBe(15000)
+  })
+
+  it('avisa cuando el combo no le hace descuento a un producto o le falta el costo', () => {
+    const tarifas = { NORMAL: 0, CREMOSO: 0, GRANDE: 0, CERVEZA: 0, PROMO: 0 }
+    const r = rentabilidad(cremosos, [cremoso(1, 'Mora', 7000), cremoso(2, 'Piña', 8000)], tarifas)
+    expect(r.sinDescuento.map(p => p.sabor)).toEqual(['Mora'])
+    expect(r.aplica.map(p => p.sabor)).toEqual(['Piña'])
+    expect(rentabilidad(refrescantes, [{ ...normal(1, 'Smirnoff'), costo: 0 }], tarifas).veredicto).toBe('sin-datos')
   })
 })

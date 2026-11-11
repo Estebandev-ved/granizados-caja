@@ -2,7 +2,7 @@ import { pesos } from '../formato'
 import type { Producto } from '../tipos'
 
 /** `alcanza` (opcional): aviso corto de cuánto dura lo que queda, según el ritmo de venta. */
-export function TarjetaProducto({ p, onClick, alcanza, restante, indice = 0 }: {
+export function TarjetaProducto({ p, onClick, alcanza, restante, indice = 0, marcados = 0 }: {
   p: Producto
   /** Posición en la lista: escalona la animación de entrada. */
   indice?: number
@@ -10,6 +10,8 @@ export function TarjetaProducto({ p, onClick, alcanza, restante, indice = 0 }: {
   alcanza?: string
   /** Lo que te queda de la carga de hoy. `undefined` = no hay carga; `null` = ese sabor no lo llevas hoy. */
   restante?: number | null
+  /** En "Varios a la vez": cuántos de este sabor van para cobrar. */
+  marcados?: number
 }) {
   const conCarga = restante !== undefined
   const fuera = conCarga && restante === null
@@ -18,7 +20,8 @@ export function TarjetaProducto({ p, onClick, alcanza, restante, indice = 0 }: {
     ? (cantidad <= 0 ? 'out' : cantidad <= 1 ? 'low' : '')
     : p.stock <= 0 ? 'out' : p.stock <= p.stockMinimo ? 'low' : ''
   return (
-    <button className={'prod' + (fuera ? ' fuera' : '')} onClick={onClick} style={{ '--i': Math.min(indice, 12) } as React.CSSProperties}>
+    <button className={'prod' + (fuera ? ' fuera' : '') + (marcados ? ' marcado' : '')} onClick={onClick} style={{ '--i': Math.min(indice, 12) } as React.CSSProperties}>
+      {marcados > 0 && <span className="prod-marca" aria-label={marcados + ' para cobrar'}>{marcados}</span>}
       <div className="prod-cabeza">
         <IconoTrago />
         <div>

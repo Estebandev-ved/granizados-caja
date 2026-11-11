@@ -257,4 +257,42 @@ class AislamientoTest extends PruebaIntegracion {
         assertThat(como(1, () -> gastos.registrar(new co.granizados.pos.gasto.GastoService.NuevoGasto("g-1", "HIELO", "", 1_000, null))))
                 .isEqualTo(co.granizados.pos.gasto.GastoService.Resultado.REGISTRADA);
     }
+
+    @Test
+    void losPrestamosYLasFotosDeComprobantesSonDeCadaNegocio() {
+        var juan = como(1, () -> equipo.crear(new co.granizados.pos.equipo.EquipoService.NuevoVendedor("Juan", "1111", 0)));
+        var prestamo = como(1, () -> equipo.prestar(juan.id(),
+                new co.granizados.pos.equipo.EquipoService.NuevoPrestamo(5_000L, LugarPlata.CAJA, null)));
+
+        assertThat(como(1, () -> equipo.prestamosPendientes(juan.id()))).hasSize(1);
+        assertThat(como(2, () -> equipo.prestamosPendientes(juan.id()))).isEmpty();
+        assertThatThrownBy(() -> como(2, () -> equipo.prestar(juan.id(),
+                new co.granizados.pos.equipo.EquipoService.NuevoPrestamo(1_000L, LugarPlata.CAJA, null))))
+                .isInstanceOf(NoEncontradoException.class);
+        assertThatThrownBy(() -> como(2, () -> { equipo.quitarPrestamo(prestamo.id()); return null; }))
+                .isInstanceOf(NoEncontradoException.class);
+
+        como(1, () -> { comprobantes.guardar(new co.granizados.pos.venta.ComprobanteService.NuevoComprobante("v-1", "data:image/jpeg;base64,AQID")); return null; });
+        assertThat(como(1, () -> comprobantes.conFoto(java.util.List.of("v-1")))).containsExactly("v-1");
+        assertThat(como(2, () -> comprobantes.conFoto(java.util.List.of("v-1")))).isEmpty();
+        assertThatThrownBy(() -> como(2, () -> comprobantes.leer("v-1"))).isInstanceOf(NoEncontradoException.class);
+        // El mismo identificador de venta en el otro negocio no pisa la foto
+        como(2, () -> { comprobantes.guardar(new co.granizados.pos.venta.ComprobanteService.NuevoComprobante("v-1", "data:image/jpeg;base64,BAU=")); return null; });
+        assertThat(contar("comprobante")).isEqualTo(2);
+        assertThat(como(1, () -> comprobantes.leer("v-1").bytes())).containsExactly(1, 2, 3);
+    }
+
+    @Autowired
+    co.granizados.pos.venta.ComprobanteService comprobantes;
+
+    @Test
+    void laMetaDelDiaDeUnTrabajadorEsDeSuNegocio() {
+        var juan = como(1, () -> equipo.crear(new co.granizados.pos.equipo.EquipoService.NuevoVendedor("Juan", "1111", 0)));
+        como(1, () -> equipo.ponerMeta(juan.id(), 20));
+
+        assertThat(como(1, () -> equipo.listar().getFirst().metaHoy())).isEqualTo(20);
+        assertThat(como(2, () -> equipo.listar())).isEmpty();
+        assertThatThrownBy(() -> como(2, () -> equipo.ponerMeta(juan.id(), 30))).isInstanceOf(NoEncontradoException.class);
+        assertThat(como(2, () -> equipo.datosPremios().diasAnalizados())).isZero();
+    }
 }

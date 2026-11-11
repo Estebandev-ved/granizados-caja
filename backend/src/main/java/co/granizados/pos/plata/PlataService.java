@@ -2,6 +2,12 @@ package co.granizados.pos.plata;
 
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
+import co.granizados.pos.equipo.PagoVendedor;
+import co.granizados.pos.equipo.PagoVendedorRepository;
+import co.granizados.pos.equipo.PrestamoVendedor;
+import co.granizados.pos.equipo.PrestamoVendedorRepository;
+import co.granizados.pos.equipo.Vendedor;
+import co.granizados.pos.equipo.VendedorRepository;
 import co.granizados.pos.gasto.Gasto;
 import co.granizados.pos.gasto.GastoRepository;
 import co.granizados.pos.venta.MetodoPago;
@@ -35,6 +41,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   casa  = conteo + ingresos − gastos − pagos al proveedor ± traslados
  *   nequi = conteo + ventas por Nequi + ingresos − gastos − pagos al proveedor ± traslados
  * Cada gasto sale del lugar que se escogió al anotarlo (los de antes, de la caja).
+ * Los pagos al equipo («Ya le pagué», desde V32) y los préstamos al trabajador también salen de donde se escogió:
+ * el efectivo de la caja o la casa y lo de Nequi, de Nequi. Los pagos de antes eran solo constancia y no restan.
  *
  * Las metas ("sobres") apartan plata sin moverla de lugar: `libre = total − apartado`.
  * Solo los ingresos marcados como ganancia entran en la ganancia del día (ver EstadoService y ReporteService).
@@ -113,12 +121,19 @@ public class PlataService {
     private final AporteMetaRepository aportes;
     private final VentaRepository ventas;
     private final GastoRepository gastos;
+    private final PagoVendedorRepository pagosEquipo;
+    private final PrestamoVendedorRepository prestamos;
+    private final VendedorRepository vendedores;
     private final Clock clock;
     private final ZoneId zona;
 
     public PlataService(IngresoRepository ingresos, ConteoPlataRepository conteos, PagoProveedorRepository pagos,
                         TrasladoRepository traslados, MetaPlataRepository metas, AporteMetaRepository aportes,
-                        VentaRepository ventas, GastoRepository gastos, Clock clock, AppProperties props) {
+                        VentaRepository ventas, GastoRepository gastos, PagoVendedorRepository pagosEquipo,
+                        PrestamoVendedorRepository prestamos, VendedorRepository vendedores, Clock clock, AppProperties props) {
+        this.pagosEquipo = pagosEquipo;
+        this.prestamos = prestamos;
+        this.vendedores = vendedores;
         this.ingresos = ingresos;
         this.conteos = conteos;
         this.pagos = pagos;
@@ -256,6 +271,19 @@ public class PlataService {
                 case NEQUI -> nequi += t.getMonto();
             }
         }
+        // Lo que se le pagó o prestó a los trabajadores
+        for (PagoVendedor p : pagosEquipo.findByMuevePlataTrueAndEstadoNotAndCreadoEnGreaterThanEqual(PagoVendedor.Estado.ANULADO, desde)) {
+            if (p.getLugarEfectivo() == LugarPlata.CASA) casa -= p.getMontoEfectivo();
+            else caja -= p.getMontoEfectivo();
+            nequi -= p.getMonto() - p.getMontoEfectivo();
+        }
+        for (PrestamoVendedor p : prestamos.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
+            switch (p.getLugar()) {
+                case CAJA -> caja -= p.getMonto();
+                case CASA -> casa -= p.getMonto();
+                case NEQUI -> nequi -= p.getMonto();
+            }
+        }
         long total = caja + casa + nequi;
         return new Saldo(caja, casa, nequi, total, apartado, total - apartado, desde, recientes, listaMetas);
     }
@@ -282,7 +310,7 @@ public class PlataService {
                 a.total() + b.total(), a.unidades() + b.unidades());
         Map<String, Acum> porDiaYMetodo = new LinkedHashMap<>();
         for (Venta v : ventas.entre(desde, hasta)) {
-            if (v.getMetodo() == MetodoPago.FIADO || v.getMetodo() == MetodoPago.REGALO || v.esConsumo()) continue; // no movió plata: entra al cobrarlo
+            if (v.getMetodo() == MetodoPago.FIADO || v.getMetodo() == MetodoPago.REGALO || v.esDelTrabajador()) continue; // no movió plata: entra al cobrarlo
             String dia = DIA.format(v.getCreadaEn().atZone(zona));
             // Las unidades de una venta mixta se cuentan una sola vez, del lado que puso más plata
             boolean unidadesEnEfectivo = v.efectivo() >= v.nequi();
@@ -320,6 +348,27 @@ public class PlataService {
             var z = p.getCreadoEn().atZone(zona);
             filas.add(new Fila(p.getCreadoEn(), new Movimiento("PAGO_PEDIDO", DIA.format(z), HORA.format(z),
                     "Pago a Energy Cocktails", -p.getMonto(), p.getLugar().name(), null)));
+        }
+        Map<Long, String> nombres = new java.util.HashMap<>();
+        for (Vendedor v : vendedores.findAll()) nombres.put(v.getId(), v.getNombre());
+        for (PagoVendedor p : pagosEquipo.findByMuevePlataTrueAndEstadoNotAndCreadoEnGreaterThanEqual(PagoVendedor.Estado.ANULADO, desde)) {
+            var z = p.getCreadoEn().atZone(zona);
+            String quien = nombres.getOrDefault(p.getVendedorId(), "trabajador");
+            if (p.getMontoEfectivo() > 0) {
+                filas.add(new Fila(p.getCreadoEn(), new Movimiento("PAGO_EQUIPO", DIA.format(z), HORA.format(z),
+                        "Le pagué a " + quien, -p.getMontoEfectivo(),
+                        (p.getLugarEfectivo() == LugarPlata.CASA ? LugarPlata.CASA : LugarPlata.CAJA).name(), null)));
+            }
+            if (p.getMonto() > p.getMontoEfectivo()) {
+                filas.add(new Fila(p.getCreadoEn(), new Movimiento("PAGO_EQUIPO", DIA.format(z), HORA.format(z),
+                        "Le pagué a " + quien, -(p.getMonto() - p.getMontoEfectivo()), LugarPlata.NEQUI.name(), null)));
+            }
+        }
+        for (PrestamoVendedor p : prestamos.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
+            var z = p.getCreadoEn().atZone(zona);
+            filas.add(new Fila(p.getCreadoEn(), new Movimiento("PRESTAMO", DIA.format(z), HORA.format(z),
+                    "Le presté a " + nombres.getOrDefault(p.getVendedorId(), "trabajador") + (p.getNota() == null ? "" : " · " + p.getNota()),
+                    -p.getMonto(), p.getLugar().name(), null)));
         }
         for (Traslado t : traslados.findByCreadoEnGreaterThanEqualOrderByCreadoEnDescIdDesc(desde)) {
             var z = t.getCreadoEn().atZone(zona);

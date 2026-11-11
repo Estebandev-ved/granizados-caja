@@ -2,7 +2,8 @@
 
 export type Tipo = 'NORMAL' | 'CREMOSO' | 'GRANDE' | 'CERVEZA'
 /** CONSUMO: un trabajador se toma (o compra) uno de su carga; no entra plata y lo que no era gratis se le descuenta. */
-export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO' | 'MIXTO' | 'REGALO' | 'CONSUMO'
+/** FALTANTE: granizados que faltaron en la carga de un trabajador (lo anota el dueño en Equipo, no sale de Vender). */
+export type Metodo = 'NEQUI' | 'EFECTIVO' | 'FIADO' | 'MIXTO' | 'REGALO' | 'CONSUMO' | 'FALTANTE'
 export type TipoMovimiento = 'ENTRADA' | 'CONTEO' | 'MERMA'
 export type MotivoMerma = 'DANADO' | 'REGALADO' | 'VENCIDO'
 export type EstadoPedido = 'ENVIADO' | 'RECIBIDO' | 'CANCELADO'
@@ -93,6 +94,39 @@ export interface PremiosDia {
   /** Los que se ha tomado hoy, y lo que se le descuenta por los que pasaron de los gratis. */
   consumidos?: number
   descuento?: number
+  /** Lo que se le descuenta hoy por granizados que faltaron en su carga. */
+  faltantes?: number
+  /** Cuánto gana por granizado, normal y en promo. */
+  tarifas?: TarifasDia
+  /** Cuántos se propuso vender hoy (null = no ha escogido). */
+  metaPropia?: number | null
+}
+
+/** Lo que gana el trabajador por granizado. `porcentaje` solo si le pagan un % de lo vendido. */
+export interface TarifasDia {
+  normal: number
+  cremoso: number
+  grande: number
+  cerveza: number
+  /** Lo que gana por cada uno vendido en promo. */
+  promo: number
+  /** Lo que bajan los premios en día de promo. */
+  rebajaPromo: number
+  porcentaje: number | null
+}
+
+/** `GET /api/equipo/premios/datos`: lo que dicen las últimas semanas para armar premios que convengan. */
+export interface DatosPremios {
+  /** Granizados que vende un trabajador en un día normal (la mediana). */
+  base: number
+  diasAnalizados: number
+  mejorDia: number
+  /** Lo que te deja cada granizado ya pagada la comisión, normal y en promo (null = no hay ventas en promo). */
+  margenNormal: number
+  margenPromo: number | null
+  pocosDatos: boolean
+  faltanCostos: boolean
+  sinTarifas: boolean
 }
 
 export interface SeccionTerminos {
@@ -130,6 +164,8 @@ export interface Trabajador {
   /** Plata que dice haberte entregado y todavía no confirmas. */
   entregaPendiente?: number
   ultimaEntrega?: EstadoEntregaEquipo | null
+  /** Cuántos se propuso vender hoy (null = no ha escogido). */
+  metaHoy?: number | null
 }
 
 export type EstadoEntregaEquipo = 'PENDIENTE' | 'RECIBIDA' | 'NO_RECIBIDA'
@@ -182,6 +218,22 @@ export interface PagoEquipo {
   firma: string | null
   /** Lo que se le descontó en este pago por los granizados que se tomó. */
   consumos?: number
+  /** Lo que se le descontó por préstamos y por faltantes de su carga. */
+  prestamos?: number
+  faltantes?: number
+  /** De dónde salió el efectivo (null = pago de antes, que no movía Mi plata). */
+  lugarEfectivo?: LugarPlata | null
+}
+
+/** Plata que le prestaste a un trabajador. `pagoId` null = todavía no se le descuenta. */
+export interface PrestamoEquipo {
+  id: number
+  vendedorId: number
+  monto: number
+  lugar: LugarPlata
+  nota: string | null
+  creadoEn: string
+  pagoId: number | null
 }
 
 /** Lo que se le debe a un trabajador desde su último pago, más sus pagos recientes. */
@@ -191,6 +243,8 @@ export interface CuentaEquipo {
   pagos: PagoEquipo[]
   /** Lo que quedó pendiente de su último pago: se le debe además de la comisión y los premios de `pendiente`. */
   saldoAnterior?: number
+  /** Lo que le prestaste y se le descuenta en el próximo pago. */
+  prestamos?: PrestamoEquipo[]
 }
 
 /** Lo que ve el trabajador al cerrar su día. `entregar` negativo = el dueño le debe. */
@@ -208,6 +262,8 @@ export interface CierreTurno {
   /** Los que se tomó hoy y lo que se le descuenta por ellos (ya va sumado en `entregar`). */
   consumidos?: number
   consumos?: number
+  /** Lo que se le descuenta por granizados que faltaron (ya va en `entregar`). */
+  faltantes?: number
 }
 
 /** Cuentas de un trabajador. `saldo` = efectivo − comisión: positivo, te debe entregar; negativo, le debes. */
@@ -227,6 +283,37 @@ export interface Liquidacion {
   /** Granizados que se tomó él (no cuentan como vendidos) y lo que se le descuenta por los que no eran gratis. */
   consumidos?: number
   consumos?: number
+  /** Granizados que faltaron en su carga y lo que se le descuenta (al precio de venta). */
+  unidadesFaltantes?: number
+  faltantes?: number
+  /** Días del rango en que vendió algo. */
+  dias?: number
+}
+
+/** Un día de trabajo en el historial de Reportes. */
+export interface DiaTrabajado {
+  dia: string
+  unidades: number
+  total: number
+  efectivo: number
+  nequi: number
+  comision: number
+  bonos: number
+  consumidos: number
+  consumos: number
+  unidadesFaltantes: number
+  faltantes: number
+}
+
+/** `GET /api/equipo/historial`: todo lo de un trabajador en el rango. */
+export interface HistorialTrabajador {
+  vendedorId: number
+  nombre: string
+  activo: boolean
+  totales: Liquidacion
+  dias: DiaTrabajado[]
+  pagos: PagoEquipo[]
+  prestamos: PrestamoEquipo[]
 }
 
 export interface VentaReciente {
@@ -235,8 +322,10 @@ export interface VentaReciente {
   sabor: string
   total: number
   metodo: Metodo
-  /** Solo CONSUMO: lo que se le descuenta al trabajador que se lo tomó (0 = era gratis). */
+  /** Solo CONSUMO y FALTANTE: lo que se le descuenta al trabajador (0 = era gratis). */
   cargo?: number
+  /** Tiene foto del comprobante de pago. */
+  comprobante?: boolean
   /** Solo en el celular: todavía no ha subido al servidor. */
   pendiente?: boolean
 }
@@ -261,6 +350,10 @@ export interface Estado {
   perfil?: string | null
   /** Solo para el dueño: categorías de gasto que ha usado en los últimos meses (incluye las propias). */
   categoriasGasto?: string[] | null
+  /** Solo para el dueño: lo gastado en el mes que va, por categoría. */
+  gastosMes?: Record<string, number> | null
+  /** Solo para el dueño: topes de gasto al mes por categoría (JSON). */
+  topesGasto?: string | null
 }
 
 export interface Meta {
@@ -559,7 +652,7 @@ export interface MetaPlata {
 
 /** Un renglón del historial de la plata; `monto` va con signo y los traslados llevan 0. */
 export interface MovimientoPlata {
-  tipo: 'VENTAS' | 'INGRESO' | 'GASTO' | 'PAGO_PEDIDO' | 'TRASLADO'
+  tipo: 'VENTAS' | 'INGRESO' | 'GASTO' | 'PAGO_PEDIDO' | 'TRASLADO' | 'PAGO_EQUIPO' | 'PRESTAMO'
   dia: string
   hora: string
   concepto: string

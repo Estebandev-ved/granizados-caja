@@ -185,6 +185,7 @@ public class ReporteService {
                     .append(v.getTotal()).append(';')
                     .append((long) v.getCostoUnitario() * v.getCantidad()).append(';')
                     .append(switch (v.getMetodo()) { case EFECTIVO -> "Efectivo"; case NEQUI -> "Nequi"; case FIADO -> cobradas.contains(v.getClientUid()) ? "Fiado (cobrado)" : "Fiado (debe)"; case REGALO -> "Regalo";
+                        case FALTANTE -> "Faltante de la carga (se le descuentan " + v.getCargoVendedor() + ")";
                         case CONSUMO -> v.getCargoVendedor() > 0 ? "Consumo del trabajador (se le descuentan " + v.getCargoVendedor() + ")" : "Consumo del trabajador (gratis)";
                         case MIXTO -> "Mixto (efectivo " + v.efectivo() + " / Nequi " + v.nequi() + ")"; }).append('\n');
         }
@@ -232,7 +233,7 @@ public class ReporteService {
             c[0] += v.getCantidad();
             c[1] += (int) v.getTotal();
             dias.add(dia(v.getCreadaEn()));
-            if (v.getMetodo() != MetodoPago.REGALO && !v.esConsumo()) {
+            if (v.getMetodo() != MetodoPago.REGALO && !v.esDelTrabajador()) {
                 long deLista = v.getProducto().getPrecio() * v.getCantidad();
                 if (v.getTotal() < deLista) {
                     conDescuento += v.getCantidad();

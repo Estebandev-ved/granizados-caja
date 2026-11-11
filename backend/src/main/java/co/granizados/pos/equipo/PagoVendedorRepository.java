@@ -10,4 +10,9 @@ public interface PagoVendedorRepository extends JpaRepository<PagoVendedor, Long
     Optional<PagoVendedor> findFirstByVendedorIdAndEstadoNotOrderByHastaDesc(Long vendedorId, PagoVendedor.Estado estado);
 
     List<PagoVendedor> findTop10ByVendedorIdOrderByCreadoEnDescIdDesc(Long vendedorId);
+
+    /** Los pagos que mueven Mi plata (los de antes de V32 son solo constancia). */
+    List<PagoVendedor> findByMuevePlataTrueAndEstadoNotAndCreadoEnGreaterThanEqual(PagoVendedor.Estado estado, java.time.Instant desde);
+
+    List<PagoVendedor> findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(java.time.Instant desde, java.time.Instant hasta);
 }
