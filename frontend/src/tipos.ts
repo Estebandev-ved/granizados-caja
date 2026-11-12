@@ -53,6 +53,8 @@ export interface ResumenDia {
   /** Solo lo que vendió el dueño en persona, sin el equipo: su carga del día cuenta con esto. */
   propias?: PorSabor[]
   cerveza?: Cerveza
+  /** Lo que se ganó hoy el equipo (comisión + premios − descuentos) que no está anotado como gasto «Trabajadores». Ya va restado en `ganancia`. */
+  equipo?: number
 }
 
 /** La meta del día de un trabajador (la pone el dueño en Ajustes). */

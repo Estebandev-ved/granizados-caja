@@ -114,7 +114,7 @@ class CierreMesTest extends PruebaIntegracion {
         assertThat(m.gananciaApp()).isEqualTo(120_000 - 60_000 - 12_000);
         assertThat(m.gananciaReal()).isEqualTo(120_000 - 60_000 - 10_000 - 6_000);
         assertThat(m.gastosPorCategoria()).extracting(CierreMesService.Categoria::categoria).containsExactly("HIELO");
-        assertThat(m.consejos()).anyMatch(c -> c.contains("no se resta en la ganancia de Hoy"));
+        assertThat(m.consejos()).anyMatch(c -> c.contains("no se resta en Reportes"));
     }
 
     @Test

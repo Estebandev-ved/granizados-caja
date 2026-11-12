@@ -59,6 +59,28 @@ class QuienVendioTest extends PruebaIntegracion {
     }
 
     @Test
+    void laGananciaDeHoyRestaLoQueSeGanoElEquipoSinContarDosVecesElGastoTrabajadores() throws Exception {
+        equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        ventas.registrar(new NuevaVenta("d-1", idDe("Smirnoff"), MetodoPago.EFECTIVO, 1));
+        var sinEquipo = estado.resumenDe(estado.hoy());
+        assertThat(sinEquipo.equipo()).isZero();
+
+        venderComoJuan("j-1", "EFECTIVO", 3); // 18.000 al 10 % = 1.800 para Juan
+        var h = estado.resumenDe(estado.hoy());
+        assertThat(h.equipo()).isEqualTo(1_800);
+        assertThat(h.ganancia()).isEqualTo(h.total() - h.costo() - 1_800);
+
+        // Si el dueño lo anotó también como gasto «Trabajadores», solo se resta una vez
+        gastos.registrar(new co.granizados.pos.gasto.GastoService.NuevoGasto("g-t", "TRABAJADORES", "Juan", 1_000, null));
+        var conGasto = estado.resumenDe(estado.hoy());
+        assertThat(conGasto.equipo()).isEqualTo(800);
+        assertThat(conGasto.ganancia()).isEqualTo(h.ganancia());
+    }
+
+    @Autowired
+    co.granizados.pos.gasto.GastoService gastos;
+
+    @Test
     void enMovimientosLasVentasVanSeparadasPorQuienLasHizo() throws Exception {
         equipo.crear(new NuevoVendedor("Juan", "1111", 10));
         ventas.registrar(new NuevaVenta("d-1", idDe("Smirnoff"), MetodoPago.EFECTIVO, 1));

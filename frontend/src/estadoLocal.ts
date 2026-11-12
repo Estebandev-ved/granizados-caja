@@ -45,7 +45,7 @@ export function estadoVisible(base: Estado | null, confirmadas: readonly Operaci
 
 /** La ganancia siempre sale de la cuenta, así nunca queda desfasada con lo que se ve. */
 function recalcular(h: ResumenDia) {
-  h.ganancia = h.total - h.costo - h.gastos - h.mermas + (h.ingresos ?? 0)
+  h.ganancia = h.total - h.costo - h.gastos - h.mermas + (h.ingresos ?? 0) - (h.equipo ?? 0)
 }
 
 function aplicar(e: Estado, op: Operacion, hoy: string, pendiente: boolean) {

@@ -17,6 +17,8 @@ import { pesos, vibrar } from '../formato'
 import { diaBogota } from '../estadoLocal'
 import { CATEGORIA_TEXTO, DIAS_ATRAS_GASTO, LUGAR_GASTO, MAX_CATEGORIA, categoriaEscrita, categoriasParaElegir, fechaCorta, mediodiaDe, restarDias } from '../reportes'
 import { deQuien, quienesVendieron, TU } from '../quien'
+import { notaConDesglose } from '../billetes'
+import { ContarBilletes } from '../componentes/ContarBilletes'
 import type { CategoriaGasto, Estado, LineaPedido, LugarPlata, Negocio, PedidoSugerido, RecomendacionCompra, SaldoPlata, VentaReciente } from '../tipos'
 
 interface Props {
@@ -121,6 +123,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
             <span>producto {pesos(h.costo)}</span>
             {h.gastos > 0 && <span>gastos {pesos(h.gastos)}</span>}
             {h.mermas > 0 && <span>mermas {pesos(h.mermas)}</span>}
+            {(h.equipo ?? 0) > 0 && <span>tu equipo {pesos(h.equipo ?? 0)}</span>}
           </div>
         </div>
         {h.cerveza && h.cerveza.unidades > 0 && (
@@ -480,6 +483,8 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
   onGuardar: (contado: number, nota: string, casa?: number, nequi?: number) => void
 }) {
   const n = Number(contado) || 0
+  // Cuántos billetes y monedas de cada valor había en la caja (si lo contó así)
+  const [detalle, setDetalle] = useState('')
   const diferencia = n - esperado
   const sinContar = contado === ''
   const contada = !!saldo?.contadoEn
@@ -502,7 +507,8 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
     <form onSubmit={e => {
       e.preventDefault()
       if (sinContar || cargando) return
-      onGuardar(n, nota.trim(), casa !== '' ? Number(casa) : undefined, nequi !== '' ? Number(nequi) : undefined)
+      // Si contó billete por billete, el desglose de la caja queda en la nota (si cabe)
+      onGuardar(n, notaConDesglose(nota, detalle), casa !== '' ? Number(casa) : undefined, nequi !== '' ? Number(nequi) : undefined)
     }}>
       <h2>Cerrar caja</h2>
 
@@ -550,6 +556,9 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
         <CampoNumero id="cierre-contado" miles placeholder="0" value={contado} disabled={cargando}
           onCambio={v => onCambio({ contado: v })} />
       </div>
+      {!cargando && (
+        <ContarBilletes id="cierre-billetes" onCambio={(t, d) => { onCambio({ contado: t ? String(t) : '' }); setDetalle(d) }} />
+      )}
       {/* Sin la plata contada solo se conoce el efectivo de hoy: comparar contra eso confundiría */}
       {!sinContar && contada && (
         diferencia === 0
@@ -568,6 +577,7 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
         <CampoNumero id="cierre-casa" miles placeholder="0" value={casa} disabled={cargando}
           onCambio={v => onCambio({ casa: v })} />
       </div>
+      {!cargando && <ContarBilletes id="cierre-billetes-casa" onCambio={t => onCambio({ casa: t ? String(t) : '' })} />}
       <div className="campo">
         <label htmlFor="cierre-nequi">En Nequi</label>
         <CampoNumero id="cierre-nequi" miles placeholder="0" value={nequi} disabled={cargando}

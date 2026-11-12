@@ -49,7 +49,10 @@ public class EstadoService {
                              /** Solo lo que vendió el dueño en persona (sin el equipo): sirve para su carga del día. */
                              List<PorSabor> propias,
                              /** La parte de cerveza, que ya está dentro de los totales de arriba. */
-                             Cerveza cerveza) {
+                             Cerveza cerveza,
+                             /** Lo que se ganó hoy el equipo (comisión + premios − consumos − faltantes) que no está ya
+                              *  anotado como gasto «Trabajadores». Ya va restado en `ganancia`. */
+                             long equipo) {
     }
 
     /** Lo vendido en cerveza. `ganancia = total − costo` (los gastos y mermas son de todo el negocio). */
@@ -188,7 +191,7 @@ public class EstadoService {
         // Lo que se tomó él no cuenta como vendido, pero sí salió de su carga: por eso sigue en `porSabor`
         int consumidos = mias.stream().filter(Venta::esDelTrabajador).mapToInt(Venta::getCantidad).sum();
         ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades() - consumidos, r.porSabor(), 0, 0, 0,
-                r.total(), 0, r.porSabor(), r.cerveza());
+                r.total(), 0, r.porSabor(), r.cerveza(), 0);
         return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0), equipo.metaDe(vendedor, dia),
                 equipo.premiosDe(vendedor, mias), promoDe(), textoDe("PERFIL"), null, null, null);
     }
@@ -268,7 +271,25 @@ public class EstadoService {
                 .mapToLong(e -> (long) -e.getCantidad() * e.getProducto().getCosto())
                 .sum();
         long ingresosDia = Optional.ofNullable(ingresosExtra.gananciaEntre(desde, hasta)).orElse(0L);
-        return resumir(delDia, gastosDia, mermasDia, ingresosDia);
+        ResumenDia r = resumir(delDia, gastosDia, mermasDia, ingresosDia);
+        long equipoDia = equipoDe(dia, desde, hasta, delDia);
+        if (equipoDia == 0) return r;
+        return new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades(), r.porSabor(), r.costo(), r.gastos(), r.mermas(),
+                r.ganancia() - equipoDia, r.ingresos(), r.propias(), r.cerveza(), equipoDia);
+    }
+
+    /**
+     * Lo que le toca al equipo por este día: lo que se ganaron (comisión + premios − consumos − faltantes), sin contar
+     * lo que ya se anotó como gasto «Trabajadores» ese día (así no se resta dos veces). Igual que el cierre del mes.
+     */
+    private long equipoDe(LocalDate dia, Instant desde, Instant hasta, List<Venta> delDia) {
+        if (delDia.stream().noneMatch(v -> v.getVendedorId() != null)) return 0;
+        long ganado = Math.max(0, equipo.liquidar(dia, dia).stream().mapToLong(EquipoService.Liquidacion::porPagar).sum());
+        long anotado = 0;
+        for (Object[] fila : gastos.porCategoriaEntre(desde, hasta)) {
+            if ("TRABAJADORES".equals(fila[0])) anotado += ((Number) fila[1]).longValue();
+        }
+        return Math.max(0, ganado - anotado);
     }
 
     private List<Venta> ventasDe(LocalDate dia) {
@@ -300,6 +321,6 @@ public class EstadoService {
                 .sorted(Comparator.comparingInt(PorSabor::unidades).reversed())
                 .toList();
         return new ResumenDia(total, nequi, efectivo, unidades, ranking, costo, gastos, mermas,
-                total - costo - gastos - mermas + ingresos, ingresos, propias, Cerveza.de(lista));
+                total - costo - gastos - mermas + ingresos, ingresos, propias, Cerveza.de(lista), 0);
     }
 }

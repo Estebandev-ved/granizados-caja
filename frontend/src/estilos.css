@@ -974,3 +974,20 @@ nav button.on svg { animation: salto .35s var(--ease-resorte) }
 .quien-tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; margin-right: 6px; border-radius: 999px;
   background: var(--primario-bg2); color: var(--txt) }
 .quien-tag.equipo { background: var(--primario-bg); color: var(--primario-txt) }
+
+/* Contar billete por billete */
+.billetes-abrir { padding: 4px 0; margin: -6px 0 8px; text-decoration: none }
+.billetes { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--card2); padding: 12px; margin: -4px 0 14px }
+.billetes-tope { display: flex; align-items: center; justify-content: space-between }
+.billetes-tope .link { min-height: 36px; padding: 6px 0 }
+.billetes h4 { margin: 12px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; display: flex; justify-content: space-between }
+.billete-fila { display: grid; grid-template-columns: 76px 1fr 78px; align-items: center; gap: 8px; padding: 4px 0 }
+.billete-valor { font-weight: 700; font-variant-numeric: tabular-nums }
+.billete-valor.moneda::before { content: "●"; color: var(--warn); margin-right: 4px; font-size: 11px }
+.billete-paso { display: flex; align-items: center; justify-content: center; gap: 6px }
+.billete-paso button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--txt); font-size: 20px; line-height: 1 }
+.billete-paso button:disabled { opacity: .4 }
+.billete-paso input { width: 52px; height: 40px; text-align: center; font-size: 17px; font-weight: 700; border: 1px solid var(--line); border-radius: var(--r); background: var(--card); color: var(--txt) }
+.billete-sub { text-align: right; font-variant-numeric: tabular-nums; font-size: 14px }
+.billetes-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px }
+.billetes-total b { font-size: 22px; font-family: var(--font-head) }

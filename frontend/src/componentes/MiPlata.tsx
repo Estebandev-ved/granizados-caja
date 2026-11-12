@@ -1,3 +1,4 @@
+import { ContarBilletes } from './ContarBilletes'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { nuevoUid } from '../estadoLocal'
@@ -253,7 +254,9 @@ function PanelConteo({ saldo, onListo, avisar }: { saldo: SaldoPlata | null; onL
       <h2>Contar mi plata</h2>
       <p>Cuenta lo que tienes de verdad ahora mismo. Lo que digas queda como punto de partida.</p>
       {campo('conteo-caja', 'Efectivo en la caja', caja, setCaja)}
+      <ContarBilletes id="conteo-billetes-caja" onCambio={t => setCaja(t ? String(t) : '')} />
       {campo('conteo-casa', 'Efectivo en la casa', casa, setCasa)}
+      <ContarBilletes id="conteo-billetes-casa" onCambio={t => setCasa(t ? String(t) : '')} />
       {campo('conteo-nequi', 'En Nequi', nequi, setNequi)}
       <p className="mut">Total: <b>{pesos(total)}</b></p>
       <button className="big primario" type="submit" disabled={enviando}>

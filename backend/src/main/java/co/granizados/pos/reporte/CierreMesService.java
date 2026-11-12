@@ -33,7 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * El cierre del mes: lo que de verdad le quedó al negocio. A diferencia de la ganancia de Hoy y de Reportes, acá sí
+ * El cierre del mes: lo que de verdad le quedó al negocio. Como la ganancia de Hoy (y a diferencia de Reportes), acá sí
  * se resta lo que se ganó el equipo (comisiones y premios, menos lo que se les descuenta por consumos y faltantes).
  * Si el dueño además anotó pagos al equipo como gasto «Trabajadores», no se cuentan dos veces: se toma el mayor.
  * También dice cuánto se pagó el dueño («Me pagué»), el punto de equilibrio y lo que deja cada sabor.
@@ -251,7 +251,7 @@ public class CierreMesService {
             return salida;
         }
         if (c.equipoApp > c.gastoTrabajadores && c.equipoApp > 0) {
-            salida.add("Lo que se ganó tu equipo (" + Pesos.formato(c.equipoApp) + ") no se resta en la ganancia de Hoy. "
+            salida.add("Lo que se ganó tu equipo (" + Pesos.formato(c.equipoApp) + ") no se resta en Reportes. "
                     + "Acá sí: por eso esta ganancia es más baja y es la de verdad.");
         }
         if (c.gananciaReal() < 0) {
