@@ -9,6 +9,7 @@ import co.granizados.pos.pedido.PedidoService.ItemRecibido;
 import co.granizados.pos.pedido.PedidoService.ItemPedidoDto;
 import co.granizados.pos.pedido.PedidoService.NuevoItem;
 import co.granizados.pos.pedido.PedidoService.Recepcion;
+import co.granizados.pos.plata.PlataService;
 import co.granizados.pos.resumen.EstadoService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,9 @@ class PedidoSeguimientoTest extends PruebaIntegracion {
 
     @Autowired
     EstadoService estado;
+
+    @Autowired
+    PlataService plata;
 
     private PedidoService.PedidoCreado crear(int smirnoff, int mojito) {
         return pedidos.crear(List.of(new NuevoItem(idDe("Smirnoff"), smirnoff), new NuevoItem(idDe("Mojito"), mojito)));
@@ -179,6 +183,23 @@ class PedidoSeguimientoTest extends PruebaIntegracion {
         assertThat(dto.bono()).isEqualTo(20_000L);
         assertThat(dto.pagado()).isEqualTo(0L);
         assertThat(contar("pago_proveedor")).isEqualTo(0);
+    }
+
+    @Test
+    void elPagoDelPedidoSaleEnMovimientosDeMiPlata() {
+        ponerCosto("Smirnoff", 4000);
+        var creado = pedidos.crear(List.of(new NuevoItem(idDe("Smirnoff"), 10))); // 40.000
+        ponerStock("Smirnoff", 0);
+        pedidos.recibir(creado.id(), new Recepcion("rx-1",
+                List.of(new ItemRecibido(idDe("Smirnoff"), 10)), co.granizados.pos.plata.LugarPlata.CAJA, 5_000L));
+
+        var pagoMov = plata.movimientos(14).stream()
+                .filter(m -> m.tipo().equals("PAGO_PEDIDO"))
+                .findFirst();
+        assertThat(pagoMov).isPresent();
+        assertThat(pagoMov.get().concepto()).isEqualTo("Pago a Energy Cocktails");
+        assertThat(pagoMov.get().monto()).isEqualTo(-35_000L); // 40.000 − 5.000 de bono
+        assertThat(pagoMov.get().lugar()).isEqualTo("CAJA");
     }
 
     @Test
