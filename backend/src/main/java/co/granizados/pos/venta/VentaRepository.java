@@ -19,6 +19,10 @@ public interface VentaRepository extends JpaRepository<Venta, Long> {
             order by v.creadaEn desc, v.id desc""")
     List<Venta> entre(Instant desde, Instant hasta);
 
+    /** Esas ventas por su uid, con el producto ya cargado. */
+    @Query("select v from Venta v join fetch v.producto where v.clientUid in :uids order by v.creadaEn desc, v.id desc")
+    List<Venta> porUids(java.util.Collection<String> uids);
+
     interface UnidadesPorProducto {
         Long getProductoId();
 

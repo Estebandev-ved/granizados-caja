@@ -17,4 +17,8 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
     List<String> conFoto(@Param("uids") Collection<String> uids);
 
     List<Comprobante> findByCreadoEnBefore(Instant antes);
+
+    /** Los uid de las ventas con foto subida desde esa fecha (sin traer las imágenes). */
+    @Query("select c.ventaUid from Comprobante c where c.creadoEn >= :desde")
+    List<String> uidsDesde(@Param("desde") Instant desde);
 }

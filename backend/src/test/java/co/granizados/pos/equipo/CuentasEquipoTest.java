@@ -275,6 +275,12 @@ class CuentasEquipoTest extends PruebaIntegracion {
         String luis = entrar("2222");
         mvc.perform(con(luis, get("/api/comprobantes/v-1"))).andExpect(status().isNotFound());
         mvc.perform(con(luis, post("/api/comprobantes")).content(foto("v-1", jpeg))).andExpect(status().isNotFound());
+        // La galería de comprobantes es solo del dueño: lista la venta con su foto; el trabajador recibe 403
+        mvc.perform(con(entrar("4321"), get("/api/comprobantes")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].ventaUid").value("v-1"))
+                .andExpect(jsonPath("$[0].vendedor").value("Juan"));
+        mvc.perform(con(luis, get("/api/comprobantes"))).andExpect(status().isForbidden());
     }
 
     @Test

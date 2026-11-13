@@ -30,6 +30,11 @@ public class ComprobanteController {
         servicio.guardar(nuevo);
     }
 
+    @GetMapping
+    public java.util.List<ComprobanteService.Item> listar() {
+        return servicio.listar();
+    }
+
     @GetMapping("/{ventaUid}")
     public ResponseEntity<byte[]> ver(@PathVariable String ventaUid) {
         ComprobanteService.Foto foto = servicio.leer(ventaUid);

@@ -280,6 +280,8 @@ class AislamientoTest extends PruebaIntegracion {
         como(2, () -> { comprobantes.guardar(new co.granizados.pos.venta.ComprobanteService.NuevoComprobante("v-1", "data:image/jpeg;base64,BAU=")); return null; });
         assertThat(contar("comprobante")).isEqualTo(2);
         assertThat(como(1, () -> comprobantes.leer("v-1").bytes())).containsExactly(1, 2, 3);
+        // El listado de la galería también es de cada negocio (sin ventas ligadas a esas fotos sale vacío)
+        assertThat(como(2, () -> comprobantes.listar())).isEmpty();
     }
 
     @Autowired

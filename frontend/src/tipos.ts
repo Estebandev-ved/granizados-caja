@@ -792,3 +792,14 @@ export interface VentaBorrada {
   vendidaEn: string
   borradaEn: string
 }
+
+/** Una venta con foto de comprobante (Reportes → Comprobantes). `fecha` = día en Bogotá, yyyy-MM-dd. */
+export interface ComprobanteItem {
+  ventaUid: string
+  sabor: string
+  total: number
+  metodo: string
+  fecha: string
+  hora: string
+  vendedor: string | null
+}

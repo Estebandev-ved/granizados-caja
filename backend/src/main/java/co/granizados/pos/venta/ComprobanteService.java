@@ -42,11 +42,14 @@ public class ComprobanteService {
     private final ComprobanteRepository comprobantes;
     private final VentaRepository ventas;
     private final Clock clock;
+    private final co.granizados.pos.equipo.VendedorRepository vendedores;
 
-    public ComprobanteService(ComprobanteRepository comprobantes, VentaRepository ventas, Clock clock) {
+    public ComprobanteService(ComprobanteRepository comprobantes, VentaRepository ventas, Clock clock,
+                              co.granizados.pos.equipo.VendedorRepository vendedores) {
         this.comprobantes = comprobantes;
         this.ventas = ventas;
         this.clock = clock;
+        this.vendedores = vendedores;
     }
 
     @Transactional
@@ -97,6 +100,28 @@ public class ComprobanteService {
         Long vendedor = Sesion.vendedorId();
         if (vendedor != null && !vendedor.equals(c.getVendedorId())) throw new NoEncontradoException("Esa venta no tiene foto");
         return new Foto(c.getTipo(), c.getImagen());
+    }
+
+    /** Una venta con foto, para la galería del dueño. `fecha` es el día en Bogotá (yyyy-MM-dd). */
+    public record Item(String ventaUid, String sabor, long total, String metodo, String fecha, String hora, String vendedor) {
+    }
+
+    private static final java.time.ZoneId BOGOTA = java.time.ZoneId.of("America/Bogota");
+    private static final java.time.format.DateTimeFormatter HORA = java.time.format.DateTimeFormatter.ofPattern("h:mm a");
+
+    /** Las ventas con foto de los últimos 30 días, más recientes primero. Solo el dueño (RolFiltro). */
+    @Transactional(readOnly = true)
+    public List<Item> listar() {
+        List<String> uids = comprobantes.uidsDesde(clock.instant().minus(SE_GUARDA));
+        if (uids.isEmpty()) return List.of();
+        java.util.Map<Long, String> nombres = new java.util.HashMap<>();
+        for (var x : vendedores.findAll()) nombres.put(x.getId(), x.getNombre());
+        return ventas.porUids(uids).stream().map(v -> {
+            var t = v.getCreadaEn().atZone(BOGOTA);
+            return new Item(v.getClientUid(), v.getProducto().nombre(), v.getTotal(), v.getMetodo().name(),
+                    t.toLocalDate().toString(), HORA.format(t),
+                    v.getVendedorId() == null ? null : nombres.getOrDefault(v.getVendedorId(), "Trabajador"));
+        }).toList();
     }
 
     /** De esas ventas, cuáles tienen foto. */

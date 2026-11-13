@@ -2,7 +2,7 @@ import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequest
 import type {
   BaseVueltos, CategoriaGasto, CierreTurno, EntregaEquipo, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
-  TipoMovimiento, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios, Proyeccion, CierreMes, VentaBorrada,
+  TipoMovimiento, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios, Proyeccion, CierreMes, VentaBorrada, ComprobanteItem,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -295,6 +295,8 @@ export const api = {
   /** El cierre de un mes (2026-11); sin mes, el que va en curso. */
   cierreMes: (mes?: string) => pedir<CierreMes>('GET', '/api/reportes/mes' + (mes ? '?mes=' + mes : '')),
   ventasBorradas: (desde: string, hasta: string) => pedir<VentaBorrada[]>('GET', `/api/ventas/borradas?desde=${desde}&hasta=${hasta}`),
+  /** Las fotos de comprobantes de los últimos 30 días, con la venta de cada una (solo el dueño). */
+  comprobantes: () => pedir<ComprobanteItem[]>('GET', '/api/comprobantes'),
   /** La copia de todo (.zip con un Excel por tabla). En el iPhone la comparte; si no se puede, la descarga. */
   descargarRespaldo: async () => {
     const blob = await pedirBlob('/api/reportes/respaldo.zip')

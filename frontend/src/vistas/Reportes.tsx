@@ -4,6 +4,7 @@ import { Icono } from '../componentes/Icono'
 import { CierreDelMes } from '../componentes/CierreDelMes'
 import { ComparaSemanas } from '../componentes/ComparaSemanas'
 import { VentasBorradas } from '../componentes/VentasBorradas'
+import { ComprobantesGuardados } from '../componentes/ComprobantesGuardados'
 import { HistorialEquipo } from '../componentes/HistorialEquipo'
 import { usePerfil } from '../perfil'
 import { MiPlata } from '../componentes/MiPlata'
@@ -251,6 +252,7 @@ export function Reportes({ avisar }: Props) {
 
       {/* Fuera del bloque de arriba: si borraron todas las ventas, el periodo sale vacío y justo ahí hay que verlas */}
       {!cargando && <VentasBorradas desde={desde} hasta={hasta} />}
+      <ComprobantesGuardados />
 
       <button className="big ghost" onClick={copiaDeTodo}>💾 Copia de seguridad de todo</button>
       <p className="mut centro">Un archivo con todas tus ventas, gastos, plata, inventario y equipo, en hojas de Excel. El día 1 de cada mes también te llega por Telegram.</p>
