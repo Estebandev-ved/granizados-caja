@@ -5,8 +5,8 @@ import { api, ApiError, sesion } from './api'
 // haya señal: la venta puede seguir en la cola y la foto sube igual (el servidor la liga por el clientUid de la venta).
 
 /** Lado más largo de la foto ya comprimida: alcanza para leer un comprobante y pesa unos 100-200 KB. */
-const LADO = 1280
-const CALIDAD = 0.6
+const LADO = 1024
+const CALIDAD = 0.55
 /** Una foto que no sube en este tiempo se descarta (la venta ya no está en "Mis ventas de hoy"). */
 const VENCE_MS = 3 * 24 * 60 * 60 * 1000
 
@@ -29,7 +29,23 @@ async function guardar(p: Record<string, Pendiente>): Promise<void> {
 }
 
 /** Achica la foto y la vuelve JPEG (data URL). Safari 16 lo hace bien con <img> + canvas. */
-export function comprimir(archivo: Blob): Promise<string> {
+export async function comprimir(archivo: Blob): Promise<string> {
+  // createImageBitmap decodifica fuera del hilo principal y es bastante más rápido con fotos de cámara grandes
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bmp = await createImageBitmap(archivo)
+      const escala = Math.min(1, LADO / Math.max(bmp.width, bmp.height))
+      const lienzo = document.createElement('canvas')
+      lienzo.width = Math.max(1, Math.round(bmp.width * escala))
+      lienzo.height = Math.max(1, Math.round(bmp.height * escala))
+      const ctx = lienzo.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(bmp, 0, 0, lienzo.width, lienzo.height)
+        bmp.close?.()
+        return lienzo.toDataURL('image/jpeg', CALIDAD)
+      }
+    } catch { /* se intenta por el camino de siempre */ }
+  }
   return new Promise((resolver, rechazar) => {
     const url = URL.createObjectURL(archivo)
     const img = new Image()

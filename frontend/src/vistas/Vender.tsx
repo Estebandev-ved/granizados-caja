@@ -353,7 +353,8 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, tarifas, onPa
             <button className="big nequi" onClick={() => pagar('NEQUI')}>Nequi</button>
             <button className="big cash" onClick={() => pagar('EFECTIVO')}>Efectivo</button>
           </div>
-          <BotonFoto camara onFoto={f => pagar('NEQUI', undefined, undefined, f)}>📷 Nequi con foto del comprobante</BotonFoto>
+          {/* Un toque: abre la cámara y al tomar la foto la venta queda como Nequi, sin más pasos */}
+          <BotonFoto camara className="big nequi foto-nequi" onFoto={f => pagar('NEQUI', undefined, undefined, f)}>📷 Foto del pago · Nequi</BotonFoto>
           <button type="button" className="link fiado-boton" onClick={() => setMixto(true)}>Pagó mitad y mitad (efectivo + Nequi)</button>
           {!trabajador && perfil.fiados && <button type="button" className="link fiado-boton" onClick={() => setFiando(true)}>Fiado (paga después)</button>}
           {!trabajador && <button type="button" className="link fiado-boton" onClick={() => pagar('REGALO')}>🎁 Regalo (sello de fidelidad)</button>}

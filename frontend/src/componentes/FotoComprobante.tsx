@@ -26,25 +26,57 @@ export function BotonFoto({ onFoto, camara = false, className = 'link fiado-boto
   )
 }
 
+// Las fotos ya vistas quedan en memoria: abrir otra vez la misma es instantáneo (no se vuelve a pedir al servidor)
+const cacheFotos = new Map<string, Promise<string>>()
+
+function urlDeComprobante(ventaUid: string): Promise<string> {
+  let p = cacheFotos.get(ventaUid)
+  if (!p) {
+    p = api.verComprobante(ventaUid).then(b => URL.createObjectURL(b))
+    p.catch(() => cacheFotos.delete(ventaUid)) // si falló, la próxima vez se intenta de nuevo
+    cacheFotos.set(ventaUid, p)
+  }
+  return p
+}
+
 /** La foto del comprobante de una venta, pedida con el token. */
-export function VerComprobante({ ventaUid }: { ventaUid: string }) {
+export function VerComprobante({ ventaUid, miniatura = false }: { ventaUid: string; miniatura?: boolean }) {
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState(false)
   useEffect(() => {
     let vivo = true
-    let creada: string | null = null
-    api.verComprobante(ventaUid)
-      .then(b => {
-        creada = URL.createObjectURL(b)
-        if (vivo) setUrl(creada)
-        else URL.revokeObjectURL(creada)
-      })
+    urlDeComprobante(ventaUid)
+      .then(u => { if (vivo) setUrl(u) })
       .catch(() => { if (vivo) setError(true) })
-    return () => { vivo = false; if (creada) URL.revokeObjectURL(creada) }
+    return () => { vivo = false }
   }, [ventaUid])
   if (error) return <p className="mut">No se pudo traer la foto, revisa la señal.</p>
   if (!url) return <p className="mut">Cargando la foto…</p>
-  return <img className="comprobante-foto" src={url} alt="Comprobante de pago" />
+  return <img className={miniatura ? 'comprobante-mini' : 'comprobante-foto'} src={url} alt="Comprobante de pago" />
+}
+
+/** Todas las fotos de comprobantes de las ventas dadas, en cuadrícula; tocar una la abre grande. */
+export function GaleriaComprobantes({ ventas }: { ventas: { clientUid: string; sabor: string; hora: string; total: number }[] }) {
+  const [abierta, setAbierta] = useState<string | null>(null)
+  if (!ventas.length) return <p className="mut">Todavía no hay fotos de comprobantes hoy.</p>
+  return (
+    <div className="comprobante">
+      {abierta && (
+        <button type="button" className="comprobante-grande" onClick={() => setAbierta(null)} aria-label="Cerrar foto">
+          <VerComprobante ventaUid={abierta} />
+        </button>
+      )}
+      <div className="galeria-comprobantes">
+        {ventas.map(v => (
+          <button type="button" key={v.clientUid} className={'galeria-item' + (abierta === v.clientUid ? ' on' : '')}
+            onClick={() => setAbierta(v.clientUid)}>
+            <VerComprobante ventaUid={v.clientUid} miniatura />
+            <small>{v.sabor} · {v.hora}</small>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 /** Las ventas cuya foto todavía está en el celular esperando señal. Se actualiza solo. */

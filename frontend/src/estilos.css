@@ -108,6 +108,13 @@ main { padding: 0 12px calc(90px + var(--safe-b)) }
 .meta-otra input { max-width: 110px }
 .comprobante { display: grid; gap: 8px; margin: 10px 0 }
 .comprobante-foto { width: 100%; max-height: 60vh; object-fit: contain; border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--card2) }
+.foto-nequi { width: 100%; margin-top: 8px }
+.comprobante-grande { display: block; width: 100%; padding: 0; border: 0; background: none }
+.galeria-comprobantes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px }
+.galeria-item { display: grid; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--card2); color: inherit; text-align: center }
+.galeria-item.on { border-color: var(--primario) }
+.galeria-item small { font-size: 11px; color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.comprobante-mini { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--r-lg) }
 .modo { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--mut); margin: 14px 4px 8px }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
 

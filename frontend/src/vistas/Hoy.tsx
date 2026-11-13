@@ -8,7 +8,7 @@ import { usePerfil } from '../perfil'
 import { PedidoEnCamino } from '../componentes/PedidoEnCamino'
 import { hitoDeRacha } from '../ritmo'
 import { ConsejoNova } from '../componentes/ConsejoNova'
-import { ComprobanteDeVenta, useComprobantesPendientes } from '../componentes/FotoComprobante'
+import { ComprobanteDeVenta, GaleriaComprobantes, useComprobantesPendientes } from '../componentes/FotoComprobante'
 import { GastosDelMes } from '../componentes/GastosDelMes'
 import { avanceDe, avisoAlGastar, leerTopes, type Topes } from '../topes'
 import { Personaje } from '../componentes/Personaje'
@@ -40,6 +40,8 @@ type Panel =
 
 export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGasto, onCerrarCaja, avisar }: Props) {
   const fotosEsperando = useComprobantesPendientes()
+  const [galeria, setGaleria] = useState(false)
+  const conFoto = estado.ultimas.filter(u => u.comprobante)
   const perfil = usePerfil()
   const [panel, setPanel] = useState<Panel | null>(null)
   const [verTodas, setVerTodas] = useState(false)
@@ -207,6 +209,14 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
                 </button>
               ))}
             </div>
+          )}
+          {conFoto.length > 0 && (
+            <>
+              <button type="button" className="chip-link" onClick={() => setGaleria(g => !g)}>
+                {galeria ? 'Ocultar comprobantes' : '📎 Ver comprobantes (' + conFoto.length + ')'}
+              </button>
+              {galeria && <GaleriaComprobantes ventas={conFoto} />}
+            </>
           )}
           <p className="mut" style={{ margin: '0 0 6px' }}>Toca una venta para borrarla si te equivocaste.</p>
           {(verTodas ? filtradas : filtradas.slice(0, 8)).map(u => (
