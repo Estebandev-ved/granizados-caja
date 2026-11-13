@@ -304,9 +304,12 @@ export const api = {
   },
   crearPedido: (items: LineaPedido[]) => pedir<PedidoCreado>('POST', '/api/pedidos', { items }),
   pedidos: (estado?: EstadoPedido) => pedir<Pedido[]>('GET', '/api/pedidos' + (estado ? '?estado=' + estado : '')),
-  recibirPedido: (pedidoId: number, clientUid: string, items: LineaPedido[], pagoLugar?: LugarPlata) =>
-    pedir<{ estado: string }>('POST', '/api/pedidos/' + pedidoId + '/recibido', { clientUid, items, pagoLugar }),
+  recibirPedido: (pedidoId: number, clientUid: string, items: LineaPedido[], pagoLugar?: LugarPlata, bono?: number) =>
+    pedir<{ estado: string }>('POST', '/api/pedidos/' + pedidoId + '/recibido', { clientUid, items, pagoLugar, bono }),
   cancelarPedido: (pedidoId: number) => pedir<{ estado: string }>('POST', '/api/pedidos/' + pedidoId + '/cancelar'),
+  /** Cambiar el bono/descuento del proveedor en un pedido que ya llegó. */
+  ajustarBonoPedido: (pedidoId: number, bono: number) =>
+    pedir<Pedido>('POST', '/api/pedidos/' + pedidoId + '/bono', { bono }),
   productos: () => pedir<Producto[]>('GET', '/api/productos'),
   reportes: (desde: string, hasta: string) => pedir<Reporte>('GET', `/api/reportes?desde=${desde}&hasta=${hasta}`),
   /** El CSV del periodo. En el iPhone lo comparte (AirDrop, WhatsApp, Archivos); si no se puede, lo descarga. */

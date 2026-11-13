@@ -202,8 +202,8 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       onContar={(p, real) => { caja.contar(p, real); avisar('✓ ' + p.nombre + ' en ' + real) }}
       onContarTodo={(ps, reales) => { caja.contarTodo(ps, reales); avisar('✓ Conteo guardado') }}
       onMerma={(p, cantidad, motivo) => { caja.mermar(p, cantidad, motivo); avisar('−' + cantidad + ' ' + p.nombre) }}
-      onLlego={(pedidoId, items, pagoLugar) => {
-        caja.llegoElPedido(pedidoId, items, pagoLugar)
+      onLlego={(pedidoId, items, pagoLugar, bono) => {
+        caja.llegoElPedido(pedidoId, items, pagoLugar, bono)
         avisar('✓ Llegada anotada · ' + items.reduce((a, l) => a + l.cantidad, 0) + ' unidades')
       }}
       onCancelar={caja.cancelarPedido}
@@ -220,8 +220,8 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       }} />
   } else if (vista === 'hoy') {
     contenido = <Hoy estado={estado} onDeshacer={caja.deshacer} onRecargar={caja.recargar}
-      onLlego={(pedidoId, items, pagoLugar) => {
-        caja.llegoElPedido(pedidoId, items, pagoLugar)
+      onLlego={(pedidoId, items, pagoLugar, bono) => {
+        caja.llegoElPedido(pedidoId, items, pagoLugar, bono)
         avisar('✓ Llegada anotada · ' + items.reduce((a, l) => a + l.cantidad, 0) + ' unidades')
       }}
       onCancelar={caja.cancelarPedido}

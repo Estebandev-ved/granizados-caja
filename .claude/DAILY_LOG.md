@@ -40,6 +40,9 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-12
+- **Bono / descuento del proveedor en los pedidos.** Al recibir un pedido ("Llegó") aparece el campo "¿Te hizo descuento o bono? (opcional)": se le paga al proveedor `bruto − bono` (Mi plata resta solo eso del lugar escogido) y el bono queda guardado en el pedido. También se puede ajustar después con `POST /api/pedidos/{id}/bono` (por si se olvidó anotarlo). En Cierre del mes aparece una línea `💚 Te ahorraste $X en bonos del proveedor este mes`, y el resumen mensual de Telegram también lo lista. Si el bono cubre todo el pedido, no se registra pago. Migración `V36__pedido_bono.sql` + `pedido_proveedor.bono BIGINT NOT NULL DEFAULT 0`. Pruebas nuevas en `PedidoSeguimientoTest` (4 casos) y `cola.test.ts`. No hay todavía una pantalla de historial de pedidos; el endpoint queda listo para cuando se arme.
+
 ### 2026-11-11 (cierre, 2)
 - **De quién es cada venta:** en Hoy → Ventas de hoy cada venta dice «Tú» o el nombre del trabajador, con filtro Todas · Mías · cada trabajador (y cuántos vendió). En Mi plata → Movimientos las ventas ya no se juntan: van por persona («Ventas en efectivo de Jacobo · 14 u.»). Sin migración.
 - Pruebas: backend 236 (`QuienVendioTest`), frontend 123 (`quien.test.ts`). Probado en la app local con un trabajador de prueba (se borró al terminar).

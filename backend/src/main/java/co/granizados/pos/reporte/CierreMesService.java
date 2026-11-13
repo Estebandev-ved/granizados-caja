@@ -9,6 +9,7 @@ import co.granizados.pos.gasto.Gasto;
 import co.granizados.pos.gasto.GastoRepository;
 import co.granizados.pos.inventario.EntradaInventarioRepository;
 import co.granizados.pos.inventario.TipoMovimiento;
+import co.granizados.pos.pedido.PedidoProveedorRepository;
 import co.granizados.pos.plata.IngresoRepository;
 import co.granizados.pos.plata.Retiro;
 import co.granizados.pos.plata.RetiroRepository;
@@ -70,6 +71,8 @@ public class CierreMesService {
                             long gastos, long ingresos,
                             /** Lo del equipo que se resta: el mayor entre lo que ganaron según la app y lo anotado como gasto. */
                             long equipo, long equipoApp, long gastoTrabajadores,
+                            /** Bono/descuento que te hizo el proveedor en los pedidos recibidos este mes. */
+                            long bonosProveedor,
                             /** La ganancia como la muestran Hoy y Reportes (sin restar el equipo). */
                             long gananciaApp, long gananciaReal, long retiros, long quedaEnNegocio,
                             /** Si el mes va en curso: a cuánto llegaría la ganancia real al ritmo de hoy. */
@@ -86,19 +89,21 @@ public class CierreMesService {
     private final IngresoRepository ingresos;
     private final RetiroRepository retiros;
     private final VendedorRepository vendedores;
+    private final PedidoProveedorRepository pedidos;
     private final EquipoService equipo;
     private final Clock clock;
     private final ZoneId zona;
 
     public CierreMesService(VentaRepository ventas, GastoRepository gastos, EntradaInventarioRepository movimientos,
                             IngresoRepository ingresos, RetiroRepository retiros, VendedorRepository vendedores,
-                            EquipoService equipo, Clock clock, AppProperties props) {
+                            PedidoProveedorRepository pedidos, EquipoService equipo, Clock clock, AppProperties props) {
         this.ventas = ventas;
         this.gastos = gastos;
         this.movimientos = movimientos;
         this.ingresos = ingresos;
         this.retiros = retiros;
         this.vendedores = vendedores;
+        this.pedidos = pedidos;
         this.equipo = equipo;
         this.clock = clock;
         this.zona = props.zoneId();
@@ -141,7 +146,8 @@ public class CierreMesService {
 
         return new CierreMes(mes.toString(), nombre(mes), mes.atDay(1).toString(), mes.atEndOfMonth().toString(), enCurso,
                 diasDelMes, transcurridos, c.vendidasPorDia.size(), c.vendidas, c.ventas, c.costo, c.mermas, c.gastosSinTrab,
-                c.ingresos, c.equipo, c.equipoApp, c.gastoTrabajadores, c.gananciaApp(), c.gananciaReal(), c.retiros,
+                c.ingresos, c.equipo, c.equipoApp, c.gastoTrabajadores, c.bonosProveedor,
+                c.gananciaApp(), c.gananciaReal(), c.retiros,
                 c.gananciaReal() - c.retiros, proyeccion, c.categorias, equilibrio, c.porSabor, anterior,
                 consejos(c, ant, equilibrio, enCurso));
     }
@@ -156,7 +162,7 @@ public class CierreMesService {
     /** Los totales de un mes, ya separados como los necesita el cierre. */
     private static final class Cuentas {
         YearMonth mes;
-        long ventas, costo, mermas, gastosSinTrab, gastoTrabajadores, ingresos, equipoApp, equipo, retiros;
+        long ventas, costo, mermas, gastosSinTrab, gastoTrabajadores, ingresos, equipoApp, equipo, retiros, bonosProveedor;
         int vendidas;
         Map<LocalDate, Integer> vendidasPorDia = new HashMap<>();
         List<Categoria> categorias = List.of();
@@ -222,6 +228,7 @@ public class CierreMesService {
         c.ingresos = Optional.ofNullable(ingresos.gananciaEntre(inicio, fin)).orElse(0L);
         c.retiros = retiros.findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(inicio, fin).stream()
                 .mapToLong(Retiro::getMonto).sum();
+        c.bonosProveedor = pedidos.bonosRecibidosEntre(inicio, fin);
 
         // Lo que ganó el equipo en el mes: comisión + premios − lo que se les descuenta por consumos y faltantes
         c.equipoApp = Math.max(0, equipo.liquidar(desde, hasta).stream().mapToLong(EquipoService.Liquidacion::porPagar).sum());
@@ -312,6 +319,8 @@ public class CierreMesService {
         if (m.equipo() > 0) t.append("\n• Equipo: −").append(Pesos.formato(m.equipo()));
         if (m.mermas() > 0) t.append("\n• Mermas: −").append(Pesos.formato(m.mermas()));
         if (m.ingresos() > 0) t.append("\n• Otros ingresos: +").append(Pesos.formato(m.ingresos()));
+        if (m.bonosProveedor() > 0) t.append("\n• Bonos del proveedor: ").append(Pesos.formato(m.bonosProveedor()))
+                .append(" (ya restados del pedido)");
         t.append("\nGanancia real: ").append(Pesos.formato(m.gananciaReal()));
         if (m.retiros() > 0) {
             t.append("\nTe pagaste: ").append(Pesos.formato(m.retiros()))

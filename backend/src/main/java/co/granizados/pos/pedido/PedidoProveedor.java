@@ -35,6 +35,10 @@ public class PedidoProveedor {
 
     private int totalUnidades;
 
+    /** Bono/descuento que te hizo el proveedor en pesos (ej. $50.000). No baja plata extra: achica lo que se le paga. */
+    @Column(nullable = false)
+    private long bono;
+
     @OneToMany(mappedBy = "pedido", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
     private List<PedidoItem> items = new ArrayList<>();
 
@@ -63,9 +67,11 @@ public class PedidoProveedor {
     public Instant getRecibidoEn() { return recibidoEn; }
     public String getRecibidoUid() { return recibidoUid; }
     public int getTotalUnidades() { return totalUnidades; }
+    public long getBono() { return bono; }
     public List<PedidoItem> getItems() { return items; }
 
     public void setEstado(EstadoPedido estado) { this.estado = estado; }
     public void setRecibidoEn(Instant recibidoEn) { this.recibidoEn = recibidoEn; }
     public void setRecibidoUid(String recibidoUid) { this.recibidoUid = recibidoUid; }
+    public void setBono(long bono) { this.bono = bono; }
 }

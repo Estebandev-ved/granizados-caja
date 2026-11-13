@@ -47,4 +47,6 @@ public class PagoProveedor {
     public long getMonto() { return monto; }
     public LugarPlata getLugar() { return lugar; }
     public Instant getCreadoEn() { return creadoEn; }
+
+    public void setMonto(long monto) { this.monto = monto; }
 }

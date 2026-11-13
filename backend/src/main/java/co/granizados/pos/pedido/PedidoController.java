@@ -67,4 +67,10 @@ public class PedidoController {
     public Respuesta cancelar(@PathVariable Long id) {
         return new Respuesta(servicio.cancelar(id).name(), null);
     }
+
+    /** Cambiar el bono/descuento de un pedido ya recibido. */
+    @PostMapping("/api/pedidos/{id}/bono")
+    public PedidoService.PedidoDto ajustarBono(@PathVariable Long id, @Valid @RequestBody PedidoService.AjusteBono cuerpo) {
+        return servicio.ajustarBono(id, cuerpo.bono());
+    }
 }

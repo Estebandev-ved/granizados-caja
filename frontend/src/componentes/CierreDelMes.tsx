@@ -80,6 +80,10 @@ function Contenido({ c }: { c: CierreMes }) {
         <p className="mut">Si sigues a este ritmo, cierras {c.nombre.split(' ')[0].toLowerCase()} con unos <b>{pesos(c.proyeccion)}</b> de ganancia.</p>
       )}
 
+      {c.bonosProveedor > 0 && (
+        <p className="mut">💚 Te ahorraste <b>{pesos(c.bonosProveedor)}</b> en bonos del proveedor este mes. Ya está restado del pedido.</p>
+      )}
+
       <Equilibrio c={c} />
 
       {c.consejos.length > 0 && (

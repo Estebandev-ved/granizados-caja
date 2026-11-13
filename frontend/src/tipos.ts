@@ -389,6 +389,10 @@ export interface Pedido {
   recibidoEn: string | null
   totalUnidades: number
   costoTotal: number
+  /** Bono/descuento que te hizo el proveedor en pesos. */
+  bono: number
+  /** Lo que de verdad se le pagó (bruto − bono). Null si todavía no ha llegado. */
+  pagado: number | null
   items: ItemPedidoRecibido[]
 }
 
@@ -591,7 +595,7 @@ export type Operacion =
   | { tipo: 'ajuste'; clientUid: string; productoId: number; real: number; creadaEn: number }
   | { tipo: 'merma'; clientUid: string; productoId: number; cantidad: number; motivo: MotivoMerma; creadaEn: number }
   | { tipo: 'gasto'; clientUid: string; categoria: CategoriaGasto; concepto: string; monto: number; /** De dónde salió la plata (si falta, de la caja). */ lugar?: LugarPlata; creadaEn: number }
-  | { tipo: 'recepcion'; clientUid: string; pedidoId: number; items: LineaPedido[]; pagoLugar?: LugarPlata; creadaEn: number }
+  | { tipo: 'recepcion'; clientUid: string; pedidoId: number; items: LineaPedido[]; pagoLugar?: LugarPlata; /** Bono/descuento del proveedor en pesos. */ bono?: number; creadaEn: number }
   | { tipo: 'arqueo'; clientUid: string; contado: number; nota: string; casa?: number; nequi?: number; creadaEn: number }
 
 export interface RespuestaVenta {
@@ -721,6 +725,8 @@ export interface CierreMes {
   equipo: number
   equipoApp: number
   gastoTrabajadores: number
+  /** Bonos/descuentos que te hizo el proveedor este mes (ya restados del pago, acá sumados para que los veas). */
+  bonosProveedor: number
   gananciaApp: number
   gananciaReal: number
   retiros: number

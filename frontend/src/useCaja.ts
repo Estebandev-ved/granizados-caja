@@ -179,8 +179,8 @@ export function useCaja(avisar: (mensaje: string) => void) {
   }, [setCola, sincronizar])
 
   /** "Llegó el pedido": se ve al instante (suma stock y baja el banner) y sube cuando haya señal. */
-  const llegoElPedido = useCallback((pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => {
-    const op: Operacion = { tipo: 'recepcion', clientUid: nuevoUid(), pedidoId, items, pagoLugar, creadaEn: Date.now() }
+  const llegoElPedido = useCallback((pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata, bono?: number) => {
+    const op: Operacion = { tipo: 'recepcion', clientUid: nuevoUid(), pedidoId, items, pagoLugar, bono, creadaEn: Date.now() }
     setCola(c => [...c, op])
     void sincronizar()
   }, [setCola, sincronizar])

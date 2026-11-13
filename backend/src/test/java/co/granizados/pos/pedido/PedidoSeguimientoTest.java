@@ -123,4 +123,68 @@ class PedidoSeguimientoTest extends PruebaIntegracion {
         assertThatThrownBy(() -> pedidos.crear(List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    private void ponerCosto(String sabor, int costo) {
+        jdbc.update("update producto set costo = ? where sabor = ?", costo, sabor);
+    }
+
+    @Test
+    void elBonoDelProveedorAchicaLoQueSeLePaga() {
+        ponerCosto("Smirnoff", 4000);
+        ponerCosto("Mojito", 4500);
+        var creado = crear(20, 10); // 20 × 4000 + 10 × 4500 = 125000
+        ponerStock("Smirnoff", 0);
+        ponerStock("Mojito", 0);
+
+        pedidos.recibir(creado.id(), new Recepcion("rx-1",
+                List.of(new ItemRecibido(idDe("Smirnoff"), 20), new ItemRecibido(idDe("Mojito"), 10)),
+                null, 50_000L));
+
+        var dto = pedidos.listar(EstadoPedido.RECIBIDO).getFirst();
+        assertThat(dto.bono()).isEqualTo(50_000L);
+        assertThat(dto.pagado()).isEqualTo(75_000L);
+        assertThat(jdbc.queryForObject("select monto from pago_proveedor where pedido_id = ?", Long.class, creado.id()))
+                .isEqualTo(75_000L);
+    }
+
+    @Test
+    void ajustarBonoDespuesDeRecibirReajustaLoPagado() {
+        ponerCosto("Smirnoff", 4000);
+        ponerCosto("Mojito", 4500);
+        var creado = crear(20, 10); // 125000 bruto
+        ponerStock("Smirnoff", 0);
+        ponerStock("Mojito", 0);
+        pedidos.recibir(creado.id(), new Recepcion("rx-1",
+                List.of(new ItemRecibido(idDe("Smirnoff"), 20), new ItemRecibido(idDe("Mojito"), 10))));
+        assertThat(jdbc.queryForObject("select monto from pago_proveedor where pedido_id = ?", Long.class, creado.id()))
+                .isEqualTo(125_000L);
+
+        var ajustado = pedidos.ajustarBono(creado.id(), 30_000L);
+
+        assertThat(ajustado.bono()).isEqualTo(30_000L);
+        assertThat(ajustado.pagado()).isEqualTo(95_000L);
+        assertThat(jdbc.queryForObject("select monto from pago_proveedor where pedido_id = ?", Long.class, creado.id()))
+                .isEqualTo(95_000L);
+    }
+
+    @Test
+    void siElBonoCubreTodoNoSeLePagaNada() {
+        ponerCosto("Smirnoff", 4000);
+        var creado = pedidos.crear(List.of(new NuevoItem(idDe("Smirnoff"), 5))); // 5 × 4000 = 20000
+        ponerStock("Smirnoff", 0);
+        pedidos.recibir(creado.id(), new Recepcion("rx-1",
+                List.of(new ItemRecibido(idDe("Smirnoff"), 5)), null, 999_999L));
+
+        var dto = pedidos.listar(EstadoPedido.RECIBIDO).getFirst();
+        assertThat(dto.bono()).isEqualTo(20_000L);
+        assertThat(dto.pagado()).isEqualTo(0L);
+        assertThat(contar("pago_proveedor")).isEqualTo(0);
+    }
+
+    @Test
+    void noSePuedeAjustarBonoDeUnPedidoEnCamino() {
+        var creado = pedidos.crear(List.of(new NuevoItem(idDe("Smirnoff"), 5)));
+        assertThatThrownBy(() -> pedidos.ajustarBono(creado.id(), 1_000L))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

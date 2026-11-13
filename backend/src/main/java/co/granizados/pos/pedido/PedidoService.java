@@ -77,20 +77,36 @@ public class PedidoService {
     public record ItemPedidoDto(Long productoId, String sabor, int pedida, int recibida) {
     }
 
+    /**
+     * `bono` = descuento del proveedor en pesos (ej. $50.000 de bono en un pedido de $290.000).
+     * `pagado` = lo que de verdad se le pagó (bruto − bono); null si el pedido todavía no llegó.
+     */
     public record PedidoDto(long id, String estado, Instant creadoEn, Instant recibidoEn,
-                            int totalUnidades, long costoTotal, List<ItemPedidoDto> items) {
+                            int totalUnidades, long costoTotal, long bono, Long pagado,
+                            List<ItemPedidoDto> items) {
     }
 
     public record ItemRecibido(@NotNull Long productoId, @Min(0) @Max(1000) int cantidad) {
     }
 
-    /** pagoLugar (opcional): de dónde salió la plata para pagarle al proveedor. Sin él se asume Nequi. */
+    /**
+     * pagoLugar (opcional): de dónde salió la plata para pagarle al proveedor. Sin él se asume Nequi.
+     * bono (opcional): descuento que hizo el proveedor en pesos. Null o 0 = sin descuento.
+     */
     public record Recepcion(@NotBlank @Size(max = 64) String clientUid,
                             @NotEmpty @Size(max = 50) List<@Valid ItemRecibido> items,
-                            LugarPlata pagoLugar) {
+                            LugarPlata pagoLugar,
+                            @Min(0) @Max(100_000_000) Long bono) {
         public Recepcion(String clientUid, List<ItemRecibido> items) {
-            this(clientUid, items, null);
+            this(clientUid, items, null, null);
         }
+        public Recepcion(String clientUid, List<ItemRecibido> items, LugarPlata pagoLugar) {
+            this(clientUid, items, pagoLugar, null);
+        }
+    }
+
+    /** Ajuste del bono sobre un pedido ya recibido (acabas de acordarte del descuento). */
+    public record AjusteBono(@Min(0) @Max(100_000_000) long bono) {
     }
 
     public enum EstadoRecepcion { REGISTRADA, REPETIDA }
@@ -400,8 +416,18 @@ public class PedidoService {
                 .toList();
         long costoTotal = p.getItems().stream()
                 .mapToLong(i -> (long) i.getCantidadPedida() * i.getProducto().getCosto()).sum();
+        // Pagado solo tiene sentido una vez el pedido llegó: antes todavía no se le paga nada
+        Long pagado = p.getEstado() == EstadoPedido.RECIBIDO
+                ? Math.max(0, bruto(p) - p.getBono())
+                : null;
         return new PedidoDto(p.getId(), p.getEstado().name(), p.getCreadoEn(), p.getRecibidoEn(),
-                p.getTotalUnidades(), costoTotal, items);
+                p.getTotalUnidades(), costoTotal, p.getBono(), pagado, items);
+    }
+
+    /** Lo que le toca al proveedor por este pedido antes de aplicar el bono: lo que llegó, al costo de cada sabor. */
+    private static long bruto(PedidoProveedor p) {
+        return p.getItems().stream()
+                .mapToLong(it -> (long) it.getCantidadRecibida() * it.getProducto().getCosto()).sum();
     }
 
     /**
@@ -426,11 +452,15 @@ public class PedidoService {
         for (PedidoItem it : pedido.getItems()) {
             it.setCantidadRecibida(llegadas.getOrDefault(it.getProducto().getId(), 0));
         }
+        // El bono no puede pasar de lo que te costaría el pedido (si el proveedor te lo regala entero, el pago queda en 0)
+        long brutoPedido = pedido.getItems().stream()
+                .mapToLong(it -> (long) it.getCantidadRecibida() * it.getProducto().getCosto()).sum();
+        long bono = r.bono() == null ? 0 : Math.max(0, Math.min(r.bono(), brutoPedido));
+        pedido.setBono(bono);
+
         // Se guarda primero: inventario.sumarStock limpia la sesión y el pedido quedaría suelto
         pedidos.saveAndFlush(pedido);
-        // Lo que se le paga al proveedor es lo que llegó, al costo de cada sabor
-        long aPagar = pedido.getItems().stream()
-                .mapToLong(it -> (long) it.getCantidadRecibida() * it.getProducto().getCosto()).sum();
+        long aPagar = brutoPedido - bono;
 
         for (ItemRecibido i : r.items()) {
             if (i.cantidad() <= 0) continue;
@@ -440,6 +470,26 @@ public class PedidoService {
         }
         plata.registrarPagoPedido(pedidoId, aPagar, r.pagoLugar());
         return EstadoRecepcion.REGISTRADA;
+    }
+
+    /**
+     * Cambiar el bono de un pedido ya recibido (ej. te acordaste del descuento después de anotarlo).
+     * Reajusta lo que se le pagó al proveedor: Mi plata lo ve en el próximo saldo.
+     */
+    @Transactional
+    public PedidoDto ajustarBono(Long pedidoId, long bono) {
+        PedidoProveedor pedido = pedidos.findParaActualizar(pedidoId)
+                .orElseThrow(() -> new NoEncontradoException("Pedido no encontrado: " + pedidoId));
+        if (pedido.getEstado() != EstadoPedido.RECIBIDO) {
+            throw new IllegalArgumentException("Solo puedes cambiar el bono de un pedido que ya llegó");
+        }
+        long brutoPedido = pedido.getItems().stream()
+                .mapToLong(it -> (long) it.getCantidadRecibida() * it.getProducto().getCosto()).sum();
+        long limpio = Math.max(0, Math.min(bono, brutoPedido));
+        pedido.setBono(limpio);
+        pedidos.saveAndFlush(pedido);
+        plata.ajustarPagoPedido(pedidoId, brutoPedido - limpio);
+        return dto(pedido);
     }
 
     @Transactional

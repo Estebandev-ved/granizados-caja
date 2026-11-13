@@ -33,7 +33,7 @@ interface Props {
   onContar: (p: Producto, real: number) => void
   onContarTodo: (productos: Producto[], reales: Readonly<Record<number, number>>) => void
   onMerma: (p: Producto, cantidad: number, motivo: MotivoMerma) => void
-  onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => void
+  onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata, bono?: number) => void
   onCancelar: (pedidoId: number) => Promise<boolean>
   avisar: (m: string) => void
 }

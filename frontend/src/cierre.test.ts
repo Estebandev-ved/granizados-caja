@@ -5,7 +5,7 @@ import type { CierreMes } from './tipos'
 const base: CierreMes = {
   mes: '2026-11', nombre: 'Noviembre 2026', desde: '2026-11-01', hasta: '2026-11-30', enCurso: true, diasDelMes: 30,
   diasTranscurridos: 11, diasConVenta: 9, unidades: 200, ventas: 1_200_000, costo: 600_000, mermas: 0, gastos: 100_000,
-  ingresos: 0, equipo: 150_000, equipoApp: 150_000, gastoTrabajadores: 0, gananciaApp: 500_000, gananciaReal: 350_000,
+  ingresos: 0, equipo: 150_000, equipoApp: 150_000, gastoTrabajadores: 0, bonosProveedor: 0, gananciaApp: 500_000, gananciaReal: 350_000,
   retiros: 0, quedaEnNegocio: 350_000, proyeccion: 954_545, gastosPorCategoria: [],
   equilibrio: { gastosDelMes: 100_000, gastoPorDia: 9_091, dejaPorGranizado: 2_250, granizadosAlDia: 5, promedioAlDia: 22.2, diasQueCubrieron: 9, diasConVenta: 9 },
   porSabor: [], anterior: { mes: '2026-10', nombre: 'Octubre 2026', unidades: 0, ventas: 0, gastos: 0, equipo: 0, gananciaReal: 0, retiros: 0 },

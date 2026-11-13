@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { vibrar } from '../formato'
 import type { LineaPedido, LugarPlata, PedidoEnCamino as PedidoEnCaminoDto } from '../tipos'
+import { CampoNumero } from './CampoNumero'
 import { Icono } from './Icono'
 import { Sheet } from './Sheet'
 
 interface Props {
   pedido: PedidoEnCaminoDto
-  onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => void
+  onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata, bono?: number) => void
   onCancelar: (pedidoId: number) => Promise<boolean>
   avisar: (m: string) => void
 }
@@ -42,7 +43,8 @@ export function PedidoEnCamino({ pedido, onLlego, onCancelar, avisar }: Props) {
 
       <Sheet abierto={panel !== null} onCerrar={() => setPanel(null)}>
         {panel === 'llego' && (
-          <PanelLlego pedido={pedido} onLlego={(items, pagoLugar) => { setPanel(null); onLlego(pedido.id, items, pagoLugar) }} />
+          <PanelLlego pedido={pedido}
+            onLlego={(items, pagoLugar, bono) => { setPanel(null); onLlego(pedido.id, items, pagoLugar, bono) }} />
         )}
         {panel === 'cancelar' && (
           <>
@@ -61,10 +63,11 @@ export function PedidoEnCamino({ pedido, onLlego, onCancelar, avisar }: Props) {
   )
 }
 
-function PanelLlego({ pedido, onLlego }: { pedido: PedidoEnCaminoDto; onLlego: (items: LineaPedido[], pagoLugar: LugarPlata) => void }) {
+function PanelLlego({ pedido, onLlego }: { pedido: PedidoEnCaminoDto; onLlego: (items: LineaPedido[], pagoLugar: LugarPlata, bono: number) => void }) {
   const [pagoLugar, setPagoLugar] = useState<LugarPlata>('NEQUI')
   const [valores, setValores] = useState<Record<number, number>>(
     () => Object.fromEntries(pedido.items.map(i => [i.productoId, i.pedida])))
+  const [bono, setBono] = useState('') // dígitos de pesos; vacío = sin bono
   const hecho = useRef(false) // un doble toque no puede registrar dos llegadas
 
   const lineas = pedido.items
@@ -77,7 +80,7 @@ function PanelLlego({ pedido, onLlego }: { pedido: PedidoEnCaminoDto; onLlego: (
     if (hecho.current || !total) return
     hecho.current = true
     vibrar()
-    onLlego(lineas.map(l => ({ productoId: l.productoId, cantidad: l.cantidad })), pagoLugar)
+    onLlego(lineas.map(l => ({ productoId: l.productoId, cantidad: l.cantidad })), pagoLugar, Number(bono) || 0)
   }
 
   const cambiar = (id: number, n: number) => setValores(v => ({ ...v, [id]: Math.max(0, Math.min(1000, n)) }))
@@ -101,6 +104,10 @@ function PanelLlego({ pedido, onLlego }: { pedido: PedidoEnCaminoDto; onLlego: (
         ))}
       </div>
       {difieren && <p className="mut">Se anotó distinto a lo que se pidió.</p>}
+      <label className="campo-bono">
+        <span className="mut">¿Te hizo descuento o bono? (opcional)</span>
+        <CampoNumero value={bono} onCambio={setBono} miles max={7} placeholder="$0" />
+      </label>
       <p className="mut">¿De dónde pagaste este pedido?</p>
       <div className="chips">
         {(['NEQUI', 'CAJA', 'CASA'] as LugarPlata[]).map(l => (

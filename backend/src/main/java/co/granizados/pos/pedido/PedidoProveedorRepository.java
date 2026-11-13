@@ -31,4 +31,11 @@ public interface PedidoProveedorRepository extends JpaRepository<PedidoProveedor
             select p from PedidoProveedor p left join fetch p.items i left join fetch i.producto
             where p.creadoEn >= :desde and p.creadoEn < :hasta order by p.creadoEn desc, p.id desc""")
     List<PedidoProveedor> entre(Instant desde, Instant hasta);
+
+    /** Bonos del proveedor en los pedidos recibidos en [desde, hasta) — para el cierre del mes. */
+    @Query("""
+            select coalesce(sum(p.bono), 0) from PedidoProveedor p
+            where p.estado = co.granizados.pos.pedido.EstadoPedido.RECIBIDO
+              and p.recibidoEn >= :desde and p.recibidoEn < :hasta""")
+    long bonosRecibidosEntre(Instant desde, Instant hasta);
 }

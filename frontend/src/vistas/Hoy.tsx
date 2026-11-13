@@ -25,7 +25,7 @@ interface Props {
   estado: Estado
   onDeshacer: (v: VentaReciente) => Promise<void>
   onRecargar: () => Promise<void>
-  onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata) => void
+  onLlego: (pedidoId: number, items: LineaPedido[], pagoLugar?: LugarPlata, bono?: number) => void
   onCancelar: (pedidoId: number) => Promise<boolean>
   onGasto: (categoria: CategoriaGasto, concepto: string, monto: number, lugar: LugarPlata, cuando?: number) => void
   onCerrarCaja: (contado: number, nota: string, casa?: number, nequi?: number) => void

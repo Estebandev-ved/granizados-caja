@@ -247,6 +247,27 @@ public class PlataService {
         pagos.save(new PagoProveedor(pedidoId, monto, lugar == null ? LugarPlata.NEQUI : lugar, clock.instant()));
     }
 
+    /**
+     * Reajusta lo que se le pagó al proveedor por un pedido (cambió el bono después de recibir).
+     * Si quedó en 0 (te regaló todo), borra el pago; el lugar no cambia para no mover lo que el dueño ya tenía anotado.
+     */
+    @Transactional
+    public void ajustarPagoPedido(Long pedidoId, long nuevoMonto) {
+        var existente = pagos.findByPedidoId(pedidoId).orElse(null);
+        if (existente == null) {
+            if (nuevoMonto > 0) {
+                pagos.save(new PagoProveedor(pedidoId, nuevoMonto, LugarPlata.NEQUI, clock.instant()));
+            }
+            return;
+        }
+        if (nuevoMonto <= 0) {
+            pagos.delete(existente);
+            return;
+        }
+        existente.setMonto(nuevoMonto);
+        pagos.saveAndFlush(existente);
+    }
+
     // ------------------------------------------------------------------ leer
 
     @Transactional(readOnly = true)
