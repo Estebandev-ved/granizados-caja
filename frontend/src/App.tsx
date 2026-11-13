@@ -10,6 +10,7 @@ import { AvisoActualizacion } from './componentes/AvisoActualizacion'
 import { BarraLogros } from './componentes/BarraLogros'
 import { BarraMeta } from './componentes/BarraMeta'
 import { BarraPremios } from './componentes/BarraPremios'
+import { GuiaTrabajador, guiaVista, marcarGuiaVista } from './componentes/GuiaTrabajador'
 import { MetaDelDia } from './componentes/MetaDelDia'
 import { PagoPreferido } from './componentes/PagoPreferido'
 import { NOMBRE_PAGO } from './pagos'
@@ -174,6 +175,12 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
   const perfil = useMemo(() => leerPerfil(textoPerfilServidor), [textoPerfilServidor])
   const [ayuda, setAyuda] = useState(false)
 
+  // La guía con una venta de práctica: la primera vez que entra un trabajador a este celular (y cuando la pida en Mi día)
+  const [guia, setGuia] = useState<'primera' | 'pedida' | null>(() => (trabajador && !guiaVista(sesion.quien) ? 'primera' : null))
+  const cerrarGuia = () => { marcarGuiaVista(sesion.quien); setGuia(null); irA('vender') }
+  // La primera vez espera a que haya aceptado los términos y escogido cada cuánto le pagan
+  const guiaLista = guia === 'pedida' || (guia === 'primera' && !!terminos?.aceptadaEn && !!terminos.frecuenciaPago)
+
   let contenido: ReactNode
   if (!estado) {
     contenido = sync === 'sin-senal'
@@ -210,6 +217,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       avisar={avisar} />
   } else if (vista === 'hoy' && trabajador) {
     contenido = <MiDia estado={estado} pago={terminos?.frecuenciaPago ?? null} onDeshacer={caja.deshacer} avisar={avisar}
+      onVerGuia={() => setGuia('pedida')}
       onElegirPago={async f => {
         try {
           setTerminos(await api.elegirPago(f))
@@ -295,7 +303,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       )}
       {estado && trabajador && premios && premios.escalones.length > 0 && (
         <div className="meta-envoltorio">
-          <BarraPremios premios={premios} />
+          <BarraPremios premios={premios} compacta />
         </div>
       )}
       {estado && trabajador && premios && vista === 'vender' && (
@@ -317,6 +325,9 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       </div></main>
       <Ayuda tema={temaAyuda} abierto={ayuda} onCerrar={() => setAyuda(false)} />
       {bienvenida && <Bienvenida avisar={avisar} tieneProductos={!!estado && estado.productos.length > 0} onTerminar={destino => { setBienvenidaVista(true); caja.recargar(); if (destino === 'ajustes') irA('ajustes') }} />}
+      {trabajador && guiaLista && estado && (
+        <GuiaTrabajador nombre={sesion.nombre} productos={estado.productos} premios={premios} onTerminar={cerrarGuia} />
+      )}
       {celebrando && <><Confeti /><div className="logro-flotante"><Personaje nombre="sofia" libre /></div></>}
       <nav>
         <BotonNav activa={vista === 'vender'} onClick={() => irA('vender')} texto="Vender">

@@ -131,4 +131,53 @@ class MetaYPremiosTest extends PruebaIntegracion {
         assertThat(datos.base()).isEqualTo(15);
         assertThat(datos.sinTarifas()).isTrue();
     }
+
+    @Test
+    void laProyeccionSaleDeComoVieneVendiendoElTrabajador() throws Exception {
+        tarifas();
+        jdbc.update("update config set valor = '12:2000,15:4000' where clave = 'PREMIOS_ESCALONES'");
+        equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        // Cuatro días seguidos: 10, 12, 16 y 14 granizados, con dos horas entre la primera y la última venta
+        int[] porDia = {10, 12, 16, 14};
+        for (int d = 0; d < porDia.length; d++) {
+            vender(token, "a-" + d, porDia[d] - 1, null);
+            reloj.avanzar(Duration.ofHours(2));
+            vender(token, "b-" + d, 1, null);
+            reloj.avanzar(Duration.ofHours(22));
+        }
+        vender(token, "hoy", 3, null); // hoy no cuenta para el promedio
+
+        // Ganó 10.000, 12.000 + 2.000, 16.000 + 4.000 y 14.000 + 2.000: 60.000 en 4 días
+        mvc.perform(con(token, get("/api/mi-turno/proyeccion"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.dias").value(4))
+                .andExpect(jsonPath("$.unidadesDia").value(13))
+                .andExpect(jsonPath("$.ganaDia").value(15_000))
+                .andExpect(jsonPath("$.mejorUnidades").value(16))
+                .andExpect(jsonPath("$.mejorGana").value(20_000))
+                .andExpect(jsonPath("$.diasSemana").value(4.0))
+                .andExpect(jsonPath("$.minutosDia").value(120))
+                .andExpect(jsonPath("$.primeraHoy").exists())
+                // Lo que se le debe: los 60.000 de antes más los 3.000 de hoy
+                .andExpect(jsonPath("$.pendiente").value(63_000));
+
+        // El dueño ve la de todos; el trabajador no ve la de los demás ni el dueño pide la suya
+        String dueno = entrar("4321");
+        mvc.perform(con(dueno, get("/api/equipo/proyeccion"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nombre").value("Juan"))
+                .andExpect(jsonPath("$[0].ganaDia").value(15_000));
+        mvc.perform(con(token, get("/api/equipo/proyeccion"))).andExpect(status().isForbidden());
+        mvc.perform(con(dueno, get("/api/mi-turno/proyeccion"))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unTrabajadorNuevoNoTieneDatosParaLaProyeccion() throws Exception {
+        equipo.crear(new NuevoVendedor("Ana", "2222", 10));
+
+        mvc.perform(con(entrar("2222"), get("/api/mi-turno/proyeccion"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.dias").value(0))
+                .andExpect(jsonPath("$.ganaDia").value(0))
+                .andExpect(jsonPath("$.minutosDia").value(0))
+                .andExpect(jsonPath("$.primeraHoy").doesNotExist());
+    }
 }

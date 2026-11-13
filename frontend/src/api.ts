@@ -2,7 +2,7 @@ import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequest
 import type {
   BaseVueltos, CategoriaGasto, CierreTurno, EntregaEquipo, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
-  TipoMovimiento, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios, CierreMes, VentaBorrada,
+  TipoMovimiento, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios, Proyeccion, CierreMes, VentaBorrada,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -52,6 +52,11 @@ export const sesion = {
   /** Un trabajador solo ve Vender y su día; el dueño lo ve todo. */
   get esTrabajador(): boolean {
     return claimDelToken(this.token, 'rol') === 'vendedor'
+  },
+  /** Quién es en este celular (para lo que se guarda por persona): el trabajador, o el dueño de ese negocio. */
+  get quien(): string {
+    const v = claimDelToken(this.token, 'vendedor_id')
+    return this.negocioId + ':' + (typeof v === 'number' ? v : 'dueno')
   },
   get nombre(): string {
     const n = claimDelToken(this.token, 'nombre')
@@ -232,6 +237,8 @@ export const api = {
   misPrestamos: () => pedir<PrestamoEquipo[]>('GET', '/api/mi-turno/prestamos'),
   ponerMeta: (meta: number) => pedir<PremiosDia>('POST', '/api/mi-turno/meta', { meta }),
   datosPremios: () => pedir<DatosPremios>('GET', '/api/equipo/premios/datos'),
+  miProyeccion: () => pedir<Proyeccion>('GET', '/api/mi-turno/proyeccion'),
+  proyeccionesEquipo: () => pedir<Proyeccion[]>('GET', '/api/equipo/proyeccion'),
   /** La foto del comprobante de una venta, como data URL ya comprimido. */
   subirComprobante: (ventaUid: string, imagen: string) => pedir<void>('POST', '/api/comprobantes', { ventaUid, imagen }),
   /** La foto como Blob (se pide con el token, así que no sirve un <img src> directo). */

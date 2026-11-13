@@ -20,7 +20,11 @@ function mensaje(p: PremiosDia, alcanzados: number): string {
  * La barra de premios del trabajador: se llena con cada granizado, cada escalón es un círculo que se prende al llegar,
  * el próximo late para llamar la atención y Sofía le dice qué tan cerca está.
  */
-export function BarraPremios({ premios }: { premios: PremiosDia }) {
+export function BarraPremios({ premios, compacta = false }: {
+  premios: PremiosDia
+  /** En Vender: más bajita (sin Sofía), para que los sabores queden a la mano. */
+  compacta?: boolean
+}) {
   const { escalones, vendidas, premio, siguiente } = premios
   if (!escalones.length) return null
 
@@ -32,7 +36,7 @@ export function BarraPremios({ premios }: { premios: PremiosDia }) {
   const pct = siguiente ? Math.round((alcanzados + tramo) / n * 100) : 100
 
   return (
-    <div className={'premios' + (siguiente ? '' : ' completo')} role="progressbar" aria-valuemin={0}
+    <div className={'premios' + (siguiente ? '' : ' completo') + (compacta ? ' compacta' : '')} role="progressbar" aria-valuemin={0}
       aria-valuemax={escalones[n - 1].granizados} aria-valuenow={vendidas}
       aria-label={`${vendidas} granizados vendidos, premio de hoy ${pesos(premio)}`}>
       <div className="premios-cabeza">
@@ -40,7 +44,9 @@ export function BarraPremios({ premios }: { premios: PremiosDia }) {
           <span className="premios-etiqueta">{premios.diaPromo ? 'Tu premio · día de promo' : 'Tu premio de hoy'}</span>
           <b className="premios-monto">{pesos(premio)}</b>
         </div>
-        <span className="premios-conteo">{vendidas} vendido{vendidas === 1 ? '' : 's'}</span>
+        {compacta
+          ? <p className="premios-msj">{mensaje(premios, alcanzados)}</p>
+          : <span className="premios-conteo">{vendidas} vendido{vendidas === 1 ? '' : 's'}</span>}
       </div>
       <div className="premios-pista">
         <div className="premios-relleno" style={{ width: pct + '%' }} />
@@ -55,10 +61,12 @@ export function BarraPremios({ premios }: { premios: PremiosDia }) {
           )
         })}
       </div>
-      <div className="premios-pie">
-        <Personaje nombre="sofia" libre />
-        <p>{mensaje(premios, alcanzados)}</p>
-      </div>
+      {!compacta && (
+        <div className="premios-pie">
+          <Personaje nombre="sofia" libre />
+          <p>{mensaje(premios, alcanzados)}</p>
+        </div>
+      )}
     </div>
   )
 }

@@ -117,6 +117,27 @@ export interface TarifasDia {
   porcentaje: number | null
 }
 
+/** Cómo viene vendiendo un trabajador en las últimas 4 semanas (sin hoy), para estimar cuánto se va a hacer. */
+export interface Proyeccion {
+  vendedorId: number
+  nombre: string
+  /** Días que trabajó en esas semanas. */
+  dias: number
+  /** Promedio de un día suyo: granizados y lo ganado (ya con premios y descuentos). */
+  unidadesDia: number
+  ganaDia: number
+  mejorUnidades: number
+  mejorGana: number
+  /** Cuántos días trabaja a la semana. */
+  diasSemana: number
+  /** Lo que suele durar su jornada, de la primera a la última venta (0 = no se sabe). */
+  minutosDia: number
+  /** La hora de su primera venta de hoy. */
+  primeraHoy: string | null
+  /** Lo que se le debe hasta ahora, con lo de hoy y menos lo prestado (negativo = él debe). */
+  pendiente: number
+}
+
 /** `GET /api/equipo/premios/datos`: lo que dicen las últimas semanas para armar premios que convengan. */
 export interface DatosPremios {
   /** Granizados que vende un trabajador en un día normal (la mediana). */

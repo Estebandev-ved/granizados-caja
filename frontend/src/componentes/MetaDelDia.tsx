@@ -4,6 +4,7 @@ import { ganariaCon, opcionesMeta, premioAl } from '../premios'
 import type { PremiosDia } from '../tipos'
 import { CampoNumero } from './CampoNumero'
 import { Personaje } from './Personaje'
+import { Sheet } from './Sheet'
 
 const CLAVE_LISTO = 'gz_meta_lista'
 
@@ -20,6 +21,7 @@ export function MetaDelDia({ premios, dia, onMeta }: {
   const meta = premios.metaPropia ?? null
   const [otra, setOtra] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [abierto, setAbierto] = useState(false)
   const [listo, setListo] = useState(() => { try { return localStorage.getItem(CLAVE_LISTO) === dia } catch { return false } })
 
   const escoger = async (n: number) => {
@@ -51,37 +53,49 @@ export function MetaDelDia({ premios, dia, onMeta }: {
   }
   if (cumplida && listo) return null
 
+  // La pregunta va en una sola línea y las opciones se abren aparte: en Vender lo primero son los sabores
   const opciones = opcionesMeta(premios, meta ?? 0)
+  const cerrar = () => { setAbierto(false); setOtra(null) }
   return (
-    <div className="meta-propia pregunta">
-      {cumplida ? (
-        <>
-          <Personaje nombre="sofia" libre />
-          <b>🎉 ¡Cumpliste tu meta de {meta}! ¿Vas por más?</b>
-          <span className="mut">Lo que llevas sigue contando: no vuelve a cero.</span>
-        </>
-      ) : (
-        <>
-          <b>¿Cuántos te sientes capaz de vender hoy?</b>
-          <span className="mut">Escoge tu meta. Mientras más vendes, más ganas.</span>
-        </>
-      )}
-      <div className="meta-opciones">
-        {opciones.map(n => {
-          const masPremio = premioAl(premios, n) - premioAl(premios, Math.max(meta ?? 0, premios.vendidas))
-          return (
-            <button type="button" key={n} disabled={enviando} onClick={() => void escoger(n)}>
-              <b>{n}</b>
-              <small>{cumplida && masPremio > 0 ? '+' + pesos(masPremio) + ' de premio' : 'ganas ~' + pesos(ganariaCon(premios, n))}</small>
-            </button>
-          )
-        })}
+    <>
+      <div className="meta-propia invita">
+        <button type="button" className="meta-invita" onClick={() => setAbierto(true)}>
+          <b>{cumplida ? '🎉 ¡Cumpliste tu meta de ' + meta + '!' : '🎯 Ponte tu meta de hoy'}</b>
+          <span>{cumplida ? '¿Vas por más? Mira cuánto sumas' : 'y mira cuánto te harías'} ›</span>
+        </button>
+        {cumplida && <button type="button" className="link" onClick={terminar}>Por hoy no</button>}
       </div>
-      {otra === null
-        ? <button type="button" className="link" onClick={() => setOtra('')}>Otra cantidad</button>
-        : <Otra valor={otra} onCambio={setOtra} enviando={enviando} onListo={n => void escoger(n)} />}
-      {cumplida && <button type="button" className="link" onClick={terminar}>Por hoy estoy bien</button>}
-    </div>
+      <Sheet abierto={abierto} onCerrar={cerrar}>
+        <div className="meta-propia pregunta">
+          {cumplida ? (
+            <>
+              <Personaje nombre="sofia" libre />
+              <h2>¡Cumpliste tu meta de {meta}! ¿Vas por más?</h2>
+              <span className="mut">Lo que llevas sigue contando: no vuelve a cero.</span>
+            </>
+          ) : (
+            <>
+              <h2>¿Cuántos te sientes capaz de vender hoy?</h2>
+              <span className="mut">Escoge tu meta. Mientras más vendes, más ganas.</span>
+            </>
+          )}
+          <div className="meta-opciones">
+            {opciones.map(n => {
+              const masPremio = premioAl(premios, n) - premioAl(premios, Math.max(meta ?? 0, premios.vendidas))
+              return (
+                <button type="button" key={n} disabled={enviando} onClick={() => void escoger(n).then(cerrar)}>
+                  <b>{n}</b>
+                  <small>{cumplida && masPremio > 0 ? '+' + pesos(masPremio) + ' de premio' : 'ganas ~' + pesos(ganariaCon(premios, n))}</small>
+                </button>
+              )
+            })}
+          </div>
+          {otra === null
+            ? <button type="button" className="link" onClick={() => setOtra('')}>Otra cantidad</button>
+            : <Otra valor={otra} onCambio={setOtra} enviando={enviando} onListo={n => void escoger(n).then(cerrar)} />}
+        </div>
+      </Sheet>
+    </>
   )
 }
 

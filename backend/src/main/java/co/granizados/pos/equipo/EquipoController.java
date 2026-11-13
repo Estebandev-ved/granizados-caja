@@ -88,6 +88,12 @@ public class EquipoController {
         return servicio.datosPremios();
     }
 
+    /** Cómo viene vendiendo cada trabajador activo y cuánto se hace en un día suyo (para estimar lo que va a ganar). */
+    @GetMapping("/proyeccion")
+    public java.util.List<EquipoService.Proyeccion> proyecciones() {
+        return servicio.proyecciones();
+    }
+
     /** Para Reportes: por trabajador, lo de cada día, sus pagos y sus préstamos en el rango. */
     @GetMapping("/historial")
     public List<EquipoService.Historial> historial(@RequestParam LocalDate desde, @RequestParam LocalDate hasta) {

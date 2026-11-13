@@ -40,6 +40,13 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-12 (2)
+- **Guía para el trabajador nuevo:** la primera vez que entra (después de términos y de escoger cada cuánto le pagan) Sofía le hace una venta de práctica guiada —toca un sabor, toca cómo pagaron, nada se anota— y le cuenta lo que gana, los premios, «Me lo tomo yo» y «Terminé mi día». Se puede saltar y repetir en Mi día → «Ver cómo se usa la app». Los trabajadores que ya venían usando la app también la ven una vez.
+- **Cuánto se va a hacer:** en Mi día, tarjeta «Cuánto te vas a hacer» (hoy según cómo va y cómo viene vendiendo; a la semana, la quincena y el mes; su mejor día; lo que le deben). El dueño ve «Cuánto se hace» en el panel de cada trabajador en Equipo. `GET /api/mi-turno/proyeccion` y `GET /api/equipo/proyeccion`, sin migración.
+- **Vender del trabajador más despejado:** la barra de premios y la pregunta de la meta ocupaban media pantalla (el primer sabor salía a 639 px de 812); ahora son compactas y se ven tres filas de sabores (primer sabor a 422 px). En Mi día se quitó la frase repetida del encabezado.
+- Pruebas: backend 244, frontend 138 (`proyeccion.test.ts`). Probado en la app local a 375×812 con un trabajador de prueba (quedó desactivado: «Prueba guia»).
+- **Por revisar en el iPhone:** cómo se ve la guía y la barra compacta en el celular de verdad (las capturas del panel de vista previa salían recortadas, se verificó midiendo la página).
+
 ### 2026-11-12
 - **Bono / descuento del proveedor en los pedidos.** Al recibir un pedido ("Llegó") aparece el campo "¿Te hizo descuento o bono? (opcional)": se le paga al proveedor `bruto − bono` (Mi plata resta solo eso del lugar escogido) y el bono queda guardado en el pedido. También se puede ajustar después con `POST /api/pedidos/{id}/bono` (por si se olvidó anotarlo). En Cierre del mes aparece una línea `💚 Te ahorraste $X en bonos del proveedor este mes`, y el resumen mensual de Telegram también lo lista. Si el bono cubre todo el pedido, no se registra pago. Migración `V36__pedido_bono.sql` + `pedido_proveedor.bono BIGINT NOT NULL DEFAULT 0`. Pruebas nuevas en `PedidoSeguimientoTest` (4 casos) y `cola.test.ts`. No hay todavía una pantalla de historial de pedidos; el endpoint queda listo para cuando se arme.
 

@@ -1096,6 +1096,80 @@ public class EquipoService {
                 unidadesPromo == 0 ? null : margenPromo / unidadesPromo, pocos, faltanCostos, sinTarifas);
     }
 
+    // ------------------------------------------------------------------ cuánto se va a hacer
+
+    /**
+     * Cómo viene vendiendo un trabajador en las últimas semanas (sin hoy), para estimar cuánto se va a hacer.
+     * `dias` son los días que trabajó; `unidadesDia` y `ganaDia`, el promedio de un día suyo (lo ganado ya con premios
+     * y descuentos); `diasSemana`, cuántos días trabaja a la semana; `minutosDia`, lo que suele durar su jornada (de la
+     * primera a la última venta, 0 si no se sabe); `primeraHoy`, la hora de su primera venta de hoy; y `pendiente`,
+     * lo que se le debe hasta ahora (con lo de hoy, menos préstamos).
+     */
+    public record Proyeccion(Long vendedorId, String nombre, int dias, int unidadesDia, long ganaDia, int mejorUnidades,
+                             long mejorGana, double diasSemana, int minutosDia, Instant primeraHoy, long pendiente) {
+    }
+
+    /** La de un trabajador: la ve él en Mi día. */
+    @Transactional(readOnly = true)
+    public Proyeccion proyeccion(Long vendedorId) {
+        return proyeccionDe(vendedor(vendedorId), ventanaDeAnalisis());
+    }
+
+    /** Las de todos los trabajadores activos: las ve el dueño en Equipo. */
+    @Transactional(readOnly = true)
+    public List<Proyeccion> proyecciones() {
+        List<Venta> ventana = ventanaDeAnalisis();
+        return vendedores.findAllByOrderByNombreAscIdAsc().stream().filter(Vendedor::isActivo)
+                .map(v -> proyeccionDe(v, ventana)).toList();
+    }
+
+    /** Las ventas de las últimas semanas y las de hoy. */
+    private List<Venta> ventanaDeAnalisis() {
+        LocalDate hoy = hoy();
+        return ventas.entre(hoy.minusDays(DIAS_ANALISIS).atStartOfDay(zona).toInstant(), hoy.plusDays(1).atStartOfDay(zona).toInstant());
+    }
+
+    private Proyeccion proyeccionDe(Vendedor v, List<Venta> ventana) {
+        LocalDate hoy = hoy();
+        Map<LocalDate, List<Venta>> porDia = new java.util.TreeMap<>();
+        Instant primeraHoy = null;
+        for (Venta x : ventana) {
+            if (!v.getId().equals(x.getVendedorId())) continue;
+            LocalDate dia = x.getCreadaEn().atZone(zona).toLocalDate();
+            if (dia.equals(hoy)) {
+                if (!x.esDelTrabajador() && (primeraHoy == null || x.getCreadaEn().isBefore(primeraHoy))) primeraHoy = x.getCreadaEn();
+                continue;
+            }
+            porDia.computeIfAbsent(dia, d -> new ArrayList<>()).add(x);
+        }
+        int dias = 0, unidades = 0, mejorUnidades = 0;
+        long gana = 0, mejorGana = 0;
+        LocalDate primerDia = null;
+        List<Integer> jornadas = new ArrayList<>();
+        for (Map.Entry<LocalDate, List<Venta>> e : porDia.entrySet()) {
+            Liquidacion l = liquidacionDe(v, e.getValue());
+            if (l.unidades() == 0) continue; // un día con solo consumos o faltantes no es un día trabajado
+            dias++;
+            unidades += l.unidades();
+            gana += l.porPagar();
+            if (l.porPagar() > mejorGana) {
+                mejorGana = l.porPagar();
+                mejorUnidades = l.unidades();
+            }
+            if (primerDia == null) primerDia = e.getKey();
+            List<Instant> horas = e.getValue().stream().filter(x -> !x.esDelTrabajador()).map(Venta::getCreadaEn).sorted().toList();
+            int minutos = (int) java.time.Duration.between(horas.getFirst(), horas.getLast()).toMinutes();
+            if (minutos >= 30) jornadas.add(minutos); // una sola venta (o todas anotadas de una) no dice cuánto dura el día
+        }
+        // Días por semana: los que trabajó, repartidos en el tiempo que lleva (mínimo una semana, para no inflar al nuevo)
+        long lleva = primerDia == null ? 7 : Math.max(7, java.time.temporal.ChronoUnit.DAYS.between(primerDia, hoy));
+        double diasSemana = Math.min(7, Math.round(dias * 70.0 / lleva) / 10.0);
+        jornadas.sort(null);
+        return new Proyeccion(v.getId(), v.getNombre(), dias, dias == 0 ? 0 : Math.round((float) unidades / dias),
+                dias == 0 ? 0 : gana / dias, mejorUnidades, mejorGana, diasSemana,
+                jornadas.isEmpty() ? 0 : jornadas.get(jornadas.size() / 2), primeraHoy, porPagarDe(v));
+    }
+
     // ------------------------------------------------------------------ lo que se toma el trabajador
 
     /** Cuántos granizados puede tomarse gratis un trabajador por día (`GRANIZADOS_GRATIS`, 1 si no está puesto). */

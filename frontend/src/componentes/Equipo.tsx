@@ -3,7 +3,8 @@ import { api } from '../api'
 import type { Carga } from '../carga'
 import { diaBogota } from '../estadoLocal'
 import { pesos } from '../formato'
-import type { CuentaEquipo, Liquidacion, Producto, Trabajador } from '../tipos'
+import { MIN_DIAS, textoDias } from '../proyeccion'
+import type { CuentaEquipo, Liquidacion, Producto, Proyeccion, Trabajador } from '../tipos'
 import { AgregarCarga } from './AgregarCarga'
 import { CargaDelDia } from './CargaDelDia'
 import { ETIQUETA_PAGO, PagarTrabajador, comoSePago, fechaHora } from './PagoTrabajador'
@@ -36,6 +37,14 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
       api.equipo().then(l => { if (vivo) setLista(l) }).catch(() => { /* se reintenta en la próxima vuelta */ })
     }, 10_000)
     return () => { vivo = false; window.clearInterval(reloj) }
+  }, [])
+
+  // Cómo viene vendiendo cada uno, para decir cuánto se hace (se pide una vez: cambia de un día para otro)
+  const [proyecciones, setProyecciones] = useState<Proyeccion[]>([])
+  useEffect(() => {
+    let vivo = true
+    api.proyeccionesEquipo().then(l => { if (vivo) setProyecciones(l) }).catch(() => { /* sin señal: no se muestra */ })
+    return () => { vivo = false }
   }, [])
 
   const trabajador = panel && panel.tipo !== 'nuevo' ? lista?.find(t => t.id === panel.id) ?? null : null
@@ -118,6 +127,7 @@ export function Equipo({ productos, avisar }: { productos: Producto[]; avisar: (
         )}
         {panel?.tipo === 'ver' && trabajador && (
           <PanelTrabajador t={trabajador} productos={activos}
+            proyeccion={proyecciones.find(x => x.vendedorId === trabajador.id) ?? null}
             onCarga={() => setPanel({ tipo: 'carga', id: trabajador.id })}
             onAgregar={() => setPanel({ tipo: 'agregar', id: trabajador.id })}
             onPagar={() => setPanel({ tipo: 'pagar', id: trabajador.id })}
@@ -245,8 +255,10 @@ function PagarPanel({ t, guardar, volver }: {
   )
 }
 
-function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, onCambiar, onCambioBase }: {
+function PanelTrabajador({ t, productos, proyeccion, onCarga, onAgregar, onPagar, onAnular, onCambiar, onCambioBase }: {
   t: Trabajador
+  /** Cómo viene vendiendo en las últimas semanas (null = no se pudo traer). */
+  proyeccion: Proyeccion | null
   productos: Producto[]
   onCambioBase: () => void
   onCarga: () => void
@@ -306,6 +318,32 @@ function PanelTrabajador({ t, productos, onCarga, onAgregar, onPagar, onAnular, 
         <div><span>Meta de hoy</span><b>{t.metaHoy ?? '—'}</b><small>{t.metaHoy != null ? (t.unidadesHoy >= t.metaHoy ? 'cumplida' : 'faltan ' + (t.metaHoy - t.unidadesHoy)) : 'no la ha puesto'}</small></div>
         <div><span>Base para vueltos</span><b>{pesos(t.baseHoy ?? 0)}</b><small>{(t.baseHoy ?? 0) > 0 ? 'la devuelve al cerrar' : 'no le has pasado'}</small></div>
       </div>
+
+      {proyeccion && (
+        <div className="eq-proyeccion">
+          <b><Icono nombre="reloj" /> Cuánto se hace</b>
+          {proyeccion.dias >= MIN_DIAS ? (
+            <>
+              <span>
+                En un día suyo vende unos <b>{proyeccion.unidadesDia}</b> y se gana <b>{pesos(proyeccion.ganaDia)}</b>.
+                {' '}Viene trabajando {textoDias(proyeccion.diasSemana)} a la semana: se hace cerca de{' '}
+                <b>{pesos(Math.round(proyeccion.ganaDia * proyeccion.diasSemana / 500) * 500)}</b> a la semana
+                y <b>{pesos(Math.round(proyeccion.ganaDia * proyeccion.diasSemana * 30 / 7 / 500) * 500)}</b> al mes.
+              </span>
+              <small className="mut">
+                Su mejor día: {proyeccion.mejorUnidades} granizados, {pesos(proyeccion.mejorGana)}. Sale de sus últimas 4 semanas (trabajó {textoDias(proyeccion.dias)}), ya con premios y descuentos.
+              </small>
+            </>
+          ) : (
+            <span className="mut">
+              {proyeccion.dias > 0
+                ? <>Ha trabajado {textoDias(proyeccion.dias)} en las últimas 4 semanas: vendió unos {proyeccion.unidadesDia} por día y se ganó {pesos(proyeccion.ganaDia)} por día. </>
+                : <>Todavía no ha trabajado ningún día completo. </>}
+              Con {MIN_DIAS} días ya se puede calcular cuánto se hace a la semana y al mes.
+            </span>
+          )}
+        </div>
+      )}
 
       <div className={'por-pagar' + (porPagar > 0 ? ' hay' : '')}>
         <span className="por-pagar-k">Por pagarle</span>

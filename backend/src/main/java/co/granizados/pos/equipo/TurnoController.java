@@ -70,6 +70,12 @@ public class TurnoController {
         return servicio.prestamosPendientes(vendedor());
     }
 
+    /** Cómo viene vendiendo, para decirle cuánto se va a hacer hoy y en la semana. */
+    @GetMapping("/proyeccion")
+    public EquipoService.Proyeccion proyeccion() {
+        return servicio.proyeccion(vendedor());
+    }
+
     /** La base para vueltos que lleva hoy. */
     @GetMapping("/base")
     public EquipoService.BaseDia base() {

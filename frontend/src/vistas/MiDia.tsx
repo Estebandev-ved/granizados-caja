@@ -3,6 +3,7 @@ import { ConfirmarPago } from '../componentes/PagoTrabajador'
 import { api, sesion } from '../api'
 import { vendidasHoy } from '../carga'
 import { BotonRecargar } from '../componentes/BotonRecargar'
+import { CuantoTeHaces } from '../componentes/CuantoTeHaces'
 import { EntregaAlDueno } from '../componentes/EntregaAlDueno'
 import { Icono } from '../componentes/Icono'
 import { Personaje } from '../componentes/Personaje'
@@ -15,7 +16,9 @@ import { ComprobanteDeVenta, useComprobantesPendientes } from '../componentes/Fo
 import type { CierreTurno, Estado, FrecuenciaPago, PagoEquipo, PrestamoEquipo, Terminos, VentaReciente } from '../tipos'
 
 /** El día de un trabajador: lo suyo y nada más (sin costos, ganancia ni lo de los demás). */
-export function MiDia({ estado, pago, onElegirPago, onDeshacer, avisar }: {
+export function MiDia({ estado, pago, onElegirPago, onDeshacer, onVerGuia, avisar }: {
+  /** Repetir la guía de cómo se usa la app. */
+  onVerGuia: () => void
   estado: Estado
   avisar: (m: string) => void
   pago: FrecuenciaPago | null
@@ -91,11 +94,6 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer, avisar }: {
           <span className="mi-hero-saludo">{sesion.nombre ? 'Hola, ' + sesion.nombre : 'Mi día'}</span>
           <b className="mi-hero-monto">{pesos(premios ? Math.max(0, ganado) : h.total)}</b>
           <span className="mi-hero-pie">{premios ? 'ganado hoy' : 'vendido hoy'} · {h.unidades} granizado{h.unidades === 1 ? '' : 's'}</span>
-          {premios?.siguiente && (
-            <span className="mi-hero-sig">
-              Te faltan {premios.siguiente.granizados - premios.vendidas} para ganar {pesos(premios.siguiente.total)} de premio
-            </span>
-          )}
         </div>
         <Personaje nombre="sofia" libre />
       </div>
@@ -128,6 +126,8 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer, avisar }: {
           )}
         </div>
       )}
+
+      {premios && <CuantoTeHaces premios={premios} pago={pago} />}
 
       {prestado > 0 && (
         <div className="pago-pendiente base-vueltos">
@@ -251,6 +251,7 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer, avisar }: {
           {pago ? 'Me pagan ' + NOMBRE_PAGO[pago] + ' · cambiar' : 'Escoger cada cuánto me pagan'}
         </button>
         <button className="big ghost" onClick={verTerminos}>Ver mis términos del trabajo</button>
+        <button className="big ghost" onClick={onVerGuia}>Ver cómo se usa la app</button>
         <BotonRecargar />
         <button className="big peligro" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
       </div>

@@ -294,6 +294,10 @@ class AislamientoTest extends PruebaIntegracion {
         assertThat(como(2, () -> equipo.listar())).isEmpty();
         assertThatThrownBy(() -> como(2, () -> equipo.ponerMeta(juan.id(), 30))).isInstanceOf(NoEncontradoException.class);
         assertThat(como(2, () -> equipo.datosPremios().diasAnalizados())).isZero();
+        // Cuánto se va a hacer: el otro negocio no ve a ese trabajador ni puede pedir su proyección
+        assertThat(como(1, () -> equipo.proyecciones())).hasSize(1);
+        assertThat(como(2, () -> equipo.proyecciones())).isEmpty();
+        assertThatThrownBy(() -> como(2, () -> equipo.proyeccion(juan.id()))).isInstanceOf(NoEncontradoException.class);
     }
 
     @Autowired

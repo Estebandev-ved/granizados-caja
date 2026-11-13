@@ -48,7 +48,8 @@ public class RolFiltro extends OncePerRequestFilter {
                 || ruta.equals("/api/mi-turno/pago") || ruta.equals("/api/mi-turno/meta")) return metodo.equals("POST");
         if (ruta.equals("/api/mi-turno/entregas")) return metodo.equals("GET") || metodo.equals("POST");
         if (ruta.equals("/api/mi-turno/terminos") || ruta.equals("/api/mi-turno/pagos")
-                || ruta.equals("/api/mi-turno/base") || ruta.equals("/api/mi-turno/prestamos")) return metodo.equals("GET");
+                || ruta.equals("/api/mi-turno/base") || ruta.equals("/api/mi-turno/prestamos")
+                || ruta.equals("/api/mi-turno/proyeccion")) return metodo.equals("GET");
         // La foto del comprobante de una venta: la sube y la ve (el servicio revisa que la venta sea suya)
         if (ruta.equals("/api/comprobantes")) return metodo.equals("POST");
         if (ruta.startsWith("/api/comprobantes/")) return metodo.equals("GET");
