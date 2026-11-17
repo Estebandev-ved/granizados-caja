@@ -91,6 +91,10 @@ function aplicar(e: Estado, op: Operacion, hoy: string, pendiente: boolean) {
     case 'arqueo':
       // El cierre no mueve ni el stock ni el total: solo se sube
       return
+    case 'salidaInicio':
+    case 'salidaFin':
+      // Las salidas a la calle no mueven nada en pantalla: solo se suben
+      return
     case 'venta':
       aplicarVenta(e, op, hoy, pendiente)
   }

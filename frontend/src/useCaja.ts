@@ -144,12 +144,27 @@ export function useCaja(avisar: (mensaje: string) => void) {
     () => estadoVisible(base, confirmadas.map(c => c.op), cola, hoy),
     [base, confirmadas, cola, hoy])
 
-  const vender = useCallback((p: Producto, metodo: Metodo, cantidad: number, total?: number, fiado?: { cliente: string; telefono: string }, efectivo?: number) => {
+  const vender = useCallback((p: Producto, metodo: Metodo, cantidad: number, total?: number, fiado?: { cliente: string; telefono: string }, efectivo?: number, salidaUid?: string) => {
     const op: Operacion = { tipo: 'venta', clientUid: nuevoUid(), productoId: p.id, metodo, cantidad, creadaEn: Date.now(), total,
-      cliente: fiado?.cliente, telefono: fiado?.telefono || undefined, efectivo }
+      cliente: fiado?.cliente, telefono: fiado?.telefono || undefined, efectivo, salidaUid }
     setCola(c => [...c, op])
     void sincronizar()
     return op.clientUid
+  }, [setCola, sincronizar])
+
+  /** Plan de la calle: empezar una salida. Se ve al instante y sube cuando haya señal (antes que sus ventas). Devuelve su uid. */
+  const iniciarSalida = useCallback((lugar: string, ubic: { lat: number; lng: number } | null, prueba: boolean) => {
+    const op: Operacion = { tipo: 'salidaInicio', clientUid: nuevoUid(), lugar, lat: ubic?.lat, lng: ubic?.lng, prueba, creadaEn: Date.now() }
+    setCola(c => [...c, op])
+    void sincronizar()
+    return op.clientUid
+  }, [setCola, sincronizar])
+
+  /** Terminar la salida con los pasajes y lo que pasó. Va a la cola después de sus ventas. */
+  const terminarSalida = useCallback((salidaUid: string, pasaje: number, incidentes: string, nota: string) => {
+    const op: Operacion = { tipo: 'salidaFin', clientUid: nuevoUid(), salidaUid, pasaje, incidentes: incidentes || undefined, nota: nota || undefined, creadaEn: Date.now() }
+    setCola(c => [...c, op])
+    void sincronizar()
   }, [setCola, sincronizar])
 
   const reponer = useCallback((p: Producto, cantidad: number) => {
@@ -240,7 +255,7 @@ export function useCaja(avisar: (mensaje: string) => void) {
   const sync: EstadoSync = !enLinea ? 'sin-senal' : cola.length ? 'pendiente' : 'al-dia'
 
   return {
-    estado, cola, colaCargada, sync, vender, reponer, contar, contarTodo, mermar, registrarGasto, cerrarCaja,
+    estado, cola, colaCargada, sync, vender, iniciarSalida, terminarSalida, reponer, contar, contarTodo, mermar, registrarGasto, cerrarCaja,
     llegoElPedido, cancelarPedido, deshacer,
     recargar: async () => { espera.current = 0; await sincronizar(); await refrescar() },
   }

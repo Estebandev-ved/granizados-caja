@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { api, sesion, type ImportarResultado, type PasskeyInfo } from '../api'
 import { CampoNumero } from '../componentes/CampoNumero'
 import { Equipo } from '../componentes/Equipo'
+import { PlanCalle } from '../componentes/PlanCalle'
 import { TarifasEquipo } from '../componentes/TarifasEquipo'
 import { Icono } from '../componentes/Icono'
 import { PromoAjustes } from '../componentes/PromoAjustes'
@@ -47,10 +48,11 @@ const META_PARAM: Record<string, Meta> = {
 const metaDe = (clave: string): Meta =>
   META_PARAM[clave] ?? { titulo: clave.replace(/_/g, ' ').toLowerCase(), icono: 'sliders', clase: 'texto' }
 
-type SeccionId = 'sabores' | 'metas' | 'pedido' | 'cobros' | 'promo' | 'equipo' | 'seguridad' | 'datos'
+type SeccionId = 'sabores' | 'metas' | 'pedido' | 'cobros' | 'promo' | 'equipo' | 'calle' | 'seguridad' | 'datos'
 
-const CLAVES: Record<'metas' | 'comisiones' | 'pedido' | 'cobros' | 'promo', string[]> = {
+const CLAVES: Record<'metas' | 'comisiones' | 'pedido' | 'cobros' | 'promo' | 'calle', string[]> = {
   promo: ['PROMO'],
+  calle: ['CALLE_ACTIVO', 'CALLE_PRECIO_NORMAL', 'CALLE_PRECIO_CREMOSO', 'CALLE_PRECIO_GRANDE', 'CALLE_PRECIO_CERVEZA', 'CALLE_COM_NORMAL', 'CALLE_COM_CREMOSO', 'CALLE_COM_GRANDE', 'CALLE_COM_CERVEZA', 'CALLE_COM_COMBO', 'CALLE_PASAJE', 'CALLE_MINIMO_PASAJE', 'CALLE_BUENO', 'CALLE_REGULAR'],
   metas: ['META_DIARIA', 'META_EQUIPO', 'PREMIO_EQUIPO'],
   comisiones: ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'COMISION_PROMO', 'PREMIOS_ESCALONES', 'PREMIO_REBAJA_PROMO', 'GRANIZADOS_GRATIS'],
   pedido: ['NOMBRE', 'PROVEEDOR_WHATSAPP', 'DIAS_COBERTURA', 'DIAS_HISTORIAL'],
@@ -190,6 +192,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
           <Entrada icono="caja" titulo="Perfil del negocio" detalle={perfilActual.nombre ? perfilActual.nombre + ' · ' + RUBROS[perfilActual.rubro].titulo : 'Nombre y rubro'} onClick={() => setPanel({ tipo: 'perfil' })} />
           <Entrada icono="vaso" titulo="Sabores y precios" detalle={`${activos} en la caja`} onClick={() => abrir('sabores')} />
           <Entrada icono="ticket" titulo="Promoción" detalle={promosHoy.length ? promosHoy.map(p => nombrePromo(p, pesos)).join(' · ') : promos.some(p => p.activa && p.dias.length) ? 'Programadas' : promos.length ? 'Apagadas' : 'Ninguna'} onClick={() => abrir('promo')} />
+          <Entrada icono="mapa" titulo="Plan de ventas en la calle" detalle={param('CALLE_ACTIVO')?.valor === '1' ? 'Prendido' : 'Apagado'} onClick={() => abrir('calle')} />
           <Entrada icono="trofeo" titulo="Metas y premios" detalle={metaDiaria ? 'Meta ' + pesos(metaDiaria) : 'Sin meta'} onClick={() => abrir('metas')} />
           {perfilActual.equipo && <Entrada icono="cara" titulo="Equipo" detalle="Trabajadores, PIN y cargas" onClick={() => abrir('equipo')} />}
         </div>
@@ -269,6 +272,9 @@ export function Ajustes({ avisar, onCambio }: Props) {
         <TarifasEquipo params={params} onGuardar={guardarTarifas} />
       </div>
     )
+  } else if (seccion === 'calle') {
+    titulo = 'Plan de la calle'
+    cuerpo = <PlanCalle params={params} productos={productos} onGuardar={guardarTarifas} />
   } else if (seccion === 'seguridad') {
     titulo = 'Seguridad'
     cuerpo = <SeccionFaceId avisar={avisar} />

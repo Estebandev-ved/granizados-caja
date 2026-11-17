@@ -49,6 +49,9 @@ class AislamientoTest extends PruebaIntegracion {
     AjustesService ajustes;
 
     @Autowired
+    co.granizados.pos.calle.CalleService calle;
+
+    @Autowired
     PlataService plata;
 
     @Autowired
@@ -326,6 +329,29 @@ class AislamientoTest extends PruebaIntegracion {
         String copia2 = como(2, () -> new String(respaldo.zip(), java.nio.charset.StandardCharsets.ISO_8859_1));
         assertThat(texto(copia1)).contains("smirnoff-1").doesNotContain("camisa-1").doesNotContain("Camisa");
         assertThat(texto(copia2)).contains("camisa-1").contains("Camisa").doesNotContain("smirnoff-1").doesNotContain("Smirnoff");
+    }
+
+    @Test
+    void losLugaresLasSalidasYLasAlertasDeLaCalleSonDeCadaNegocio() throws Exception {
+        como(2, () -> calle.iniciar(new co.granizados.pos.calle.CalleService.NuevaSalida("s-2", "Parque de Ana", 6.2, -75.5, null, false)));
+        como(2, () -> calle.alertar(new co.granizados.pos.calle.CalleService.NuevaAlerta("a-2", co.granizados.pos.calle.AlertaSos.Tipo.AYUDA, null, null)));
+        como(1, () -> calle.iniciar(new co.granizados.pos.calle.CalleService.NuevaSalida("s-1", "La Kurva", 6.26, -75.56, null, false)));
+
+        assertThat(como(1, () -> calle.resumen().lugares())).extracting(co.granizados.pos.calle.CalleService.LugarDto::nombre).containsExactly("La Kurva");
+        assertThat(como(2, () -> calle.resumen().lugares())).extracting(co.granizados.pos.calle.CalleService.LugarDto::nombre).containsExactly("Parque de Ana");
+        assertThat(como(1, () -> calle.lugares())).extracting(co.granizados.pos.calle.CalleService.LugarSimple::nombre).containsExactly("La Kurva");
+        assertThat(como(1, () -> calle.resumen().alertas())).isEmpty();
+        assertThat(como(2, () -> calle.resumen().alertas())).hasSize(1);
+        // La salida de otro negocio no se puede cerrar conociendo su uid
+        assertThatThrownBy(() -> como(1, () -> calle.terminar("s-2", new co.granizados.pos.calle.CalleService.CierreSalida(null, 0L, null, null))))
+                .isInstanceOf(NoEncontradoException.class);
+        // El mismo nombre de lugar y el mismo uid pueden existir en dos negocios sin pisarse
+        como(2, () -> calle.iniciar(new co.granizados.pos.calle.CalleService.NuevaSalida("s-1", "La Kurva", null, null, null, false)));
+        assertThat(como(1, () -> calle.resumen().salidas())).hasSize(1);
+        assertThat(como(2, () -> calle.resumen().salidas())).hasSize(2);
+
+        String copia1 = como(1, () -> new String(respaldo.zip(), java.nio.charset.StandardCharsets.ISO_8859_1));
+        assertThat(texto(copia1)).contains("La Kurva").doesNotContain("Parque de Ana");
     }
 
     /** Todo el texto de los CSV del zip, para buscar adentro. */

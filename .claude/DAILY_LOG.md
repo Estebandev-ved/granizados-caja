@@ -40,6 +40,12 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-17
+- **Plan de ventas en la calle** (migración `V37__plan_calle.sql`, módulo `calle`): botón en Ajustes → «Plan de ventas en la calle» que prende los precios y comisiones de la calle (refrescante $7.000 / cremoso $9.000, comisión $1.800 / $2.300, combo $1.500, grande configurable; en 0 = el de siempre) y el pasaje ($7.800, se devuelve si vende menos de 12). En Vender aparece «Empezar salida» (lugar + GPS), las ventas de la salida cobran el precio de la calle y al terminar se anotan pasajes e incidentes. Cada lugar sale bueno / regular / malo por granizados en 4 horas (25 / 15) y se ve en un mapa en Reportes → «Lugares de la calle» (Leaflet, nueva dependencia `leaflet`).
+- **Botón de alerta** para el trabajador (hurto, policía, necesito ayuda): Telegram al dueño con quién, dónde y link al mapa; queda constancia en `alerta_sos` y sale en el mapa.
+- Pruebas: backend 256 (`CalleTest`, 11 casos, y un caso nuevo en `AislamientoTest`), frontend 150 (`calle.test.ts`). Probado en el navegador a 375×812 con el servidor simulado (no se escribió nada en la base local; solo corrió la migración V37 en el Postgres local).
+- **Falta:** el pasaje a devolver todavía no entra solo a la liquidación del trabajador (se ve en Reportes y se le paga a mano); la guía y los términos del trabajador no mencionan las tarifas de la calle; probar el GPS y el mapa en el iPhone real (Safari 16).
+
 ### 2026-11-12 (2)
 - **Guía para el trabajador nuevo:** la primera vez que entra (después de términos y de escoger cada cuánto le pagan) Sofía le hace una venta de práctica guiada —toca un sabor, toca cómo pagaron, nada se anota— y le cuenta lo que gana, los premios, «Me lo tomo yo» y «Terminé mi día». Se puede saltar y repetir en Mi día → «Ver cómo se usa la app». Los trabajadores que ya venían usando la app también la ven una vez.
 - **Cuánto se va a hacer:** en Mi día, tarjeta «Cuánto te vas a hacer» (hoy según cómo va y cómo viene vendiendo; a la semana, la quincena y el mes; su mejor día; lo que le deben). El dueño ve «Cuánto se hace» en el panel de cada trabajador en Equipo. `GET /api/mi-turno/proyeccion` y `GET /api/equipo/proyeccion`, sin migración.

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, ApiError } from '../api'
 import { Icono } from '../componentes/Icono'
 import { CierreDelMes } from '../componentes/CierreDelMes'
+import { MapaCalle } from '../componentes/MapaCalle'
 import { ComparaSemanas } from '../componentes/ComparaSemanas'
 import { VentasBorradas } from '../componentes/VentasBorradas'
 import { ComprobantesGuardados } from '../componentes/ComprobantesGuardados'
@@ -101,6 +102,7 @@ export function Reportes({ avisar }: Props) {
       <MiPlata avisar={avisar} />
 
       <CierreDelMes />
+      <MapaCalle />
 
       <ComparaSemanas />
 

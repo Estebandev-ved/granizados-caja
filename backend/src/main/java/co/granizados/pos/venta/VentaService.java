@@ -1,5 +1,6 @@
 package co.granizados.pos.venta;
 
+import co.granizados.pos.calle.CalleConfig;
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
 import co.granizados.pos.comun.Pesos;
@@ -48,11 +49,18 @@ public class VentaService {
             @Size(max = 60) String cliente,
             @Size(max = 20) String telefono,
             /** Solo para MIXTO: cuánto de lo cobrado se pagó en efectivo (el resto fue por Nequi). */
-            @Min(0) Long efectivo) {
+            @Min(0) Long efectivo,
+            /** Si se vendió en una salida a la calle: su uid. Con el plan de la calle prendido, cobra el precio y la comisión de la calle. */
+            @Size(max = 64) String salidaUid) {
+
+        public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad, Instant creadaEn, Long total,
+                          String cliente, String telefono, Long efectivo) {
+            this(clientUid, productoId, metodo, cantidad, creadaEn, total, cliente, telefono, efectivo, null);
+        }
 
         public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad, Instant creadaEn, Long total,
                           String cliente, String telefono) {
-            this(clientUid, productoId, metodo, cantidad, creadaEn, total, cliente, telefono, null);
+            this(clientUid, productoId, metodo, cantidad, creadaEn, total, cliente, telefono, null, null);
         }
 
         public NuevaVenta(String clientUid, Long productoId, MetodoPago metodo, int cantidad, Instant creadaEn, Long total) {
@@ -120,7 +128,12 @@ public class VentaService {
         String nombre = p.nombre();
         int minimo = p.getStockMinimo();
 
-        long normal = p.getPrecio() * v.cantidad();
+        // En una salida a la calle con el plan prendido: precio y comisión de la calle (si el dueño los puso)
+        boolean conSalida = v.salidaUid() != null && !v.salidaUid().isBlank();
+        CalleConfig calle = conSalida ? equipo.calle() : null;
+        boolean enCalle = calle != null && calle.activo();
+        long precioLista = enCalle ? calle.precio(p.getTipo(), p.getPrecio()) : p.getPrecio();
+        long normal = precioLista * v.cantidad();
         boolean regalo = v.metodo() == MetodoPago.REGALO;
         // El trabajador se lo toma él: no entra plata, y lo que pase de los gratis del día se le descuenta de su pago
         boolean consumo = v.metodo() == MetodoPago.CONSUMO;
@@ -149,8 +162,12 @@ public class VentaService {
             if (v.metodo() == MetodoPago.FIADO) throw new IllegalArgumentException("Los trabajadores no pueden fiar");
             if (regalo) throw new IllegalArgumentException("Los trabajadores no pueden regalar");
             venta.porVendedor(vendedor);
-            if (!consumo) venta.conComision(equipo.comisionPorGranizado(p.getTipo(), enPromo));
+            if (!consumo) {
+                venta.conComision(enCalle ? equipo.comisionEnCalle(calle, p.getTipo(), enPromo)
+                        : equipo.comisionPorGranizado(p.getTipo(), enPromo));
+            }
         }
+        if (conSalida) venta.enSalida(v.salidaUid().trim());
         ventas.saveAndFlush(venta);
         if (v.metodo() == MetodoPago.FIADO) {
             if (v.cliente() == null || v.cliente().isBlank()) throw new IllegalArgumentException("Falta el nombre de quien debe");

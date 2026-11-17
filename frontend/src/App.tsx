@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Ayuda, type TemaAyuda } from './componentes/Ayuda'
 import { Bienvenida, CLAVE_BIENVENIDA } from './componentes/Bienvenida'
 import { PrimerosPasos } from './componentes/PrimerosPasos'
@@ -6,6 +6,8 @@ import { leerPerfil, PerfilContexto } from './perfil'
 import { NumeroAnimado } from './componentes/NumeroAnimado'
 import { api, sesion } from './api'
 import { adjuntarComprobante } from './comprobantes'
+import { guardarSalida, leerSalida, productosEnCalle, tarifasEnCalle, type SalidaAbierta } from './calle'
+import { SalidaCalle } from './componentes/SalidaCalle'
 import { AvisoActualizacion } from './componentes/AvisoActualizacion'
 import { BarraLogros } from './componentes/BarraLogros'
 import { BarraMeta } from './componentes/BarraMeta'
@@ -160,6 +162,17 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
   }, [trabajador])
 
   // La promo que corre hoy: viene del servidor, así el dueño la prende desde Ajustes y la venden todos
+  // Plan de la calle: la salida en curso vive en este celular y, mientras dura, Vender cobra los precios de la calle
+  const calle = estado?.calle ?? null
+  const [salida, setSalidaVista] = useState<SalidaAbierta | null>(() => leerSalida())
+  const actualizarSalida = useCallback((cambio: (s: SalidaAbierta | null) => SalidaAbierta | null) => {
+    setSalidaVista(antes => { const nueva = cambio(antes); guardarSalida(nueva); return nueva })
+  }, [])
+  const productosVenta = useMemo(
+    () => (estado ? productosEnCalle(estado.productos, calle, !!salida) : []),
+    [estado, calle, salida])
+  const tarifasVenta = tarifasEnCalle(premios?.tarifas ?? null, calle, !!salida)
+
   const textoPromo = estado?.promo
   const diaEstado = estado?.dia
   const promos = useMemo(
@@ -189,11 +202,28 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
           <div className="esqueleto-grid">{Array.from({ length: 6 }, (_, i) => <i key={i} style={{ '--i': i } as CSSProperties} />)}</div>
         </div>
   } else if (vista === 'vender') {
-    contenido = <Vender productos={estado.productos} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promos={promos}
+    contenido = <>
+      <SalidaCalle calle={calle} salida={salida} trabajador={trabajador} avisar={avisar}
+        onEmpezar={(lugar, ubic, prueba) => {
+          const uid = caja.iniciarSalida(lugar, ubic, prueba)
+          actualizarSalida(() => ({ clientUid: uid, lugar, inicio: Date.now(), prueba, ventas: [] }))
+          avisar('📍 Salida en ' + lugar + ' · ¡a vender!')
+        }}
+        onTerminar={(pasaje, incidentes, nota) => {
+          if (salida) caja.terminarSalida(salida.clientUid, pasaje, incidentes, nota)
+          actualizarSalida(() => null)
+        }} />
+      <Vender productos={productosVenta} porSabor={estado.hoy.propias ?? estado.hoy.porSabor} trabajador={trabajador} promos={promos}
       consumo={trabajador && premios ? { gratis: premios.gratis, consumidos: premios.consumidos ?? 0 } : null}
-      tarifas={trabajador ? premios?.tarifas ?? null : null}
+      tarifas={trabajador ? tarifasVenta : null}
       onVender={(lineas, metodo, fiado, foto) => {
-      const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, l.total, fiado, l.efectivo))
+      // En una salida el total se manda siempre (el precio de la calle), así se ve bien aunque el celular aún no lo sepa
+      const cobra = (l: (typeof lineas)[number]) => (metodo === 'REGALO' || metodo === 'CONSUMO' ? undefined : l.total ?? (salida && calle?.activo ? l.p.precio * l.cantidad : undefined))
+      const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, cobra(l), fiado, l.efectivo, salida?.clientUid))
+      if (salida && metodo !== 'CONSUMO') {
+        const nuevas = lineas.map((l, i) => ({ uid: uids[i], cantidad: l.cantidad, total: metodo === 'REGALO' ? 0 : cobra(l) ?? l.p.precio * l.cantidad }))
+        actualizarSalida(s => s && { ...s, ventas: [...s.ventas, ...nuevas] })
+      }
       if (foto) {
         adjuntarComprobante(uids, foto)
           .then(() => avisar('📎 Foto del comprobante guardada'))
@@ -201,8 +231,12 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       }
       const detalle = lineas.map(l => (l.cantidad > 1 ? l.cantidad + ' ' : '') + l.p.nombre).join(' + ')
       avisar('✓ ' + detalle + ' · ' + (metodo === 'NEQUI' ? 'Nequi' : metodo === 'MIXTO' ? 'Efectivo + Nequi' : metodo === 'REGALO' ? 'Regalo 🎁' : metodo === 'CONSUMO' ? 'Te lo tomas tú 🥤' : metodo === 'FIADO' ? 'Fiado a ' + (fiado?.cliente ?? '') : 'Efectivo'),
-        { texto: 'Deshacer', alTocar: () => uids.forEach(clientUid => void caja.deshacer({ clientUid })) })
+        { texto: 'Deshacer', alTocar: () => {
+          uids.forEach(clientUid => void caja.deshacer({ clientUid }))
+          actualizarSalida(s => s && { ...s, ventas: s.ventas.filter(v => !uids.includes(v.uid)) })
+        } })
     }} />
+    </>
   } else if (vista === 'inventario') {
     contenido = <Inventario productos={estado.productos} pedido={estado.pedido}
       onReponer={(p, cantidad) => { caja.reponer(p, cantidad); avisar('+' + cantidad + ' ' + p.nombre) }}

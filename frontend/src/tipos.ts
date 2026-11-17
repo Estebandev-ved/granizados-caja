@@ -381,6 +381,86 @@ export interface Estado {
   gastosMes?: Record<string, number> | null
   /** Solo para el dueño: topes de gasto al mes por categoría (JSON). */
   topesGasto?: string | null
+  /** El plan de ventas en la calle (precios, comisiones y si está prendido). Llega a todos los celulares. */
+  calle?: CalleConfig | null
+}
+
+/** Los ajustes del plan de la calle. Un precio o comisión en 0 = el de siempre. */
+export interface CalleConfig {
+  activo: boolean
+  precios: Record<Tipo, number>
+  comisiones: Record<Tipo, number>
+  /** Comisión por granizado vendido en combo (0 = la de cada tipo). */
+  combo: number
+  /** Lo que cuesta ir y volver de un trabajador. */
+  pasaje: number
+  /** Si en una salida vende menos que esto, se le devuelve el pasaje. */
+  minimoPasaje: number
+  /** Granizados en 4 horas para que un lugar sea bueno / regular. */
+  bueno: number
+  regular: number
+}
+
+export type VeredictoLugar = 'BUENO' | 'REGULAR' | 'MALO' | 'SIN_DATOS'
+export type TipoAlerta = 'HURTO' | 'POLICIA' | 'AYUDA'
+
+export interface LugarSimple { id: number; nombre: string; lat: number | null; lng: number | null }
+
+/** Un lugar con lo que dejaron todas sus salidas (solo el dueño). `ritmo4h` = granizados en 4 horas. */
+export interface LugarCalle {
+  id: number
+  nombre: string
+  lat: number | null
+  lng: number | null
+  salidas: number
+  unidades: number
+  horas: number
+  ritmo4h: number | null
+  veredicto: VeredictoLugar
+  pasajePromedio: number
+  meDeja: number
+  /** Hora del día (0-23, Bogotá) en que más se vendió. */
+  mejorHora: number | null
+  alertas: number
+}
+
+export interface SalidaCalleDto {
+  clientUid: string
+  lugarId: number
+  lugar: string
+  quien: string
+  inicio: string
+  fin: string | null
+  abierta: boolean
+  prueba: boolean
+  unidades: number
+  total: number
+  horas: number
+  ritmo4h: number | null
+  veredicto: VeredictoLugar
+  pasaje: number
+  pasajeADevolver: number
+  comision: number
+  meDeja: number
+  incidentes: string | null
+  nota: string | null
+}
+
+export interface AlertaCalle {
+  id: number
+  quien: string
+  tipo: TipoAlerta
+  lugar: string | null
+  lat: number | null
+  lng: number | null
+  creadaEn: string
+}
+
+export interface ResumenCalle {
+  config: CalleConfig
+  lugares: LugarCalle[]
+  salidas: SalidaCalleDto[]
+  alertas: AlertaCalle[]
 }
 
 export interface Meta {
@@ -611,7 +691,9 @@ export interface Gasto {
 
 /** Lo que el celular guarda en la cola mientras no ha subido. */
 export type Operacion =
-  | { tipo: 'venta'; clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: number; /** Lo cobrado si hubo promo; si falta, precio × cantidad. */ total?: number; /** Solo FIADO: quién debe y su celular. */ cliente?: string; telefono?: string; /** Solo MIXTO: cuánto de lo cobrado fue en efectivo (el resto, Nequi). */ efectivo?: number }
+  | { tipo: 'venta'; clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: number; /** Lo cobrado si hubo promo; si falta, precio × cantidad. */ total?: number; /** Solo FIADO: quién debe y su celular. */ cliente?: string; telefono?: string; /** Solo MIXTO: cuánto de lo cobrado fue en efectivo (el resto, Nequi). */ efectivo?: number; /** Si se vendió en una salida a la calle: su uid. */ salidaUid?: string }
+  | { tipo: 'salidaInicio'; clientUid: string; lugar: string; lat?: number; lng?: number; prueba?: boolean; creadaEn: number }
+  | { tipo: 'salidaFin'; clientUid: string; salidaUid: string; pasaje: number; incidentes?: string; nota?: string; creadaEn: number }
   | { tipo: 'entrada'; clientUid: string; productoId: number; cantidad: number; creadaEn: number }
   | { tipo: 'ajuste'; clientUid: string; productoId: number; real: number; creadaEn: number }
   | { tipo: 'merma'; clientUid: string; productoId: number; cantidad: number; motivo: MotivoMerma; creadaEn: number }

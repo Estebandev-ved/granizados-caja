@@ -1041,3 +1041,45 @@ nav button.on svg { animation: salto .35s var(--ease-resorte) }
   border: 0; background: none; color: var(--txt); text-align: left; font-size: 14px }
 .meta-invita span { color: var(--primario-txt); font-weight: 600 }
 .sheet .meta-propia.pregunta { border: 0; background: none; padding: 0 }
+
+/* Plan de ventas en la calle: salida en curso, botón de alerta, panel de Ajustes y mapa de Reportes */
+.calle-barra { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px }
+.calle-empezar { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; padding: 12px 14px; text-align: left;
+  background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--primario); border-radius: var(--r-md) }
+.calle-empezar b { font-size: 15px; color: var(--txt) }
+.calle-empezar span { font-size: 13px; color: var(--mut) }
+.calle-curso { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px;
+  background: var(--ok-bg); border: 1px solid var(--ok-line); border-radius: var(--r-md) }
+.calle-curso div { display: flex; flex-direction: column; min-width: 0 }
+.calle-curso b { font-size: 15px; color: var(--ok-txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.calle-curso span { font-size: 13px; color: var(--ok-txt) }
+.calle-sos { align-self: flex-end; padding: 7px 14px; font-size: 13px; font-weight: 800; border-radius: var(--r-full);
+  background: var(--bad-bg); color: var(--bad-txt); border: 1px solid var(--bad-line) }
+.calle-alerta, .calle-resumen { display: flex; flex-direction: column; gap: 10px }
+.calle-alerta .big { min-height: 56px; font-size: 17px }
+.check-fila { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; font-size: 14px }
+.check-fila input { width: 20px; height: 20px; flex: none }
+.calle-hero { display: flex; flex-direction: column; gap: 8px; margin: 0 0 14px; padding: 14px; background: var(--card);
+  border: 1px solid var(--line); border-left: 3px solid var(--primario); border-radius: var(--r-md) }
+.calle-hero.on { border-left-color: var(--ok); background: var(--ok-bg) }
+.calle-hero p { font-size: 14px; color: var(--mut) }
+.calle-hero.on p, .calle-hero.on b { color: var(--ok-txt) }
+.calle-mapa { display: flex; flex-direction: column; gap: 10px }
+.calle-mapa-caja { width: 100%; height: 320px; border-radius: var(--r-md); border: 1px solid var(--line); overflow: hidden; z-index: 0 }
+.calle-leyenda { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--mut) }
+.calle-lugar { border-top: 1px solid var(--line) }
+.list h3 + .calle-lugar { border-top: 0 }
+.calle-lugar-cab { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 0; text-align: left; background: none; border: 0 }
+.calle-lugar-emoji { font-size: 18px; flex: none }
+.calle-lugar-texto { display: flex; flex-direction: column; flex: 1; min-width: 0 }
+.calle-lugar-texto b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.calle-lugar-texto small { font-size: 12px; color: var(--mut) }
+.calle-lugar-plata { font-weight: 800; font-size: 14px; color: var(--ok-txt) }
+.calle-lugar-plata.neg { color: var(--bad-txt) }
+.calle-lugar-det { padding: 0 0 10px 28px; display: flex; flex-direction: column; gap: 6px }
+.calle-salida-fila { display: flex; flex-direction: column; gap: 1px; font-size: 13px }
+.calle-alerta-fila { display: flex; flex-direction: column; gap: 1px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px }
+.list h3 + .calle-alerta-fila { border-top: 0 }
+.calle-alerta-fila a { color: var(--primario-txt); font-weight: 700 }
+.calle-vacio { display: flex; flex-direction: column; gap: 10px }
+.calle-margen { display: block; margin: -2px 0 12px }

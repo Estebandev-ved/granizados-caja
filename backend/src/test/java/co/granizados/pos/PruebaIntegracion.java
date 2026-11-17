@@ -40,6 +40,9 @@ public abstract class PruebaIntegracion {
         reloj.poner("2026-09-25T15:00-05:00");
         jdbc.update("delete from deuda");
         jdbc.update("delete from venta_borrada");
+        jdbc.update("delete from alerta_sos");
+        jdbc.update("delete from salida_calle");
+        jdbc.update("delete from lugar_venta");
         jdbc.update("delete from retiro");
         jdbc.update("delete from venta");
         jdbc.update("delete from entrada_inventario");
@@ -72,6 +75,10 @@ public abstract class PruebaIntegracion {
         jdbc.update("update config set valor = '0' where clave = 'META_DIARIA'");
         jdbc.update("update config set valor = '0' where clave in ('META_EQUIPO', 'PREMIO_EQUIPO')");
         jdbc.update("update config set valor = '0' where clave like 'COMISION_%'");
+        jdbc.update("update config set valor = '0' where clave like 'CALLE_%' and clave not in ('CALLE_MINIMO_PASAJE', 'CALLE_BUENO', 'CALLE_REGULAR')");
+        jdbc.update("update config set valor = '12' where clave = 'CALLE_MINIMO_PASAJE'");
+        jdbc.update("update config set valor = '25' where clave = 'CALLE_BUENO'");
+        jdbc.update("update config set valor = '15' where clave = 'CALLE_REGULAR'");
         jdbc.update("update config set valor = '' where clave = 'PREMIOS_ESCALONES'");
         jdbc.update("update config set valor = '' where clave = 'PROMO'");
         jdbc.update("update config set valor = '0' where clave = 'PREMIO_REBAJA_PROMO'");

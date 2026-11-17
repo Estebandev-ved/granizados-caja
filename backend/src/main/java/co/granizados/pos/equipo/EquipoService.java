@@ -1,6 +1,7 @@
 package co.granizados.pos.equipo;
 
 import co.granizados.pos.ajustes.AjustesService;
+import co.granizados.pos.calle.CalleConfig;
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
 import co.granizados.pos.comun.Pesos;
@@ -401,6 +402,21 @@ public class EquipoService {
     @Transactional(readOnly = true)
     public Long comisionPorGranizado(TipoProducto tipo, boolean promo) {
         return tarifaDe(ajustes.mapa(), tipo, promo);
+    }
+
+    /** Los ajustes del plan de la calle (precios y comisiones de la calle, pasaje y cuándo un lugar es bueno). */
+    @Transactional(readOnly = true)
+    public CalleConfig calle() {
+        return CalleConfig.leer(ajustes.mapa());
+    }
+
+    /**
+     * Lo que gana el trabajador por una venta en la calle: la tarifa de calle de ese tipo (o la de combo si se vendió en
+     * promo) y, si el dueño no puso ninguna, la de siempre. Se congela en la venta como cualquier otra.
+     */
+    @Transactional(readOnly = true)
+    public Long comisionEnCalle(CalleConfig calle, TipoProducto tipo, boolean promo) {
+        return calle.comision(tipo, promo, tarifaDe(ajustes.mapa(), tipo, promo));
     }
 
     /** La tarifa por granizado con unos ajustes ya leídos (null = sin tarifas: gana su porcentaje). */

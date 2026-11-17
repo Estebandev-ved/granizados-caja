@@ -45,7 +45,14 @@ const SUBIR: { [K in Operacion['tipo']]: (op: Carga<K>, api: ApiSync) => Promise
   venta: (op, api) => api.venta({
     clientUid: op.clientUid, productoId: op.productoId, metodo: op.metodo,
     cantidad: op.cantidad, creadaEn: new Date(op.creadaEn).toISOString(), total: op.total,
-    cliente: op.cliente, telefono: op.telefono, efectivo: op.efectivo,
+    cliente: op.cliente, telefono: op.telefono, efectivo: op.efectivo, salidaUid: op.salidaUid,
+  }),
+  salidaInicio: (op, api) => api.salidaIniciar({
+    clientUid: op.clientUid, lugar: op.lugar, lat: op.lat, lng: op.lng, prueba: op.prueba,
+    inicio: new Date(op.creadaEn).toISOString(),
+  }),
+  salidaFin: (op, api) => api.salidaTerminar(op.salidaUid, {
+    fin: new Date(op.creadaEn).toISOString(), pasaje: op.pasaje, incidentes: op.incidentes, nota: op.nota,
   }),
   entrada: (op, api) => api.entrada({ clientUid: op.clientUid, productoId: op.productoId, cantidad: op.cantidad }),
   ajuste: (op, api) => api.movimiento({
@@ -81,7 +88,7 @@ export async function subirPendientes(cola: readonly Operacion[], api: ApiSync):
           const v = cola[i]
           if (v.tipo !== 'venta') break
           grupo.push({ clientUid: v.clientUid, productoId: v.productoId, metodo: v.metodo, cantidad: v.cantidad,
-            creadaEn: new Date(v.creadaEn).toISOString(), total: v.total, cliente: v.cliente, telefono: v.telefono, efectivo: v.efectivo })
+            creadaEn: new Date(v.creadaEn).toISOString(), total: v.total, cliente: v.cliente, telefono: v.telefono, efectivo: v.efectivo, salidaUid: v.salidaUid })
           i++
         }
         await subirLote(grupo, api, r)

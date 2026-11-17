@@ -36,7 +36,21 @@ public class NegocioService {
             new Ajuste("PAGO_BREB", "", "Tu llave Bre-B para que te paguen lo fiado"),
             new Ajuste("TOPES_GASTO", "", "Tope de gasto al mes por categoría (lo edita Hoy → Gastos del mes)"),
             new Ajuste("PERFIL", "", "Perfil del negocio (lo edita la bienvenida y Ajustes → Mi negocio)"),
-            new Ajuste("PAGO_PRESENCIAL", "", "Dónde te pueden pagar en persona. Ej: en la U, bloque 4, en horas de almuerzo"));
+            new Ajuste("PAGO_PRESENCIAL", "", "Dónde te pueden pagar en persona. Ej: en la U, bloque 4, en horas de almuerzo"),
+            new Ajuste("CALLE_ACTIVO", "0", "Plan de ventas en la calle: 1 = prendido, 0 = apagado"),
+            new Ajuste("CALLE_PRECIO_NORMAL", "0", "Precio en la calle del granizado Normal. 0 = el de siempre"),
+            new Ajuste("CALLE_PRECIO_CREMOSO", "0", "Precio en la calle del granizado Cremoso. 0 = el de siempre"),
+            new Ajuste("CALLE_PRECIO_GRANDE", "0", "Precio en la calle del granizado Grande. 0 = el de siempre"),
+            new Ajuste("CALLE_PRECIO_CERVEZA", "0", "Precio en la calle de la cerveza. 0 = el de siempre"),
+            new Ajuste("CALLE_COM_NORMAL", "0", "Comisión por granizado Normal vendido en la calle. 0 = la de siempre"),
+            new Ajuste("CALLE_COM_CREMOSO", "0", "Comisión por granizado Cremoso vendido en la calle. 0 = la de siempre"),
+            new Ajuste("CALLE_COM_GRANDE", "0", "Comisión por granizado Grande vendido en la calle. 0 = la de siempre"),
+            new Ajuste("CALLE_COM_CERVEZA", "0", "Comisión por cerveza vendida en la calle. 0 = la de siempre"),
+            new Ajuste("CALLE_COM_COMBO", "0", "Comisión por granizado vendido en combo en la calle. 0 = la de cada tipo"),
+            new Ajuste("CALLE_PASAJE", "0", "Lo que cuesta ir y volver (pasajes) de un trabajador, para sugerir cuánto devolverle"),
+            new Ajuste("CALLE_MINIMO_PASAJE", "12", "Si en una salida vende menos que esto, se le devuelve el pasaje"),
+            new Ajuste("CALLE_BUENO", "25", "Granizados en 4 horas para que un lugar sea bueno"),
+            new Ajuste("CALLE_REGULAR", "15", "Granizados en 4 horas para que un lugar sea regular (menos que esto es malo)"));
 
     private final ConfigParamRepository config;
     /** Negocios que ya se sabe que están listos: evita ir a la base en cada petición. */

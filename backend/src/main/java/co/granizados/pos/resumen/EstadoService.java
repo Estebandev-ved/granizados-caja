@@ -97,7 +97,9 @@ public class EstadoService {
                          /** Solo para el dueño: lo gastado en el mes que va, por categoría. */
                          Map<String, Long> gastosMes,
                          /** Solo para el dueño: los topes de gasto al mes por categoría (JSON); null si no puso ninguno. */
-                         String topesGasto) {
+                         String topesGasto,
+                         /** El plan de la calle (precios, comisiones y si está prendido). Le llega a todos los celulares. */
+                         co.granizados.pos.calle.CalleConfig calle) {
     }
 
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("h:mm a", Locale.US);
@@ -168,7 +170,7 @@ public class EstadoService {
         ResumenDia resumen = resumenDe(dia, delDia);
         return new Estado(activos, resumen, ultimas, dia, pedidos.enCamino(), metaDe(dia), null, null, promoDe(), textoDe("PERFIL"),
                 gastos.categoriasDesde(dia.minusDays(DIAS_CATEGORIAS).atStartOfDay(zona).toInstant()), gastosDelMes(dia),
-                textoDe("TOPES_GASTO"));
+                textoDe("TOPES_GASTO"), equipo.calle());
     }
 
     /**
@@ -193,7 +195,7 @@ public class EstadoService {
         ResumenDia visible = new ResumenDia(r.total(), r.nequi(), r.efectivo(), r.unidades() - consumidos, r.porSabor(), 0, 0, 0,
                 r.total(), 0, r.porSabor(), r.cerveza(), 0);
         return new Estado(suyos, visible, ultimas, dia, null, new Meta(0, 0), equipo.metaDe(vendedor, dia),
-                equipo.premiosDe(vendedor, mias), promoDe(), textoDe("PERFIL"), null, null, null);
+                equipo.premiosDe(vendedor, mias), promoDe(), textoDe("PERFIL"), null, null, null, equipo.calle());
     }
 
     /** Marca las ventas que tienen foto del comprobante. */

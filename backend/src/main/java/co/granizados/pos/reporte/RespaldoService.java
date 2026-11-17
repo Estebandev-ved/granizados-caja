@@ -35,6 +35,9 @@ public class RespaldoService {
     static {
         TABLAS.put("ventas", "venta");
         TABLAS.put("ventas_borradas", "venta_borrada");
+        TABLAS.put("calle_lugares", "lugar_venta");
+        TABLAS.put("calle_salidas", "salida_calle");
+        TABLAS.put("calle_alertas", "alerta_sos");
         TABLAS.put("productos", "producto");
         TABLAS.put("inventario_movimientos", "entrada_inventario");
         TABLAS.put("gastos", "gasto");

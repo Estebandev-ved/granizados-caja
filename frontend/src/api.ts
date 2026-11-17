@@ -2,7 +2,7 @@ import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequest
 import type {
   BaseVueltos, CategoriaGasto, CierreTurno, EntregaEquipo, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
-  TipoMovimiento, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios, Proyeccion, CierreMes, VentaBorrada, ComprobanteItem,
+  TipoMovimiento, TipoAlerta, LugarSimple, ResumenCalle, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios, Proyeccion, CierreMes, VentaBorrada, ComprobanteItem,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -183,7 +183,7 @@ type OpcionesFaceId<T> = { solicitud: string; opciones: { publicKey: T } }
 type RespuestaFaceId = { solicitud: string; credencial: string; nombre?: string }
 export interface PasskeyInfo { id: number; nombre: string; creadaEn: string; usadaEn: string | null }
 
-type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string; total?: number; cliente?: string; telefono?: string; efectivo?: number }
+type VentaApi ={ clientUid: string; productoId: number; metodo: Metodo; cantidad: number; creadaEn: string; total?: number; cliente?: string; telefono?: string; efectivo?: number; salidaUid?: string }
 type EntradaApi = { clientUid: string; productoId: number; cantidad: number }
 /** Un movimiento de inventario: `cantidad` para ENTRADA/MERMA, `real` para CONTEO. */
 type MovimientoApi = {
@@ -255,6 +255,15 @@ export const api = {
   terminos: () => pedir<Terminos>('GET', '/api/mi-turno/terminos'),
   elegirPago: (frecuencia: FrecuenciaPago) => pedir<Terminos>('POST', '/api/mi-turno/pago', { frecuencia }),
   aceptarTerminos: (version: string) => pedir<Terminos>('POST', '/api/mi-turno/terminos/aceptar', { version }),
+  /** Plan de la calle: los lugares guardados, empezar y terminar una salida, la alerta y (solo el dueño) el mapa. */
+  calleLugares: () => pedir<LugarSimple[]>('GET', '/api/calle/lugares'),
+  salidaIniciar: (d: { clientUid: string; lugar: string; lat?: number; lng?: number; inicio: string; prueba?: boolean }) =>
+    pedir<{ clientUid: string; lugarId: number; lugar: string }>('POST', '/api/calle/salidas', d),
+  salidaTerminar: (salidaUid: string, d: { fin: string; pasaje: number; incidentes?: string; nota?: string }) =>
+    pedir<{ unidades: number; total: number; horas: number; comision: number; pasajeADevolver: number; veredicto: string }>(
+      'POST', '/api/calle/salidas/' + encodeURIComponent(salidaUid) + '/terminar', d),
+  sos: (d: { clientUid: string; tipo: TipoAlerta; lat?: number; lng?: number }) => pedir<{ id: number }>('POST', '/api/calle/sos', d),
+  calleResumen: () => pedir<ResumenCalle>('GET', '/api/calle/resumen'),
   venta: (v: VentaApi) => pedir<RespuestaVenta>('POST', '/api/ventas', v),
   lote: (ventas: VentaApi[]) => pedir<RespuestaVenta[]>('POST', '/api/ventas/lote', { ventas }),
   deshacer: (clientUid: string) => pedir<void>('DELETE', '/api/ventas/' + encodeURIComponent(clientUid)),
@@ -348,7 +357,7 @@ export interface ImportarResultado {
   errores: { fila: number; motivo: string }[]
 }
 
-export type ApiSync = Pick<typeof api, 'lote' | 'venta' | 'entrada' | 'movimiento' | 'gasto' | 'arqueo' | 'recibirPedido'>
+export type ApiSync = Pick<typeof api, 'lote' | 'venta' | 'entrada' | 'movimiento' | 'gasto' | 'arqueo' | 'recibirPedido' | 'salidaIniciar' | 'salidaTerminar'>
 
 /** El cierre de hoy (`GET /api/arqueo`): nulo si todavía no cerraste. */
 export interface ArqueoHoy { esperado: number; contado: number; diferencia: number; nota: string | null }

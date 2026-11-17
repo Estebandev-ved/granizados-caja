@@ -21,6 +21,7 @@ const TRAZOS: Record<string, string> = {
   refrescar: 'M4 12a8 8 0 0 1 13.66-5.66 M18 4v4h-4 M20 12a8 8 0 0 1-13.66 5.66 M6 20v-4h4',
   instalar: 'M12 3v12 M7 10l5 5 5-5 M5 21h14',
   compartir: 'M12 16V4 M8 8l4-4 4 4 M6 12v7a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-7',
+  mapa: 'M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10z M12 8.5a2.5 2.5 0 1 0 .1 0z',
   cuadrado: 'M8 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
 }
 

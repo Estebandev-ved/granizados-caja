@@ -78,6 +78,18 @@ public class AjustesService {
                 }
                 return valor;
             }
+            case "CALLE_ACTIVO" -> {
+                if (!valor.equals("0") && !valor.equals("1")) throw new IllegalArgumentException("CALLE_ACTIVO es 0 (apagado) o 1 (prendido)");
+                return valor;
+            }
+            case "CALLE_PRECIO_NORMAL", "CALLE_PRECIO_CREMOSO", "CALLE_PRECIO_GRANDE", "CALLE_PRECIO_CERVEZA",
+                 "CALLE_COM_NORMAL", "CALLE_COM_CREMOSO", "CALLE_COM_GRANDE", "CALLE_COM_CERVEZA", "CALLE_COM_COMBO",
+                 "CALLE_PASAJE", "CALLE_MINIMO_PASAJE", "CALLE_BUENO", "CALLE_REGULAR" -> {
+                if (!valor.matches("\\d{1,7}")) {
+                    throw new IllegalArgumentException(clave + " es un número sin decimales ni letras. 0 usa el de siempre");
+                }
+                return valor;
+            }
             case META_DIARIA -> {
                 if (!valor.matches("\\d{1,10}")) {
                     throw new IllegalArgumentException("La meta es un monto en pesos, sin decimales ni letras. 0 la apaga");

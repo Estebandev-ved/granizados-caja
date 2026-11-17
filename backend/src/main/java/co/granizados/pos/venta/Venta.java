@@ -58,6 +58,9 @@ public class Venta {
     /** Solo CONSUMO: lo que se le descuenta al trabajador por esta venta (0 = era de los gratis del día). */
     private long cargoVendedor;
 
+    /** Si se vendió en una salida a la calle: el uid de esa salida (no es llave foránea: la venta puede llegar antes). */
+    private String salidaUid;
+
     private Instant creadaEn;
 
     /** El negocio dueño de esta fila. Hibernate lo llena y lo filtra solo (ver TenantResolver). */
@@ -174,7 +177,13 @@ public class Venta {
         return this;
     }
 
+    public Venta enSalida(String salidaUid) {
+        this.salidaUid = salidaUid;
+        return this;
+    }
+
     public Long getId() { return id; }
+    public String getSalidaUid() { return salidaUid; }
     public Long getComisionUnitaria() { return comisionUnitaria; }
     public boolean isEnPromo() { return enPromo; }
     public long getCargoVendedor() { return cargoVendedor; }
