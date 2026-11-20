@@ -94,7 +94,33 @@ public class EquipoService {
                              /** Cuánto gana por cada granizado, normal y en promo, para que lo vea en Vender y en Mi día. */
                              TarifasDia tarifas,
                              /** Cuántos se propuso vender hoy (null = todavía no escoge). */
-                             Integer metaPropia) {
+                             Integer metaPropia,
+                             /** Su reto de hoy: lo que vende en un día normal y lo que pagaría cada meta. */
+                             Reto reto,
+                             /** Lo que ya ganó hoy con su meta propia (ya incluido en `premio`). */
+                             long premioReto) {
+    }
+
+    /**
+     * El reto personal de un trabajador (premio tipo DiDi): `base` es lo que vende en un día normal (la mediana de sus
+     * últimos días, o la del equipo si es nuevo), y por cada granizado que pase de ahí se lleva `porExtra` pesos, que es
+     * una parte de lo que ese granizado de más le deja al negocio. `opciones` son metas sugeridas con su premio.
+     */
+    public record Reto(int base, int desde, boolean pocosDatos, long porExtra, List<Escalones.Escalon> opciones) {
+    }
+
+    /** Qué parte (en %) de lo que deja un granizado de más se lleva el trabajador con su reto. */
+    private static final int PARTE_RETO = 35;
+
+    /**
+     * Desde qué parte (en %) de su día normal empieza a pagar el premio del reto. El premio de la meta es el mismo, pero
+     * se reparte en pasos desde ahí, así el trabajador empieza a ganar antes y no todo o nada al final.
+     */
+    private static final int PISO_RETO = 80;
+
+    /** Premio de una meta: lo que pasa de su base × lo que se lleva por cada granizado de más, redondeado a $500. */
+    static long premioReto(int meta, int base, long porExtra) {
+        return Math.max(0, (long) meta - base) * porExtra / 500 * 500;
     }
 
     /**
@@ -363,8 +389,10 @@ public class EquipoService {
         long premio = AjustesService.entero(ajustes.mapa(), "PREMIO_EQUIPO", 0);
         boolean diaPromo = delDia.stream().anyMatch(x -> vendedorId.equals(x.getVendedorId()) && x.isEnPromo())
                 || PromoCalendario.vigente(ajustes.mapa().get("PROMO"), dia);
+        int vendidasHoy = unidades;
         long bonos = (meta > 0 && unidades >= meta ? premio : 0)
-                + Escalones.premioDe(escalonesDelDia(ajustes.mapa(), diaPromo), unidades);
+                + Math.max(Escalones.premioDe(escalonesDelDia(ajustes.mapa(), diaPromo), unidades),
+                        metas.findByVendedorIdAndDia(vendedorId, dia).map(m -> m.ganado(vendidasHoy)).orElse(0L));
         long base = baseDeHoy(vendedorId);
         long entregar = efectivo + base - comision - bonos + consumos + faltantes;
         List<FilaCarga> devuelve = filasDe(vendedorId, dia, delDia).stream().filter(f -> f.queda() > 0).toList();
@@ -499,7 +527,7 @@ public class EquipoService {
         // Un premio por cada día del rango en que cumplió la meta, más el del escalón que alcanzó cada día
         int diasMeta = 0;
         long premiosEscalon = 0;
-        if (meta > 0 || !escalones.isEmpty()) {
+        {
             Map<LocalDate, Integer> porDia = new HashMap<>();
             Set<LocalDate> diasPromo = new HashSet<>();
             for (Venta x : delRango) {
@@ -508,10 +536,18 @@ public class EquipoService {
                 porDia.merge(d, x.getCantidad(), Integer::sum);
                 if (x.isEnPromo()) diasPromo.add(d);
             }
+            // Lo que ganó con su reto (la meta que se puso ese día) se paga solo, sin sumarse al del escalón: gana el mayor
+            Map<LocalDate, MetaVendedor> retos = new HashMap<>();
+            if (!porDia.isEmpty()) {
+                metas.findByVendedorIdAndDiaBetween(v.getId(), java.util.Collections.min(porDia.keySet()),
+                        java.util.Collections.max(porDia.keySet())).forEach(m -> retos.put(m.getDia(), m));
+            }
             for (Map.Entry<LocalDate, Integer> e : porDia.entrySet()) {
                 if (meta > 0 && e.getValue() >= meta) diasMeta++;
                 boolean promo = diasPromo.contains(e.getKey()) || (promoHoy && e.getKey().equals(hoy));
-                premiosEscalon += Escalones.premioDe(promo ? rebajados : escalones, e.getValue());
+                MetaVendedor reto = retos.get(e.getKey());
+                premiosEscalon += Math.max(Escalones.premioDe(promo ? rebajados : escalones, e.getValue()),
+                        reto == null ? 0 : reto.ganado(e.getValue()));
             }
         }
         long bonos = diasMeta * premio + premiosEscalon;
@@ -1040,9 +1076,11 @@ public class EquipoService {
         // Los días de promoción los premios bajan; el trabajador ve ya los montos de hoy
         boolean diaPromo = mias.stream().anyMatch(Venta::isEnPromo) || PromoCalendario.vigente(cfg.get("PROMO"), hoy());
         List<Escalones.Escalon> deHoy = escalonesDelDia(cfg, diaPromo);
-        return new PremiosDia(vendidas, comision, Escalones.premioDe(deHoy, vendidas), deHoy,
+        MetaVendedor propia = metas.findByVendedorIdAndDia(vendedorId, hoy()).orElse(null);
+        long premioReto = propia == null ? 0 : propia.ganado(vendidas);
+        return new PremiosDia(vendidas, comision, Math.max(Escalones.premioDe(deHoy, vendidas), premioReto), deHoy,
                 Escalones.siguiente(deHoy, vendidas), gratis, diaPromo, consumidos, descuento, faltantes,
-                tarifasDia(cfg, vendedorId), metas.findByVendedorIdAndDia(vendedorId, hoy()).map(MetaVendedor::getMeta).orElse(null));
+                tarifasDia(cfg, vendedorId), propia == null ? null : propia.getMeta(), retoDe(vendedorId, diaPromo), premioReto);
     }
 
     private TarifasDia tarifasDia(Map<String, String> cfg, Long vendedorId) {
@@ -1064,15 +1102,52 @@ public class EquipoService {
         vendedor(vendedorId); // que sea de este negocio
         if (meta < 1 || meta > 500) throw new IllegalArgumentException("Escoge entre 1 y 500 granizados");
         LocalDate dia = hoy();
+        List<Venta> mias = ventasDelDia(dia).stream().filter(x -> vendedorId.equals(x.getVendedorId())).toList();
+        int vendidas = mias.stream().filter(x -> !x.esDelTrabajador()).mapToInt(Venta::getCantidad).sum();
+        boolean diaPromo = mias.stream().anyMatch(Venta::isEnPromo) || PromoCalendario.vigente(ajustes.mapa().get("PROMO"), dia);
+        Reto reto = retoDe(vendedorId, diaPromo);
+        long premio = premioReto(meta, reto.base(), reto.porExtra());
         MetaVendedor m = metas.findByVendedorIdAndDia(vendedorId, dia).orElse(null);
-        if (m == null) metas.save(new MetaVendedor(vendedorId, dia, meta, clock.instant()));
+        int desde = Math.min(reto.desde(), meta);
+        if (m == null) metas.save(new MetaVendedor(vendedorId, dia, meta, premio, desde, clock.instant()));
         else {
-            m.cambiar(meta, clock.instant());
+            // Si la sube después de cumplirla, lo que ya se ganó con la anterior no se pierde
+            m.cambiar(meta, premio, desde, Math.max(m.getPremioPrevio(), m.ganado(vendidas)), clock.instant());
             metas.save(m);
         }
         metas.flush();
-        List<Venta> mias = ventasDelDia(dia).stream().filter(x -> vendedorId.equals(x.getVendedorId())).toList();
         return premiosDe(vendedorId, mias);
+    }
+
+    /**
+     * El reto de un trabajador: su base es la mediana de granizados de sus últimos días trabajados (si lleva menos de
+     * `MIN_DIAS_ANALISIS`, la del equipo) y se lleva el 35 % de lo que deja cada granizado de más. Sin costos o sin
+     * margen no hay premio que calcular (opciones vacías), y lo que pase de su base sin eso no paga nada.
+     */
+    @Transactional(readOnly = true)
+    public Reto retoDe(Long vendedorId, boolean diaPromo) {
+        DatosPremios datos = datosPremios();
+        LocalDate hoy = hoy();
+        Map<LocalDate, Integer> porDia = new java.util.TreeMap<>();
+        for (Venta x : ventas.entre(hoy.minusDays(DIAS_ANALISIS).atStartOfDay(zona).toInstant(), hoy.atStartOfDay(zona).toInstant())) {
+            if (!vendedorId.equals(x.getVendedorId()) || x.esDelTrabajador() || x.getMetodo() == MetodoPago.REGALO) continue;
+            porDia.merge(x.getCreadaEn().atZone(zona).toLocalDate(), x.getCantidad(), Integer::sum);
+        }
+        boolean pocos = porDia.size() < MIN_DIAS_ANALISIS;
+        List<Integer> dias = porDia.values().stream().sorted().toList();
+        int base = pocos ? datos.base() : dias.get(dias.size() / 2);
+        long margen = diaPromo && datos.margenPromo() != null ? datos.margenPromo() : datos.margenNormal();
+        long porExtra = Math.max(0, margen) * PARTE_RETO / 100;
+        List<Escalones.Escalon> opciones = new ArrayList<>();
+        int anterior = base;
+        for (double m : new double[]{1.15, 1.3, 1.5, 1.8}) {
+            int meta = Math.max(anterior + 1, (int) Math.round(base * m));
+            long premio = premioReto(meta, base, porExtra);
+            if (premio >= 500 && opciones.stream().noneMatch(o -> o.total() >= premio)) opciones.add(new Escalones.Escalon(meta, premio));
+            anterior = meta;
+        }
+        int desde = Math.max(1, (int) Math.round(base * PISO_RETO / 100.0));
+        return new Reto(base, desde, pocos, porExtra, opciones);
     }
 
     /** Ver DatosPremios. Mira las ventas de las últimas semanas, sin contar hoy. */

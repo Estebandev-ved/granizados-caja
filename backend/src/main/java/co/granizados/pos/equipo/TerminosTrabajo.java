@@ -57,6 +57,9 @@ final class TerminosTrabajo {
                     + " (por ejemplo, los días de promoción son un poco menores) y siempre los ves en la barra de premios de la app.");
             ganas.add("El premio es por día y cuenta solo lo que vendes tú.");
         }
+        ganas.add("Tu reto: cada día puedes ponerte una meta propia. Si vendes más de lo que vendes normalmente, el premio de esa meta"
+                + " se calcula con tus propias ventas y lo ves en la app antes de escogerla. Empiezas a ganarlo un poco antes de tu día"
+                + " normal, y va subiendo con cada granizado hasta quedar completo al cumplir la meta.");
         ganas.add("Lo que ganas se descuenta del efectivo que entregas al cerrar el día. Lo ves en Mi día.");
         ganas.add("Tú escoges cada cuánto te pagamos: cada día, cada semana o cada quincena. Lo puedes cambiar hablando con el dueño.");
         secciones.add(new Seccion("Lo que ganas", ganas));

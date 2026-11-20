@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analizarEscalon, ganariaCon, opcionesMeta, sugerirPremios } from './premios'
+import { analizarEscalon, ganariaCon, opcionesMeta, premioAl, premioReto, sugerirPremios } from './premios'
 import type { DatosPremios, PremiosDia } from './tipos'
 
 const datos: DatosPremios = {
@@ -57,5 +57,14 @@ describe('la meta del día del trabajador', () => {
   it('calcula cuánto ganaría con esa meta: comisión más premio', () => {
     expect(ganariaCon(premios, 24)).toBe(24 * 1000 + 7500)
     expect(ganariaCon({ ...premios, diaPromo: true }, 20)).toBe(20 * 700 + 3500)
+  })
+
+  it('el reto paga lo que pasa de su día normal, y gana el mayor entre reto y escalón', () => {
+    const conReto = { ...premios, escalones: [{ granizados: 20, total: 3500 }], reto: { base: 16, pocosDatos: false, porExtra: 980, opciones: [] } }
+    expect(premioReto(conReto, 16)).toBe(0)
+    expect(premioReto(conReto, 21)).toBe(4500)
+    expect(premioAl(conReto, 20)).toBe(3500)
+    expect(premioAl(conReto, 24)).toBe(7500)
+    expect(opcionesMeta({ ...conReto, escalones: [], reto: { ...conReto.reto, opciones: [{ granizados: 18, total: 1500 }, { granizados: 21, total: 4500 }] }, vendidas: 3 })).toEqual([18, 21])
   })
 })

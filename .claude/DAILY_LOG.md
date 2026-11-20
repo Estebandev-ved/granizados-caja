@@ -40,6 +40,12 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 
 ## Cambios
 
+### 2026-11-20
+- **Reto por pasos**: el trabajador dijo que los bonos quedaban muy altos de alcanzar. El premio de la meta es el mismo (misma cuenta del 35 %), pero ya no es todo o nada: empieza a sumar desde el 80 % de su día normal (`PISO_RETO`, `meta_vendedor.desde`, migración V39) y va subiendo en pasos iguales (a $500) hasta quedar completo en la meta. Ej.: base 16, meta 21, premio $4.500 → desde 13; con 20 lleva $4.000. Costo para el dueño: en un día normal paga ~la mitad del premio (se sube `PISO_RETO` si se quiere menos). Pendiente: los escalones fijos (`PREMIOS_ESCALONES`) y sus sugeridos siguen igual. Términos con texto nuevo (hay que aceptar otra vez).
+
+### 2026-11-18
+- **Reto personal (premio tipo DiDi)**: la meta propia del trabajador ahora paga. Su base sale de sus propias ventas (mediana de sus últimos días; si es nuevo, la del equipo) y se lleva el 35 % de lo que cada granizado de más le deja al negocio. El premio se congela al escoger la meta, se paga solo si la cumple, y si la sube lo ya ganado no se pierde. Gana el mayor entre reto y escalón (no se suman). Migración V38, `EquipoService.retoDe`, `MetaDelDia` explica «un día normal tuyo son ~N». Términos con línea nueva (hay que aceptar otra vez). 4 pruebas nuevas; 260 de backend y 151 de vitest en verde.
+
 ### 2026-11-17
 - **Plan de ventas en la calle** (migración `V37__plan_calle.sql`, módulo `calle`): botón en Ajustes → «Plan de ventas en la calle» que prende los precios y comisiones de la calle (refrescante $7.000 / cremoso $9.000, comisión $1.800 / $2.300, combo $1.500, grande configurable; en 0 = el de siempre) y el pasaje ($7.800, se devuelve si vende menos de 12). En Vender aparece «Empezar salida» (lugar + GPS), las ventas de la salida cobran el precio de la calle y al terminar se anotan pasajes e incidentes. Cada lugar sale bueno / regular / malo por granizados en 4 horas (25 / 15) y se ve en un mapa en Reportes → «Lugares de la calle» (Leaflet, nueva dependencia `leaflet`).
 - **Botón de alerta** para el trabajador (hurto, policía, necesito ayuda): Telegram al dueño con quién, dónde y link al mapa; queda constancia en `alerta_sos` y sale en el mapa.

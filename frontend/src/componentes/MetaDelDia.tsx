@@ -45,7 +45,10 @@ export function MetaDelDia({ premios, dia, onMeta }: {
     const premio = premioAl(premios, meta)
     return (
       <div className="meta-propia">
-        <span>Tu meta: <b>{meta}</b> · te {faltan === 1 ? 'falta 1' : 'faltan ' + faltan}{premio > 0 ? ' · premio de ' + pesos(premio) : ''}</span>
+        <span>
+          Tu meta: <b>{meta}</b> · te {faltan === 1 ? 'falta 1' : 'faltan ' + faltan}{premio > 0 ? ' · premio de ' + pesos(premio) : ''}
+          {(premios.premioReto ?? 0) > 0 && ' · ya llevas ' + pesos(premios.premioReto ?? 0)}
+        </span>
         <button type="button" className="link" onClick={() => setOtra(String(meta))}>Cambiar</button>
         {otra !== null && <Otra valor={otra} onCambio={setOtra} enviando={enviando} onListo={n => void escoger(n)} />}
       </div>
@@ -76,7 +79,12 @@ export function MetaDelDia({ premios, dia, onMeta }: {
           ) : (
             <>
               <h2>¿Cuántos te sientes capaz de vender hoy?</h2>
-              <span className="mut">Escoge tu meta. Mientras más vendes, más ganas.</span>
+              <span className="mut">
+                {premios.reto && premios.reto.base > 0 && premios.reto.porExtra > 0
+                  ? (premios.reto.pocosDatos ? 'Un día normal del equipo son ~' : 'Un día normal tuyo son ~') + premios.reto.base
+                    + '. El premio empieza desde ' + (premios.reto.desde ?? premios.reto.base) + ' y va sumando con cada uno hasta llegar completo a tu meta, además de tu comisión.'
+                  : 'Escoge tu meta. Mientras más vendes, más ganas.'}
+              </span>
             </>
           )}
           <div className="meta-opciones">

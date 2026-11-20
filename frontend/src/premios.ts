@@ -68,9 +68,17 @@ export function porGranizado(p: PremiosDia, precioNormal = 6000): number {
   return p.diaPromo && t.promo > 0 ? t.promo : t.normal
 }
 
-/** El premio que daría llegar a `meta` hoy (el escalón más alto alcanzado). */
+/** Lo que paga su reto por llegar a `meta`: lo que pasa de lo que vende normalmente × lo que se lleva por cada uno de más. */
+export function premioReto(p: PremiosDia, meta: number): number {
+  const r = p.reto
+  if (!r) return 0
+  return Math.floor(Math.max(0, meta - r.base) * r.porExtra / 500) * 500
+}
+
+/** El premio que daría llegar a `meta` hoy: el del reto o el del escalón más alto alcanzado, el que sea mayor. */
 export function premioAl(p: PremiosDia, meta: number): number {
-  return p.escalones.filter(e => e.granizados <= meta).reduce((a, e) => Math.max(a, e.total), 0)
+  const escalon = p.escalones.filter(e => e.granizados <= meta).reduce((a, e) => Math.max(a, e.total), 0)
+  return Math.max(escalon, premioReto(p, meta))
 }
 
 /** Cuánto ganaría en total si vende `meta` hoy: comisión aproximada + premio. */
@@ -84,7 +92,8 @@ export function ganariaCon(p: PremiosDia, meta: number): number {
  */
 export function opcionesMeta(p: PremiosDia, desde = 0): number[] {
   const piso = Math.max(desde, p.vendidas)
-  const deEscalones = p.escalones.map(e => e.granizados).filter(g => g > piso)
+  const deEscalones = [...p.escalones.map(e => e.granizados), ...(p.reto?.opciones ?? []).map(o => o.granizados)]
+    .filter(g => g > piso).sort((a, b) => a - b).filter((g, i, l) => l.indexOf(g) === i)
   if (deEscalones.length >= 2) return deEscalones.slice(0, 4)
   const base = Math.max(5, Math.ceil((piso + 1) / 5) * 5)
   const sueltas = [base, base + 5, base + 10, base + 15]

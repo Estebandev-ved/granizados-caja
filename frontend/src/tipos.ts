@@ -102,6 +102,21 @@ export interface PremiosDia {
   tarifas?: TarifasDia
   /** Cuántos se propuso vender hoy (null = no ha escogido). */
   metaPropia?: number | null
+  /** Su reto de hoy (premio tipo DiDi): lo que vende normalmente y lo que paga cada meta. */
+  reto?: Reto
+  /** Lo que ya ganó hoy con su meta propia (ya está dentro de `premio`). */
+  premioReto?: number
+}
+
+/** `base` = lo que vende en un día normal; por cada granizado que pase de ahí se lleva `porExtra` pesos. */
+export interface Reto {
+  base: number
+  /** Desde cuántos granizados empieza a sumar el premio (un poco menos que `base`); sube con cada uno hasta la meta. */
+  desde?: number
+  /** Todavía lleva pocos días: la base es la del equipo. */
+  pocosDatos: boolean
+  porExtra: number
+  opciones: Escalon[]
 }
 
 /** Lo que gana el trabajador por granizado. `porcentaje` solo si le pagan un % de lo vendido. */

@@ -180,4 +180,87 @@ class MetaYPremiosTest extends PruebaIntegracion {
                 .andExpect(jsonPath("$.minutosDia").value(0))
                 .andExpect(jsonPath("$.primeraHoy").doesNotExist());
     }
+
+    /** Seis días de historia (10, 12, 14, 16, 18 y 20): su día normal es 16 y cada granizado de más le deja 980 de premio. */
+    private String conHistorial() throws Exception {
+        tarifas();
+        jdbc.update("update producto set costo = 2200");
+        equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        int[] porDia = {10, 14, 16, 18, 20, 12};
+        for (int d = 0; d < porDia.length; d++) {
+            vender(token, "h-" + d, porDia[d], null);
+            reloj.avanzar(Duration.ofDays(1));
+        }
+        return token;
+    }
+
+    @Test
+    void elRetoSaleDeLoQueElTrabajadorVendeNormalmente() throws Exception {
+        String token = conHistorial();
+
+        // Margen 2.800 por granizado, se lleva el 35 % = 980 por cada uno que pase de 16
+        mvc.perform(con(token, get("/api/estado"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.premios.reto.base").value(16))
+                .andExpect(jsonPath("$.premios.reto.pocosDatos").value(false))
+                .andExpect(jsonPath("$.premios.reto.porExtra").value(980))
+                .andExpect(jsonPath("$.premios.reto.opciones[0].granizados").value(18))
+                .andExpect(jsonPath("$.premios.reto.opciones[0].total").value(1500))
+                .andExpect(jsonPath("$.premios.reto.opciones[1].granizados").value(21))
+                .andExpect(jsonPath("$.premios.reto.opciones[1].total").value(4500));
+    }
+
+    @Test
+    void laMetaPropiaPagaPorPasosDesdeUnPocoAntesDeSuDiaNormal() throws Exception {
+        String token = conHistorial();
+        // Su día normal es 16: el premio empieza en 13 (80 %) y va subiendo hasta los 4.500 de la meta de 21
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.premios.reto.desde").value(13));
+        mvc.perform(con(token, post("/api/mi-turno/meta")).content("{\"meta\":21}")).andExpect(status().isOk());
+
+        vender(token, "hoy-0", 12, null); // todavía no llega al punto donde empieza
+        mvc.perform(con(token, get("/api/estado")))
+                .andExpect(jsonPath("$.premios.premio").value(0))
+                .andExpect(jsonPath("$.premios.premioReto").value(0));
+        var hoy = java.time.LocalDate.of(2026, 10, 1);
+        assertThat(equipo.liquidar(hoy, hoy).getFirst().bonos()).isZero();
+
+        vender(token, "hoy-1", 8, null); // 20: 8 de 9 pasos = 4.000
+        mvc.perform(con(token, get("/api/estado")))
+                .andExpect(jsonPath("$.premios.premio").value(4000))
+                .andExpect(jsonPath("$.premios.premioReto").value(4000));
+        assertThat(equipo.liquidar(hoy, hoy).getFirst().bonos()).isEqualTo(4000);
+
+        vender(token, "hoy-2", 1, null);
+        mvc.perform(con(token, get("/api/estado")))
+                .andExpect(jsonPath("$.premios.premio").value(4500))
+                .andExpect(jsonPath("$.premios.premioReto").value(4500));
+        assertThat(equipo.liquidar(hoy, hoy).getFirst().bonos()).isEqualTo(4500);
+    }
+
+    @Test
+    void siSubeLaMetaLoGanadoConLaAnteriorNoSePierde() throws Exception {
+        String token = conHistorial();
+        mvc.perform(con(token, post("/api/mi-turno/meta")).content("{\"meta\":18}")).andExpect(status().isOk());
+        vender(token, "hoy-1", 18, null); // cumple la de 18: 1.500
+        mvc.perform(con(token, post("/api/mi-turno/meta")).content("{\"meta\":24}")).andExpect(status().isOk());
+
+        // La de 24 paga 7.500 y va por pasos: con 18 lleva 6 de 12 = 3.750 (nunca menos que los 1.500 de la anterior)
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.premios.premioReto").value(3500));
+        vender(token, "hoy-2", 6, null);
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.premios.premioReto").value(7500));
+        var hoy = java.time.LocalDate.of(2026, 10, 1);
+        assertThat(equipo.liquidar(hoy, hoy).getFirst().bonos()).isEqualTo(7500);
+    }
+
+    @Test
+    void elPremioDelRetoNoSeSumaAlDelEscalonSinoQueGanaElMayor() throws Exception {
+        String token = conHistorial();
+        jdbc.update("update config set valor = '18:3000' where clave = 'PREMIOS_ESCALONES'");
+        mvc.perform(con(token, post("/api/mi-turno/meta")).content("{\"meta\":18}")).andExpect(status().isOk());
+        vender(token, "hoy-1", 18, null);
+
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.premios.premio").value(3000));
+        var hoy = java.time.LocalDate.of(2026, 10, 1);
+        assertThat(equipo.liquidar(hoy, hoy).getFirst().bonos()).isEqualTo(3000);
+    }
 }
