@@ -41,6 +41,7 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 ## Cambios
 
 ### 2026-11-20
+- **Pantalla del premio gordo**: el último escalón de premios es ahora un trofeo dorado en la barra de Vender (sin altura extra); tocarlo abre una hoja con el monto, la barra y cuánto falta, y al ganarlo sale una pantalla completa con rayos, trofeo y confeti dorado, una vez al día. `PremioGordo.tsx`, `premioGordo()`, `Confeti` con colores y cantidad. Verificado en el navegador en tema claro y oscuro; 152 de vitest en verde. Sin subir a producción todavía.
 - **Reto por pasos**: el trabajador dijo que los bonos quedaban muy altos de alcanzar. El premio de la meta es el mismo (misma cuenta del 35 %), pero ya no es todo o nada: empieza a sumar desde el 80 % de su día normal (`PISO_RETO`, `meta_vendedor.desde`, migración V39) y va subiendo en pasos iguales (a $500) hasta quedar completo en la meta. Ej.: base 16, meta 21, premio $4.500 → desde 13; con 20 lleva $4.000. Costo para el dueño: en un día normal paga ~la mitad del premio (se sube `PISO_RETO` si se quiere menos). Pendiente: los escalones fijos (`PREMIOS_ESCALONES`) y sus sugeridos siguen igual. Términos con texto nuevo (hay que aceptar otra vez).
 
 ### 2026-11-18

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analizarEscalon, ganariaCon, opcionesMeta, premioAl, premioReto, sugerirPremios } from './premios'
+import { analizarEscalon, ganariaCon, opcionesMeta, premioAl, premioGordo, premioReto, sugerirPremios } from './premios'
 import type { DatosPremios, PremiosDia } from './tipos'
 
 const datos: DatosPremios = {
@@ -57,6 +57,12 @@ describe('la meta del día del trabajador', () => {
   it('calcula cuánto ganaría con esa meta: comisión más premio', () => {
     expect(ganariaCon(premios, 24)).toBe(24 * 1000 + 7500)
     expect(ganariaCon({ ...premios, diaPromo: true }, 20)).toBe(20 * 700 + 3500)
+  })
+
+  it('el premio gordo es el escalón más alto, y solo existe si hay al menos dos', () => {
+    expect(premioGordo(premios)).toEqual({ granizados: 29, total: 12500 })
+    expect(premioGordo({ ...premios, escalones: [{ granizados: 20, total: 3500 }] })).toBeNull()
+    expect(premioGordo({ ...premios, escalones: [] })).toBeNull()
   })
 
   it('el reto paga lo que pasa de su día normal, y gana el mayor entre reto y escalón', () => {

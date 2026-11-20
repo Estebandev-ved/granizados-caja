@@ -663,6 +663,45 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .premios-hito.on { background: var(--primario); border-color: transparent; color: #fff }
 .premios-hito.sig { border-color: var(--primario); color: var(--primario-txt); animation: pulso 1.6s ease-in-out infinite }
 @keyframes pulso { 0%, 100% { box-shadow: 0 0 0 0 var(--primario-bg2) } 50% { box-shadow: 0 0 0 6px var(--primario-bg2) } }
+/* Premio gordo: el último escalón es un trofeo dorado que se toca, y al ganarlo sale una pantalla completa */
+.premios-hito.gordo { width: 34px; height: 34px; padding: 0; font-size: 18px; line-height: 1; border-color: var(--warn); background: var(--warn-bg);
+  box-shadow: 0 0 10px var(--warn); cursor: pointer; font-family: inherit }
+.premios-hito.gordo.on { background: var(--warn); border-color: transparent }
+.premios-hito.gordo.sig { animation: brillo 1.5s ease-in-out infinite }
+@keyframes brillo {
+  0%, 100% { box-shadow: 0 0 6px var(--warn); transform: translate(-50%, -50%) scale(1) }
+  50% { box-shadow: 0 0 20px var(--warn); transform: translate(-50%, -50%) scale(1.14) }
+}
+.gordo-hoja { display: grid; justify-items: center; text-align: center; gap: 8px; padding-bottom: 6px }
+.gordo-trofeo { font-size: 68px; line-height: 1; filter: drop-shadow(0 6px 14px var(--warn)); animation: flota 2.4s ease-in-out infinite }
+@keyframes flota { 0%, 100% { transform: translateY(0) rotate(-4deg) } 50% { transform: translateY(-8px) rotate(4deg) } }
+.gordo-etiqueta { font-size: 12px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase; color: var(--warn-txt) }
+.gordo-monto { font-family: var(--font-head); font-size: 46px; font-weight: 800; line-height: 1.05; color: var(--warn-txt);
+  background: linear-gradient(100deg, var(--warn-txt) 20%, var(--warn) 50%, var(--warn-txt) 80%); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: brilla 3s linear infinite }
+@keyframes brilla { from { background-position: 100% 0 } to { background-position: -100% 0 } }
+.gordo-sub { margin: 0; font-size: 15px; font-weight: 600 }
+.gordo-pista { width: 100%; height: 16px; margin-top: 6px; border-radius: var(--r-full); background: var(--card2); border: 1px solid var(--warn); overflow: hidden }
+.gordo-relleno { height: 100%; border-radius: var(--r-full); background: linear-gradient(90deg, var(--warn), var(--primario)); transition: width .7s cubic-bezier(.2, .8, .2, 1) }
+.gordo-cuenta { width: 100%; display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: var(--mut) }
+.gordo-boton { margin-top: 10px; width: 100%; padding: 14px 28px; border: 0; border-radius: var(--r-full); font: inherit; font-weight: 800; font-size: 17px;
+  background: linear-gradient(135deg, var(--primario), var(--primario-fuerte)); color: #fff; cursor: pointer }
+.gordo-ganado { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; overflow: hidden; text-align: center; background: var(--bg);
+  padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom)); animation: gordo-entra .35s ease both }
+.gordo-rayos { position: absolute; width: 150vmax; height: 150vmax; left: 50%; top: 50%; margin: -75vmax 0 0 -75vmax;
+  background: repeating-conic-gradient(var(--warn-bg) 0 12deg, transparent 12deg 24deg); opacity: .55; animation: gordo-gira 26s linear infinite }
+.gordo-centro { position: relative; display: grid; justify-items: center; gap: 10px; max-width: 340px }
+.gordo-centro p { margin: 0; font-size: 17px; font-weight: 600 }
+.gordo-centro .gordo-boton { width: auto; margin-top: 12px }
+.gordo-trofeo.grande { font-size: 116px; animation: gordo-salta .9s cubic-bezier(.2, 1.4, .4, 1) both, flota 2.4s ease-in-out .9s infinite }
+.gordo-monto.grande { font-size: 58px }
+@keyframes gordo-entra { from { opacity: 0 } }
+@keyframes gordo-gira { to { transform: rotate(360deg) } }
+@keyframes gordo-salta { from { transform: scale(0) rotate(-30deg) } to { transform: scale(1) rotate(0) } }
+@media (prefers-reduced-motion: reduce) {
+  .premios-hito.gordo.sig, .gordo-trofeo, .gordo-trofeo.grande, .gordo-monto, .gordo-rayos, .gordo-ganado { animation: none }
+  .gordo-relleno { transition: none }
+}
 .premios-pie { display: flex; align-items: center; gap: 10px }
 .premios-pie .personaje { width: 36px; margin: 0; flex: none }
 .premios-pie p { margin: 0; font-size: 14px; font-weight: 600 }

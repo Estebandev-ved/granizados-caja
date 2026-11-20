@@ -6,7 +6,7 @@ const COLORES = ['#e53935', '#ff6b6b', '#c62828', '#f9a825', '#4ade80', '#1a1a1a
  * Confeti en un solo canvas, sin librería: ~90 rectángulos cayendo y ya.
  * Se apaga solo cuando se cumple la meta.
  */
-export function Confeti({ duracion = 1800 }: { duracion?: number }) {
+export function Confeti({ duracion = 1800, cantidad = 90, colores = COLORES }: { duracion?: number; cantidad?: number; colores?: string[] }) {
   const ref = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export function Confeti({ duracion = 1800 }: { duracion?: number }) {
     lienzo.height = alto * dpr
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    const trozos = Array.from({ length: 90 }, () => ({
+    const trozos = Array.from({ length: cantidad }, () => ({
       x: Math.random() * ancho,
       y: -20 - Math.random() * alto * 0.7,
       w: 5 + Math.random() * 5,
@@ -30,7 +30,7 @@ export function Confeti({ duracion = 1800 }: { duracion?: number }) {
       corre: (Math.random() - 0.5) * 1.4,
       gira: Math.random() * Math.PI,
       giro: (Math.random() - 0.5) * 0.3,
-      color: COLORES[Math.floor(Math.random() * COLORES.length)],
+      color: colores[Math.floor(Math.random() * colores.length)],
     }))
 
     let vivo = true
@@ -63,7 +63,7 @@ export function Confeti({ duracion = 1800 }: { duracion?: number }) {
       vivo = false
       ctx.clearRect(0, 0, ancho, alto)
     }
-  }, [duracion])
+  }, [duracion, cantidad, colores])
 
   return <canvas ref={ref} className="confeti" aria-hidden="true" />
 }

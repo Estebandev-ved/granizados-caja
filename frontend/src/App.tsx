@@ -18,6 +18,7 @@ import { PagoPreferido } from './componentes/PagoPreferido'
 import { NOMBRE_PAGO } from './pagos'
 import { TerminosTrabajo } from './componentes/TerminosTrabajo'
 import { Confeti } from './componentes/Confeti'
+import { PremioGordo } from './componentes/PremioGordo'
 import { Marca } from './componentes/Marca'
 import { Personaje } from './componentes/Personaje'
 import { nivelAlcanzado } from './logros'
@@ -70,6 +71,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
 
   // Celebrar la meta una sola vez al día, y solo cuando se cruza por una venta de verdad
   const [celebrando, setCelebrando] = useState(false)
+  const [gordoAbierto, setGordoAbierto] = useState(false)
   const totalAnterior = useRef<number | null>(null)
 
   useEffect(() => {
@@ -337,7 +339,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       )}
       {estado && trabajador && premios && premios.escalones.length > 0 && (
         <div className="meta-envoltorio">
-          <BarraPremios premios={premios} compacta />
+          <BarraPremios premios={premios} compacta onGordo={() => setGordoAbierto(true)} />
         </div>
       )}
       {estado && trabajador && premios && vista === 'vender' && (
@@ -361,6 +363,9 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       {bienvenida && <Bienvenida avisar={avisar} tieneProductos={!!estado && estado.productos.length > 0} onTerminar={destino => { setBienvenidaVista(true); caja.recargar(); if (destino === 'ajustes') irA('ajustes') }} />}
       {trabajador && guiaLista && estado && (
         <GuiaTrabajador nombre={sesion.nombre} productos={estado.productos} premios={premios} onTerminar={cerrarGuia} />
+      )}
+      {trabajador && premios && estado && (
+        <PremioGordo premios={premios} dia={estado.dia} abierto={gordoAbierto} onCerrar={() => setGordoAbierto(false)} />
       )}
       {celebrando && <><Confeti /><div className="logro-flotante"><Personaje nombre="sofia" libre /></div></>}
       <nav>

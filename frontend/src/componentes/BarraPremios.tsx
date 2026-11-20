@@ -1,29 +1,35 @@
 import { pesos } from '../formato'
+import { premioGordo } from '../premios'
 import type { PremiosDia } from '../tipos'
 import { Personaje } from './Personaje'
 
 /** Lo que Sofía le dice al trabajador según qué tan cerca está del próximo premio. */
 function mensaje(p: PremiosDia, alcanzados: number): string {
   const { siguiente, vendidas } = p
-  if (!siguiente) return '¡Llegaste al premio máximo del día! Eres una máquina.'
+  const hayGordo = premioGordo(p) !== null
+  if (!siguiente) return hayGordo ? '🏆 ¡Ganaste el premio gordo! Eres una máquina.' : '¡Llegaste al premio máximo del día! Eres una máquina.'
   const faltan = siguiente.granizados - vendidas
   const previo = alcanzados > 0 ? p.escalones[alcanzados - 1].granizados : 0
   const avance = (vendidas - previo) / (siguiente.granizados - previo)
+  // El último escalón es el premio gordo: se le dice así para que se note
+  const cual = hayGordo && siguiente.granizados === premioGordo(p)?.granizados ? 'el 🏆 premio gordo de ' + pesos(siguiente.total) : pesos(siguiente.total)
   if (vendidas === 0) return `Con tu primer granizado arranca la barra. ¡Vamos por ${pesos(siguiente.total)}!`
-  if (faltan === 1) return `¡Solo 1 más y ganas ${pesos(siguiente.total)}!`
-  if (avance >= 0.6 || faltan <= 3) return `¡Ya casi! ${faltan} más y ganas ${pesos(siguiente.total)}`
-  if (p.premio > 0) return `Ya llevas ${pesos(p.premio)} de premio. Faltan ${faltan} para ${pesos(siguiente.total)}`
-  return `Faltan ${faltan} para ganar ${pesos(siguiente.total)}`
+  if (faltan === 1) return `¡Solo 1 más y ganas ${cual}!`
+  if (avance >= 0.6 || faltan <= 3) return `¡Ya casi! ${faltan} más y ganas ${cual}`
+  if (p.premio > 0 && cual === pesos(siguiente.total)) return `Ya llevas ${pesos(p.premio)} de premio. Faltan ${faltan} para ${cual}`
+  return `Faltan ${faltan} para ganar ${cual}`
 }
 
 /**
  * La barra de premios del trabajador: se llena con cada granizado, cada escalón es un círculo que se prende al llegar,
  * el próximo late para llamar la atención y Sofía le dice qué tan cerca está.
  */
-export function BarraPremios({ premios, compacta = false }: {
+export function BarraPremios({ premios, compacta = false, onGordo }: {
   premios: PremiosDia
   /** En Vender: más bajita (sin Sofía), para que los sabores queden a la mano. */
   compacta?: boolean
+  /** Al tocar el trofeo del último escalón (el premio gordo). */
+  onGordo?: () => void
 }) {
   const { escalones, vendidas, premio, siguiente } = premios
   if (!escalones.length) return null
@@ -53,6 +59,13 @@ export function BarraPremios({ premios, compacta = false }: {
         {escalones.map((e, i) => {
           const alcanzado = vendidas >= e.granizados
           const proximo = !alcanzado && i === alcanzados
+          const clase = 'premios-hito' + (alcanzado ? ' on' : '') + (proximo ? ' sig' : '')
+          if (n >= 2 && i === n - 1) {
+            const pos = { left: ((i + 1) / n * 100) + '%' }
+            return onGordo
+              ? <button key={e.granizados} type="button" className={clase + ' gordo'} style={pos} onClick={onGordo} aria-label={`Premio gordo: ${pesos(e.total)} a los ${e.granizados} granizados`}>🏆</button>
+              : <span key={e.granizados} className={clase + ' gordo'} style={pos} aria-hidden="true">🏆</span>
+          }
           return (
             <span key={e.granizados} className={'premios-hito' + (alcanzado ? ' on' : '') + (proximo ? ' sig' : '')}
               style={{ left: ((i + 1) / n * 100) + '%' }} aria-hidden="true">

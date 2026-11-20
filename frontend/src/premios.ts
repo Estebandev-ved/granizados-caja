@@ -60,6 +60,12 @@ export function sugerirPremios(d: DatosPremios): { escalones: Escalon[]; rebaja:
 
 // ---------------------------------------------------------------- la meta propia del trabajador
 
+/** El premio gordo: el escalón más alto del día (solo si hay al menos dos escalones; con uno solo no hay a qué subirle). */
+export function premioGordo(p: PremiosDia): Escalon | null {
+  if (p.escalones.length < 2) return null
+  return p.escalones.reduce((a, e) => (e.granizados > a.granizados ? e : a))
+}
+
 /** Lo que gana por cada granizado hoy (si le pagan por %, lo del granizado normal a $6.000 según su %). */
 export function porGranizado(p: PremiosDia, precioNormal = 6000): number {
   const t = p.tarifas
