@@ -229,7 +229,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
                 <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'FIADO' ? 'Fiado' : u.metodo === 'REGALO' ? 'Regalo 🎁' : u.metodo === 'CONSUMO' ? 'Se lo tomó el trabajador 🥤' : u.metodo === 'FALTANTE' ? 'Faltó en la carga' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : 'Nequi'}</b>
                 <span className="mut">
                   {quienes.length > 1 && <span className={'quien-tag' + (u.vendedor ? ' equipo' : '')}>{u.vendedor || 'Tú'}</span>}
-                  {u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}
+                  {(u.cantidad ?? 1) > 1 ? u.cantidad + '× ' : ''}{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}
                   {(u.comprobante || fotosEsperando.has(u.clientUid)) && <span title="Tiene foto del comprobante"> · 📎</span>}
                 </span>
               </div>

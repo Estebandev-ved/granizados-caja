@@ -225,7 +225,11 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer, onVerGuia, avisa
       {estado.ultimas.length ? (
         <div className="list">
           <h3><Icono nombre="reloj" /> Mis ventas de hoy</h3>
-          <p className="mut" style={{ margin: '0 0 6px' }}>Toca una para agregarle la foto del comprobante o borrarla si te equivocaste.</p>
+          <p className="mut" style={{ margin: '0 0 6px' }}>
+            {estado.ultimas.length} venta{estado.ultimas.length === 1 ? '' : 's'}
+            {' · '}{estado.ultimas.filter(u => u.metodo !== 'CONSUMO' && u.metodo !== 'FALTANTE').reduce((a, u) => a + (u.cantidad ?? 1), 0)} granizados vendidos (una venta puede traer varios).
+            {' '}Toca una para agregarle la foto del comprobante o borrarla si te equivocaste.
+          </p>
           {estado.ultimas.map(u => (
             <button type="button" className="pago-fila" key={u.clientUid} onClick={() => setBorrar(u)}>
               <span className={'pago-avatar ' + (u.metodo === 'EFECTIVO' ? 'e' : 'n')}>
@@ -234,7 +238,7 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer, onVerGuia, avisa
               <div className="pago-info">
                 <b>{u.metodo === 'EFECTIVO' ? 'Efectivo' : u.metodo === 'MIXTO' ? 'Efectivo + Nequi' : u.metodo === 'CONSUMO' ? 'Me lo tomé yo 🥤' : u.metodo === 'FALTANTE' ? 'Faltó en tu carga' : 'Nequi'}</b>
                 <span className="mut">
-                  {u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}
+                  {(u.cantidad ?? 1) > 1 ? u.cantidad + '× ' : ''}{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}
                   {(u.comprobante || fotosEsperando.has(u.clientUid)) && <span title="Tiene foto del comprobante"> · 📎</span>}
                 </span>
               </div>
