@@ -25,6 +25,7 @@ import { nivelAlcanzado } from './logros'
 import { hitoNuevo } from './ritmo'
 import { useToast, type AccionToast } from './componentes/Toast'
 import { pesos, vibrar } from './formato'
+import { sonidoLogro, sonidoVenta } from './sonido'
 import { leerPromos, promosVigentes } from './promo'
 import type { Terminos } from './tipos'
 import { useCaja, type EstadoSync } from './useCaja'
@@ -87,6 +88,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     try { localStorage.setItem('gz_meta_celebrada', estado.dia) } catch { /* modo privado */ }
 
     vibrar()
+    sonidoLogro()
     let fin: number | undefined
     // En un timeout para no montar y pintar todo en la misma pasada de React
     const arranque = window.setTimeout(() => {
@@ -116,6 +118,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     try { localStorage.setItem(clave, diaEquipo + ':' + nivelEquipo) } catch { /* modo privado */ }
 
     vibrar()
+    sonidoLogro()
     const arranque = window.setTimeout(() => {
       setCelebrando(true)
       avisar(nivelEquipo === 1 ? '⭐ ¡A medio camino de la meta!'
@@ -144,6 +147,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
     try { localStorage.setItem(clave, diaEquipo + ':' + escalonesAlcanzados) } catch { /* modo privado */ }
 
     vibrar()
+    sonidoLogro()
     const arranque = window.setTimeout(() => {
       setCelebrando(true)
       avisar('🎉 ¡Ganaste ' + pesos(premioDelDia) + ' de premio!')
@@ -219,6 +223,8 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       consumo={trabajador && premios ? { gratis: premios.gratis, consumidos: premios.consumidos ?? 0 } : null}
       tarifas={trabajador ? tarifasVenta : null}
       onVender={(lineas, metodo, fiado, foto) => {
+      // Lo que se toma el trabajador no es una venta: no suena la fiesta
+      if (metodo !== 'CONSUMO') sonidoVenta()
       // En una salida el total se manda siempre (el precio de la calle), así se ve bien aunque el celular aún no lo sepa
       const cobra = (l: (typeof lineas)[number]) => (metodo === 'REGALO' || metodo === 'CONSUMO' ? undefined : l.total ?? (salida && calle?.activo ? l.p.precio * l.cantidad : undefined))
       const uids = lineas.map(l => caja.vender(l.p, metodo, l.cantidad, cobra(l), fiado, l.efectivo, salida?.clientUid))

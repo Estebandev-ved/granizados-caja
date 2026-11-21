@@ -3,6 +3,7 @@ import { ConfirmarPago } from '../componentes/PagoTrabajador'
 import { api, sesion } from '../api'
 import { vendidasHoy } from '../carga'
 import { BotonRecargar } from '../componentes/BotonRecargar'
+import { InterruptorSonido } from '../componentes/InterruptorSonido'
 import { CuantoTeHaces } from '../componentes/CuantoTeHaces'
 import { EntregaAlDueno } from '../componentes/EntregaAlDueno'
 import { Icono } from '../componentes/Icono'
@@ -256,6 +257,7 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer, onVerGuia, avisa
         </button>
         <button className="big ghost" onClick={verTerminos}>Ver mis términos del trabajo</button>
         <button className="big ghost" onClick={onVerGuia}>Ver cómo se usa la app</button>
+        <InterruptorSonido />
         <BotonRecargar />
         <button className="big peligro" onClick={() => sesion.cerrar()}>Cerrar sesión</button>
       </div>
