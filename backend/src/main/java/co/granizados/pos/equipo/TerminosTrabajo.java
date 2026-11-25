@@ -17,6 +17,9 @@ final class TerminosTrabajo {
     record Seccion(String titulo, List<String> lineas) {
     }
 
+    /** El apartado de los bonos automáticos: va arriba y la app lo resalta. */
+    static final String TITULO_BONOS = "Importante leer: tus bonos";
+
     private TerminosTrabajo() {
     }
 
@@ -27,6 +30,25 @@ final class TerminosTrabajo {
         secciones.add(new Seccion("Antes de empezar", List.of(
                 "Este es el acuerdo para trabajar vendiendo granizados con " + negocio + ".",
                 "Léelo con calma. Al aceptarlo confirmas que lo leíste, que lo entendiste y que estás de acuerdo.")));
+
+        if (EquipoService.bonosAuto(cfg)) {
+            int parte = EquipoService.parteBonos(cfg);
+            secciones.add(new Seccion(TITULO_BONOS, List.of(
+                    "Tu comisión sigue igual: cada granizado que vendes te paga lo mismo de siempre.",
+                    "Además tienes bonos: la app mira lo que vendes en un día normal (tus últimas 4 semanas). Todo lo que vendas"
+                            + " por encima de eso lo partimos: por cada granizado de más te llevas el " + parte + " % de lo que ese"
+                            + " granizado le deja al negocio (ya pagada tu comisión), además de tu comisión.",
+                    "Mientras más te pasas de tu día normal, más te rinde cada granizado (hasta el " + BonosAuto.PARTE_MAXIMA
+                            + " %). El escalón más alto es el premio gordo 🏆.",
+                    "En la barra de premios de la app ves cuánto llevas y cuánto te falta para el siguiente.",
+                    "Los días de promoción el bono es un poco menor, porque cada granizado deja menos.",
+                    "Tu día normal se actualiza solo con tus ventas. El bono es por día y cuenta solo lo que vendes tú.",
+                    "¿Por qué no hay bono desde el primer granizado? Porque la comisión ya te paga cada granizado. El bono es un"
+                            + " premio por vender más de lo normal, y ahí es donde se reparte lo que se gana de más.",
+                    "¿Y si un día vendo poquito? Ganas tu comisión normal, como siempre. El bono no te quita nada.",
+                    "¿Si vendo más, me suben el día normal? Sí, poco a poco, porque mira 4 semanas. Si sube es porque estás"
+                            + " vendiendo más todos los días, y eso también es más comisión para ti.")));
+        }
 
         secciones.add(new Seccion("Tu trabajo", List.of(
                 "Vendes los granizados que te entregan y registras cada venta en la app en el momento en que la haces.",
@@ -53,11 +75,7 @@ final class TerminosTrabajo {
         }
         List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
         if (EquipoService.bonosAuto(cfg)) {
-            ganas.add("Bonos automáticos: la app calcula tu día normal con tus ventas de las últimas 4 semanas. Por cada granizado"
-                    + " que vendas por encima de ese día, te llevas el " + EquipoService.parteBonos(cfg) + " % de lo que ese granizado"
-                    + " le deja al negocio (ya pagada tu comisión), y un poco más (hasta el 45 %) cuando pasas bastante tu día normal. Los ves como"
-                    + " premios en la barra de la app; los días de promoción son un poco menores porque el granizado deja menos.");
-            ganas.add("El premio es por día y cuenta solo lo que vendes tú.");
+            ganas.add("Además tienes bonos por vender más de tu día normal: lee «" + TITULO_BONOS + "», arriba.");
         } else if (!escalones.isEmpty()) {
             ganas.add("Además hay premios del día: mientras más granizados vendes, más ganas. Los montos pueden variar"
                     + " (por ejemplo, los días de promoción son un poco menores) y siempre los ves en la barra de premios de la app.");

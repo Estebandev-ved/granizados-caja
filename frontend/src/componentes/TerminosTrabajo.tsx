@@ -15,6 +15,17 @@ const ICONOS: Record<string, string> = {
   'El efectivo y el producto': 'caja',
   'Tu granizado': 'trofeo',
   'Cambios y salida': 'refrescar',
+  'Importante leer: tus bonos': 'trofeo',
+}
+
+/** Un apartado que el trabajador no se puede saltar: sale resaltado. */
+const esImportante = (titulo: string) => titulo.startsWith('Importante')
+
+/** Las preguntas («¿…? respuesta») van con la pregunta en negrilla. */
+function Linea({ texto }: { texto: string }) {
+  const fin = texto.startsWith('¿') ? texto.indexOf('?') : -1
+  if (fin < 0) return <li>{texto}</li>
+  return <li className="terminos-pregunta"><b>{texto.slice(0, fin + 1)}</b> {texto.slice(fin + 1).trim()}</li>
 }
 
 /**
@@ -45,12 +56,13 @@ export function TerminosTrabajo({ terminos, onAceptar }: { terminos: Terminos; o
         </div>
       </div>
       {terminos.secciones.map(s => (
-        <section className="terminos-seccion" key={s.titulo}>
+        <section className={'terminos-seccion' + (esImportante(s.titulo) ? ' importante' : '')} key={s.titulo}>
+          {esImportante(s.titulo) && <span className="terminos-sello">⚠️ Importante leer</span>}
           <h3>
             <span className="terminos-icono"><Icono nombre={ICONOS[s.titulo] ?? 'cara'} /></span>
             {s.titulo}
           </h3>
-          <ul>{s.lineas.map(l => <li key={l}>{l}</li>)}</ul>
+          <ul>{s.lineas.map(l => <Linea key={l} texto={l} />)}</ul>
         </section>
       ))}
       {onAceptar ? (

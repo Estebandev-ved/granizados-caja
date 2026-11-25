@@ -223,6 +223,18 @@ class MetaYPremiosTest extends PruebaIntegracion {
     }
 
     @Test
+    void conBonosAutomaticosLosTerminosTraenArribaElApartadoImportanteConLasPreguntas() throws Exception {
+        String token = conHistorial();
+        jdbc.update("update config set valor = '1' where clave = 'BONOS_AUTO'");
+
+        mvc.perform(con(token, get("/api/mi-turno/terminos"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.secciones[1].titulo").value("Importante leer: tus bonos"))
+                .andExpect(jsonPath("$.secciones[1].lineas[0]").value(org.hamcrest.Matchers.containsString("comisión sigue igual")))
+                .andExpect(jsonPath("$.secciones[1].lineas[*]").value(org.hamcrest.Matchers.hasItem(
+                        org.hamcrest.Matchers.startsWith("¿Y si un día vendo poquito?"))));
+    }
+
+    @Test
     void conBonosAutomaticosElDuenoEscogeLaParteYApagadosVuelvenLosDeMano() throws Exception {
         String token = conHistorial();
         jdbc.update("update config set valor = '1' where clave = 'BONOS_AUTO'");

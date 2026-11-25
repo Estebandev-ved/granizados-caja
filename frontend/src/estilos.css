@@ -614,6 +614,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .terminos .terminos-hero p { margin: 0; color: var(--mut); font-size: 14px }
 .terminos .terminos-seccion { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; margin-bottom: 12px }
 .terminos .terminos-seccion h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 16px }
+.terminos .terminos-seccion.importante { border: 2px solid var(--warn); background: var(--warn-bg) }
+.terminos-sello { display: inline-block; margin-bottom: 8px; padding: 3px 10px; border-radius: var(--r-full); font-size: 12px;
+  font-weight: 800; letter-spacing: .4px; text-transform: uppercase; background: var(--card); border: 1px solid var(--warn); color: var(--warn-txt) }
+.terminos .terminos-pregunta { margin-top: 6px }
+.terminos .terminos-pregunta b { display: block; color: var(--warn-txt) }
 .terminos-icono { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: none;
   border-radius: var(--r-full); background: var(--primario-bg); color: var(--primario-txt) }
 .terminos-icono svg { width: 18px; height: 18px }
