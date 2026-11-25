@@ -230,6 +230,7 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
                 <span className="mut">
                   {quienes.length > 1 && <span className={'quien-tag' + (u.vendedor ? ' equipo' : '')}>{u.vendedor || 'Tú'}</span>}
                   {(u.cantidad ?? 1) > 1 ? u.cantidad + '× ' : ''}{u.sabor} · {u.hora}{u.pendiente && <span className="pend-tag" title="Sin subir"> ⏳</span>}
+                  {u.enPromo && <span className="promo-tag" title="Vendida con promo"> · 🔥 promo</span>}
                   {(u.comprobante || fotosEsperando.has(u.clientUid)) && <span title="Tiene foto del comprobante"> · 📎</span>}
                 </span>
               </div>

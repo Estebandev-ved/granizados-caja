@@ -229,7 +229,7 @@ function PanelVenta({ p, promos, otros, queda, trabajador, consumo, tarifas, onP
     if (pagado.current) return
     pagado.current = true
     vibrar()
-    onPagar(m, cobrarLineas(lineas, m, promos, enEfectivo), fiado, foto)
+    onPagar(m, cobrarLineas(lineas, m, usar, enEfectivo), fiado, foto)
   }
 
   // Con carga armada manda lo que llevas en la mano; si no, el inventario de la casa
@@ -238,8 +238,13 @@ function PanelVenta({ p, promos, otros, queda, trabajador, consumo, tarifas, onP
   const lineas = [{ p, cantidad }, ...otros.filter(o => extra[o.id]).map(o => ({ p: o, cantidad: extra[o.id] }))]
   const unidades = lineas.reduce((a, l) => a + l.cantidad, 0)
   const normal = lineas.reduce((a, l) => a + l.p.precio * l.cantidad, 0)
-  const total = promos.length ? totalConPromos(promos, lineas) : normal
-  const usadas = total < normal ? promosUsadas(promos, lineas) : []
+  // ¿Le cobró la promo? A veces el cliente lleva dos al precio normal: el que vende lo dice con un toque
+  const [sinPromo, setSinPromo] = useState(false)
+  const conPromo = promos.length ? totalConPromos(promos, lineas) : normal
+  const hayPromo = conPromo < normal
+  const usar = hayPromo && !sinPromo ? promos : []
+  const total = usar.length ? conPromo : normal
+  const usadas = usar.length ? promosUsadas(usar, lineas) : []
   const enEfectivo = aEntero(efectivoTxt)
   const mixtoValido = enEfectivo > 0 && enEfectivo < total
   // Si se lo toma él: los gratis del día no se cobran y del siguiente en adelante va al precio de venta
@@ -259,7 +264,8 @@ function PanelVenta({ p, promos, otros, queda, trabajador, consumo, tarifas, onP
         {pesos(total)}
         {usadas.length > 0 && <small>promo {usadas.map(u => (u.veces > 1 ? u.veces + ' × ' : '') + nombrePromo(u.promo, pesos)).join(' + ')}</small>}
       </div>
-      {tarifas && <p className="ganas-venta">Con esta venta ganas <b>{pesos(ganasCon(tarifas, cobrarLineas(lineas, 'EFECTIVO', promos)))}</b></p>}
+      {tarifas && <p className="ganas-venta">Con esta venta ganas <b>{pesos(ganasCon(tarifas, cobrarLineas(lineas, 'EFECTIVO', usar)))}</b></p>}
+      {hayPromo && <InterruptorPromo conPromo={conPromo} normal={normal} sinPromo={sinPromo} onCambio={setSinPromo} />}
       <p className={'panel-sub' + (disponible - cantidad < 0 ? ' aviso' : '')}>
         {unidades > cantidad ? unidades + ' unidades · ' : ''}{
           disponible <= 0
@@ -398,7 +404,11 @@ function Bandeja({ productos, bandeja, promos, trabajador, tarifas, onQuitar, on
   const lineas = productos.filter(p => bandeja[p.id]).map(p => ({ p, cantidad: bandeja[p.id] }))
   const unidades = lineas.reduce((a, l) => a + l.cantidad, 0)
   const normal = lineas.reduce((a, l) => a + l.p.precio * l.cantidad, 0)
-  const total = totalConPromos(promos, lineas)
+  const [sinPromo, setSinPromo] = useState(false)
+  const conPromo = totalConPromos(promos, lineas)
+  const hayPromo = conPromo < normal
+  const usar = hayPromo && !sinPromo ? promos : []
+  const total = usar.length ? conPromo : normal
   const enEfectivo = aEntero(efectivoTxt)
   const mixtoValido = enEfectivo > 0 && enEfectivo < total
 
@@ -406,7 +416,8 @@ function Bandeja({ productos, bandeja, promos, trabajador, tarifas, onQuitar, on
     if (cobrando.current || !lineas.length) return
     cobrando.current = true
     vibrar()
-    onCobrar(cobrarLineas(lineas, m, promos, efectivo), m)
+    onCobrar(cobrarLineas(lineas, m, usar, efectivo), m)
+    setSinPromo(false)
     setMixto(false)
     setEfectivoTxt('')
     window.setTimeout(() => { cobrando.current = false }, 400)
@@ -414,7 +425,7 @@ function Bandeja({ productos, bandeja, promos, trabajador, tarifas, onQuitar, on
 
   return (
     <>
-      <div style={{ height: lineas.length ? 210 : 70 }} aria-hidden="true" />
+      <div style={{ height: lineas.length ? (hayPromo ? 254 : 210) : 70 }} aria-hidden="true" />
       <div className="bandeja" role="region" aria-label="Varios a la vez">
         {lineas.length ? (
           <>
@@ -428,9 +439,10 @@ function Bandeja({ productos, bandeja, promos, trabajador, tarifas, onQuitar, on
             <div className="bandeja-total">
               <b>{unidades} · {pesos(total)}</b>
               {total < normal && <small>con promo · ahorran {pesos(normal - total)}</small>}
-              {tarifas && <small>· ganas {pesos(ganasCon(tarifas, cobrarLineas(lineas, 'EFECTIVO', promos)))}</small>}
-              <button type="button" className="link" onClick={onVaciar}>Vaciar</button>
+              {tarifas && <small>· ganas {pesos(ganasCon(tarifas, cobrarLineas(lineas, 'EFECTIVO', usar)))}</small>}
+              <button type="button" className="link" onClick={() => { setSinPromo(false); onVaciar() }}>Vaciar</button>
             </div>
+            {hayPromo && <InterruptorPromo conPromo={conPromo} normal={normal} sinPromo={sinPromo} onCambio={setSinPromo} />}
             <div className="pay">
               <button className="big nequi" onClick={() => cobrar('NEQUI')}>Nequi</button>
               <button className="big cash" onClick={() => cobrar('EFECTIVO')}>Efectivo</button>
@@ -462,6 +474,28 @@ function Bandeja({ productos, bandeja, promos, trabajador, tarifas, onQuitar, on
         </form>
       </Sheet>
     </>
+  )
+}
+
+/**
+ * ¿Se vendió con promo o al precio normal? Sale solo cuando la compra arma un combo. Viene en «Con promo» (lo normal
+ * en la calle) y con un toque pasa a «Sin promo», así lo anotado cuadra con la plata que de verdad recibió.
+ */
+function InterruptorPromo({ conPromo, normal, sinPromo, onCambio }: {
+  conPromo: number
+  normal: number
+  sinPromo: boolean
+  onCambio: (sin: boolean) => void
+}) {
+  return (
+    <div className="interruptor-promo" role="group" aria-label="¿Le cobraste la promo?">
+      <button type="button" className={!sinPromo ? 'on' : ''} aria-pressed={!sinPromo} onClick={() => onCambio(false)}>
+        🔥 Con promo <b>{pesos(conPromo)}</b>
+      </button>
+      <button type="button" className={sinPromo ? 'on sin' : ''} aria-pressed={sinPromo} onClick={() => onCambio(true)}>
+        Sin promo <b>{pesos(normal)}</b>
+      </button>
+    </div>
   )
 }
 

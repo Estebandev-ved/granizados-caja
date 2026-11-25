@@ -368,6 +368,8 @@ export interface VentaReciente {
   vendedor?: string | null
   /** Cuántos granizados fueron (las de un celular sin actualizar no lo traen: se cuenta 1). */
   cantidad?: number
+  /** Se vendió con promo (se cobró menos que el precio normal). */
+  enPromo?: boolean
   /** Solo en el celular: todavía no ha subido al servidor. */
   pendiente?: boolean
 }

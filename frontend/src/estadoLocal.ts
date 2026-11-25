@@ -174,7 +174,9 @@ function aplicarVenta(e: Estado, op: Extract<Operacion, { tipo: 'venta' }>, hoy:
     else e.hoy.propias.push({ sabor: p.nombre, unidades: op.cantidad })
   }
 
-  e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total, metodo: op.metodo, pendiente, cantidad: op.cantidad },
+  e.ultimas = [{ clientUid: op.clientUid, hora: horaBogota(op.creadaEn), sabor: p.nombre, total, metodo: op.metodo, pendiente, cantidad: op.cantidad,
+    // Mientras sube se adivina con el precio de siempre; el servidor dice la última palabra
+    enPromo: op.metodo !== 'REGALO' && total < p.precio * op.cantidad },
     ...e.ultimas].slice(0, 40)
 }
 

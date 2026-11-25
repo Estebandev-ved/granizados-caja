@@ -69,6 +69,11 @@ main { padding: 0 12px calc(90px + var(--safe-b)) }
 .bandeja-total b { font-family: var(--font-head); font-size: 20px }
 .bandeja-total small { color: var(--mut) }
 .bandeja-total .link { margin-left: auto }
+.interruptor-promo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0 10px }
+.interruptor-promo button { border: 1px solid var(--line); background: var(--card2); color: var(--txt); border-radius: var(--r-md); padding: 8px 6px; font-size: 13px; font-weight: 600; min-height: 44px }
+.interruptor-promo button b { display: block; font-size: 15px }
+.interruptor-promo button.on { background: var(--primario-bg); border-color: var(--primario); color: var(--primario-txt) }
+.interruptor-promo button.on.sin { background: var(--card); border-color: var(--txt); color: var(--txt) }
 .bandeja .pay .big { padding-top: 12px; padding-bottom: 12px }
 .historial-eq { padding-bottom: 12px }
 .historial-cabeza { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 4px 0 8px; color: var(--txt); text-align: left }
@@ -179,6 +184,7 @@ a.big { display: block; text-align: center; text-decoration: none }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px }
 .chips button { border: 1px solid var(--line); background: var(--card2); border-radius: var(--r-full); padding: 10px 16px; font-size: 15px; font-weight: 600 }
 .promo-aviso { margin: 0 0 12px; padding: 8px 12px; background: var(--primario-bg); color: var(--primario-txt); border-radius: var(--r-md); font-size: 13px }
+.promo-tag { color: var(--primario-txt); font-weight: 600 }
 .promo-aviso .link { padding: 2px 0; min-height: 0; font-size: 13px; text-decoration: none; text-align: left; color: inherit }
 .chips button.on { background: var(--primario); border-color: transparent; color: #fff }
 .chips.categorias { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px 12px; padding: 0 12px 2px }

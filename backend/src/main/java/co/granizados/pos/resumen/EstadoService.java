@@ -75,7 +75,9 @@ public class EstadoService {
                                 /** Tiene foto del comprobante de pago. */
                                 boolean comprobante,
                                 /** Quién la hizo: el nombre del trabajador, o null si fue el dueño. */
-                                String vendedor, int cantidad) {
+                                String vendedor, int cantidad,
+                                /** Se vendió con promo (se cobró menos que precio × cantidad). */
+                                boolean enPromo) {
     }
 
     /** La meta del día y los días seguidos cumpliéndola. `valor = 0` significa que está apagada. */
@@ -163,7 +165,8 @@ public class EstadoService {
         List<VentaReciente> ultimas = delDia.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
                         v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor(), false,
-                        v.getVendedorId() == null ? null : nombres.getOrDefault(v.getVendedorId(), "Trabajador"), v.getCantidad()))
+                        v.getVendedorId() == null ? null : nombres.getOrDefault(v.getVendedorId(), "Trabajador"), v.getCantidad(),
+                        v.isEnPromo()))
                 .toList();
         ultimas = conFoto(ultimas);
         List<ProductoDto> activos = productos.findByActivoTrueOrderByOrdenAscIdAsc().stream().map(ProductoDto::de).toList();
@@ -186,7 +189,8 @@ public class EstadoService {
                 .toList();
         List<VentaReciente> ultimas = mias.stream().limit(MAX_ULTIMAS)
                 .map(v -> new VentaReciente(v.getClientUid(), HORA.format(v.getCreadaEn().atZone(zona)),
-                        v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor(), false, null, v.getCantidad()))
+                        v.getProducto().nombre(), v.getTotal(), v.getMetodo(), v.getCargoVendedor(), false, null, v.getCantidad(),
+                        v.isEnPromo()))
                 .toList();
         ultimas = conFoto(ultimas);
         ResumenDia r = resumir(mias, 0, 0, 0);
@@ -203,7 +207,7 @@ public class EstadoService {
         var conFoto = comprobantes.conFoto(lista.stream().map(VentaReciente::clientUid).toList());
         if (conFoto.isEmpty()) return lista;
         return lista.stream().map(u -> conFoto.contains(u.clientUid())
-                ? new VentaReciente(u.clientUid(), u.hora(), u.sabor(), u.total(), u.metodo(), u.cargo(), true, u.vendedor(), u.cantidad()) : u).toList();
+                ? new VentaReciente(u.clientUid(), u.hora(), u.sabor(), u.total(), u.metodo(), u.cargo(), true, u.vendedor(), u.cantidad(), u.enPromo()) : u).toList();
     }
 
     /** Lo gastado desde el primero del mes hasta hoy, por categoría (para los topes de gasto). */

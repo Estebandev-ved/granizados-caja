@@ -41,6 +41,7 @@ No es una automatización de cron (correr sola de madrugada) — es la convenci�
 ## Cambios
 
 ### 2026-11-25
+- **¿Con promo o sin promo?**: al cobrar una compra que arma combo sale «🔥 Con promo $X / Sin promo $Y» (viene en con promo; un toque lo cambia) para que lo anotado cuadre con lo que de verdad pagó el cliente. Ventas de hoy y Mi día marcan «🔥 promo» (`VentaReciente.enPromo`). 265 pruebas del backend y 157 de vitest en verde; visto en el navegador.
 - **Promos de la carta, todos los días**: 2 refrescantes $13.000 · 3 refrescantes $19.000 · 2 cremosos $18.000 · 1 cremoso + 1 refrescante $15.500 · 4 refrescantes + 1 cremoso $35.000, prendidas todos los días para negocio 1 (migración V41, `config.valor` a 2.000). Combos mixtos (`partes`), hasta 8 promos, y Vender cobra la **combinación más barata** con todas las que corren (`planear`); también en las salidas a la calle. Ajustes → Promoción edita combos mixtos («Cuántos de cada uno»). Ojo: con todas prendidas, 4 + 1 sale a $34.500 (3 x $19.000 + 1 + 1), así que el combo de $35.000 nunca se usa. Pendiente con Esteban: confirmar que en Inventario los refrescantes están a $7.000 y los cremosos a $10.000 (o esos precios en la calle) y si `PREMIO_REBAJA_PROMO` debe aplicar todos los días ahora que siempre hay promo.
 
 ### 2026-11-23
