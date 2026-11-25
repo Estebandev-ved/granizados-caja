@@ -277,7 +277,8 @@ public class PedidoService {
     @Transactional(readOnly = true)
     public Recomendacion recomendacion() {
         PlataService.Saldo saldo = plata.saldo();
-        Long libre = saldo.contadoEn() == null ? null : saldo.libre();
+        // Lo apartado «para pedidos» sí cuenta: esa plata es justo para comprar
+        Long libre = saldo.contadoEn() == null ? null : saldo.paraComprar();
         Long disponible = libre == null ? null : Math.max(0, libre) * (100 - RESERVA_PORCENTAJE) / 100;
 
         List<Opcion> opciones = new ArrayList<>();

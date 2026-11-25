@@ -10,7 +10,7 @@ import { aEntero, pesos, vibrar } from '../formato'
 import { ChuloVenta } from '../componentes/ChuloVenta'
 import { BotonFoto } from '../componentes/FotoComprobante'
 import { etiquetaTipo, usePerfil } from '../perfil'
-import { aplicaPromo, cobrarLineas, nombrePromo, promoDe, totalConPromos, totalMezclado, type LineaCobrada, type Promo } from '../promo'
+import { aplicaPromo, cobrarLineas, daDescuento, nombrePromo, promosUsadas, totalConPromos, type LineaCobrada, type Promo } from '../promo'
 import type { Metodo, PorSabor, Producto, TarifasDia, Tipo } from '../tipos'
 
 interface Props {
@@ -40,13 +40,16 @@ const CLAVE_RAPIDO = 'gz_rapido'
 type Filtro = 'todos' | Tipo
 const TIPOS: Tipo[] = ['NORMAL', 'CREMOSO', 'GRANDE', 'CERVEZA']
 
-export function Vender({ productos, porSabor, trabajador = false, promos, consumo = null, tarifas = null, onVender }: Props) {
+export function Vender({ productos, porSabor, trabajador = false, promos: todas, consumo = null, tarifas = null, onVender }: Props) {
   const perfil = usePerfil()
   const [ok, setOk] = useState(0)
   const [elegido, setElegido] = useState<Producto | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('todos')
   // La promo se configura en Ajustes y viene del servidor; aquí solo se aplica
-  const enJuego = promos.filter(pr => productos.some(p => aplicaPromo(pr, p)))
+  // Solo las que hacen descuento con estos precios (en la calle pueden servir unas y en la universidad otras)
+  const promos = todas.filter(pr => daDescuento(pr, productos))
+  const enPromo = (p: Producto) => promos.some(pr => aplicaPromo(pr, p))
+  const [verPromos, setVerPromos] = useState(false)
   // Lo que llevo hoy: cuántos de cada sabor saqué a vender
   const [cargaGuardada, setCarga] = useState(() => (trabajador ? null : leerCarga()))
   // La carga de ayer no vale hoy: si la app queda abierta pasada la medianoche, no puede seguir contando
@@ -115,11 +118,17 @@ export function Vender({ productos, porSabor, trabajador = false, promos, consum
 
   return (
     <section>
-      {enJuego.length > 0 && (
+      {promos.length > 0 && (
         <div className="promo-aviso">
-          {enJuego.map((pr, i) => <span key={i}>{i > 0 && ' · '}<b>{nombrePromo(pr, pesos)}</b></span>)}
-          {' '}· promo{enJuego.length > 1 ? 's' : ''} prendida{enJuego.length > 1 ? 's' : ''}
+          {/* Con muchas promos va en una línea y se abre al tocarla: los sabores no pueden bajar */}
+          {promos.length > 2 && !verPromos
+            ? <button type="button" className="link" onClick={() => setVerPromos(true)}><b>🔥 {promos.length} promos prendidas</b> · ver cuáles</button>
+            : <span onClick={() => setVerPromos(false)}>
+                {promos.map((pr, i) => <span key={i}>{i > 0 && ' · '}<b>{nombrePromo(pr, pesos)}</b></span>)}
+                {' '}· promo{promos.length > 1 ? 's' : ''} prendida{promos.length > 1 ? 's' : ''}
+              </span>}
           {tarifas && tarifas.porcentaje === null && tarifas.promo > 0 && <> · en promo ganas {pesos(tarifas.promo)} c/u</>}
+          {promos.length > 2 && verPromos && <small style={{ display: 'block', marginTop: 4 }}>Arma el combo tocando «¿Llevan otro sabor?» o con «Varios a la vez»: la app cobra la combinación más barata.</small>}
         </div>
       )}
       {!trabajador && (
@@ -167,10 +176,8 @@ export function Vender({ productos, porSabor, trabajador = false, promos, consum
       </Sheet>
       <Sheet abierto={!!elegido} onCerrar={() => setElegido(null)}>
         {elegido && (
-          <PanelVenta p={elegido} queda={queda(elegido)} trabajador={trabajador} consumo={trabajador ? consumo : null} tarifas={tarifas} promo={promoDe(promos, elegido)}
-            otros={promoDe(promos, elegido)
-              ? orden.filter(o => o.id !== elegido.id && promoDe(promos, o) === promoDe(promos, elegido) && !agotado(o))
-              : []}
+          <PanelVenta p={elegido} queda={queda(elegido)} trabajador={trabajador} consumo={trabajador ? consumo : null} tarifas={tarifas} promos={enPromo(elegido) ? promos : []}
+            otros={enPromo(elegido) ? orden.filter(o => o.id !== elegido.id && enPromo(o) && !agotado(o)) : []}
             onPagar={(metodo, lineas, fiado, foto) => {
               setElegido(null)
               onVender(lineas, metodo, fiado, foto)
@@ -182,13 +189,14 @@ export function Vender({ productos, porSabor, trabajador = false, promos, consum
   )
 }
 
-function PanelVenta({ p, promo, otros, queda, trabajador, consumo, tarifas, onPagar }: {
+function PanelVenta({ p, promos, otros, queda, trabajador, consumo, tarifas, onPagar }: {
   p: Producto
   tarifas: TarifasDia | null
   /** Solo un trabajador: los gratis del día y los que ya se tomó. */
   consumo: { gratis: number; consumidos: number } | null
-  promo: Promo | null
-  /** Otros sabores que entran en la promo: el cliente puede mezclar. */
+  /** Las promos que corren y en las que entra este sabor (vacío = no tiene promo). */
+  promos: Promo[]
+  /** Otros sabores que entran en las promos: el cliente puede mezclar sabores y tipos. */
   otros: Producto[]
   /** Lo que te queda de la carga de hoy (undefined = no hay carga, null = ese sabor no lo llevas). */
   queda?: number | null
@@ -221,7 +229,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, tarifas, onPa
     if (pagado.current) return
     pagado.current = true
     vibrar()
-    onPagar(m, cobrarLineas(lineas, m, promo ? [promo] : [], enEfectivo), fiado, foto)
+    onPagar(m, cobrarLineas(lineas, m, promos, enEfectivo), fiado, foto)
   }
 
   // Con carga armada manda lo que llevas en la mano; si no, el inventario de la casa
@@ -230,7 +238,8 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, tarifas, onPa
   const lineas = [{ p, cantidad }, ...otros.filter(o => extra[o.id]).map(o => ({ p: o, cantidad: extra[o.id] }))]
   const unidades = lineas.reduce((a, l) => a + l.cantidad, 0)
   const normal = lineas.reduce((a, l) => a + l.p.precio * l.cantidad, 0)
-  const total = promo ? totalMezclado(promo, lineas) : normal
+  const total = promos.length ? totalConPromos(promos, lineas) : normal
+  const usadas = total < normal ? promosUsadas(promos, lineas) : []
   const enEfectivo = aEntero(efectivoTxt)
   const mixtoValido = enEfectivo > 0 && enEfectivo < total
   // Si se lo toma él: los gratis del día no se cobran y del siguiente en adelante va al precio de venta
@@ -248,9 +257,9 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, tarifas, onPa
       <h2>{p.nombre}</h2>
       <div className="panel-total">
         {pesos(total)}
-        {promo && total < normal && <small>promo {nombrePromo(promo, pesos)}</small>}
+        {usadas.length > 0 && <small>promo {usadas.map(u => (u.veces > 1 ? u.veces + ' × ' : '') + nombrePromo(u.promo, pesos)).join(' + ')}</small>}
       </div>
-      {tarifas && <p className="ganas-venta">Con esta venta ganas <b>{pesos(ganasCon(tarifas, cobrarLineas(lineas, 'EFECTIVO', promo ? [promo] : [])))}</b></p>}
+      {tarifas && <p className="ganas-venta">Con esta venta ganas <b>{pesos(ganasCon(tarifas, cobrarLineas(lineas, 'EFECTIVO', promos)))}</b></p>}
       <p className={'panel-sub' + (disponible - cantidad < 0 ? ' aviso' : '')}>
         {unidades > cantidad ? unidades + ' unidades · ' : ''}{
           disponible <= 0
@@ -266,7 +275,7 @@ function PanelVenta({ p, promo, otros, queda, trabajador, consumo, tarifas, onPa
       {otros.length > 0 && (
         <div className="vueltas">
           <button type="button" className="link" onClick={() => setMezclando(m => !m)}>
-            {mezclando ? 'Ocultar otros sabores' : `¿Otro sabor en la promo ${promo ? nombrePromo(promo, pesos) : ''}?`}
+            {mezclando ? 'Ocultar otros sabores' : promos.length === 1 ? `¿Otro sabor en la promo ${nombrePromo(promos[0], pesos)}?` : '¿Llevan otro sabor? (arma el combo)'}
           </button>
           {(mezclando || unidades > cantidad) && (
             <div className="list">

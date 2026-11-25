@@ -25,7 +25,7 @@ export function tarifasDe(params: readonly Param[]): TarifasEquipo {
 }
 
 function cuandoCorre(p: Promo): string {
-  return p.dias.length ? 'los ' + textoDias(p.dias) : p.soloHoy ? 'solo hoy' : 'hasta que la apagues'
+  return p.dias.length ? 'los ' + textoDias(p.dias) : p.soloHoy ? 'solo hoy' : 'todos los días'
 }
 
 const VEREDICTO: Record<Rentabilidad['veredicto'], { texto: string; clase: string }> = {
@@ -36,7 +36,7 @@ const VEREDICTO: Record<Rentabilidad['veredicto'], { texto: string; clase: strin
 }
 
 /**
- * Las promos, a tu gusto (hasta 3 a la vez): cuántos, a cuánto, a qué tamaños, cómo se llaman y cuándo corren.
+ * Las promos, a tu gusto (hasta 8 a la vez, también combos mixtos como 1 cremoso + 1 normal): cuántos, a cuánto, a qué tamaños, cómo se llaman y cuándo corren.
  * Cada una dice si te sale rentable después de pagarle al trabajador. Se guardan en el servidor: Vender las aplica
  * en tu celular y en el de cada trabajador.
  */
@@ -90,7 +90,7 @@ export function PromoAjustes({ valor, productos, params, onGuardar, avisar }: {
         {promos.length < MAX_PROMOS && (
           <button className="big ghost" style={{ marginTop: 8 }} onClick={() => setEditando(-1)}>＋ Agregar una promo</button>
         )}
-        <p className="ayuda">Pueden correr varias a la vez (ej. una de normales y otra de cremosos). Le llegan al celular de cada trabajador.</p>
+        <p className="ayuda">Pueden correr varias a la vez: Vender le cobra al cliente la combinación más barata. Le llegan al celular de cada trabajador y valen también en la calle.</p>
       </div>
 
       <Sheet abierto={editando !== null} onCerrar={() => setEditando(null)}>
@@ -122,19 +122,27 @@ function FormPromo({ inicial, nueva, productos, tarifas, onGuardar, onQuitar }: 
   const [cantidad, setCantidad] = useState(String(inicial.cantidad))
   const [precio, setPrecio] = useState(String(inicial.precio))
   const [tipos, setTipos] = useState<Tipo[]>(inicial.tipos)
+  // Combo mixto (ej. 1 cremoso + 1 normal): cuántos de cada tipo. Sin esto el cliente mezcla como quiera.
+  const [fijo, setFijo] = useState(inicial.partes.length > 0)
+  const [partes, setPartes] = useState<Partial<Record<Tipo, string>>>(
+    () => Object.fromEntries(inicial.tipos.map((t, i) => [t, String(inicial.partes[i] ?? 1)])))
   const [duracion, setDuracion] = useState<Duracion>(inicial.dias.length ? 'dias' : inicial.soloHoy ? 'hoy' : 'siempre')
   const [dias, setDias] = useState<number[]>(inicial.dias.length ? inicial.dias : [3])
   const [quitando, setQuitando] = useState(false)
 
-  const n = Number(cantidad)
+  const mixta = fijo && tipos.length > 1
+  const cuantosDe = tipos.map(t => Number(partes[t] ?? '1'))
+  const n = mixta ? cuantosDe.reduce((a, x) => a + x, 0) : Number(cantidad)
   const valor = Number(precio)
   const valido = Number.isInteger(n) && n >= 2 && n <= 10 && valor > 0 && tipos.length > 0 && (duracion !== 'dias' || dias.length > 0)
+    && (!mixta || cuantosDe.every(x => Number.isInteger(x) && x >= 1))
 
   const alternar = (t: Tipo) => setTipos(ts => (ts.includes(t) ? ts.filter(x => x !== t) : [...ts, t]))
   const alternarDia = (d: number) => setDias(ds => (ds.includes(d) ? ds.filter(x => x !== d) : [...ds, d]))
 
   const armar = (): Promo => ({
     activa, cantidad: n, precio: Math.round(valor), tipos, nombre: nombre.trim().slice(0, MAX_NOMBRE_PROMO),
+    partes: mixta ? cuantosDe : [],
     // Si ya estaba corriendo hoy conserva su día; si la prendes ahora, empieza hoy
     dia: activa && promoVigente(inicial) ? inicial.dia : diaBogota(),
     soloHoy: duracion === 'hoy',
@@ -159,7 +167,9 @@ function FormPromo({ inicial, nueva, productos, tarifas, onGuardar, onQuitar }: 
       <div className="dos">
         <div className="campo">
           <label htmlFor="promo-cantidad">Cuántos lleva</label>
-          <CampoNumero id="promo-cantidad" max={2} value={cantidad} onCambio={setCantidad} />
+          {mixta
+            ? <b style={{ display: 'block', padding: '12px 0' }}>{n}</b>
+            : <CampoNumero id="promo-cantidad" max={2} value={cantidad} onCambio={setCantidad} />}
         </div>
         <div className="campo">
           <label htmlFor="promo-precio">Precio del combo</label>
@@ -169,8 +179,8 @@ function FormPromo({ inicial, nueva, productos, tarifas, onGuardar, onQuitar }: 
 
       <div className="campo">
         <label htmlFor="promo-nombre">Cómo se llama (opcional)</label>
-        <input id="promo-nombre" maxLength={MAX_NOMBRE_PROMO} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: refrescantes" />
-        <small>{valido ? 'En Vender sale: ' + nombrePromo({ cantidad: n, precio: valor, nombre: nombre.trim() }, pesos) : 'Revisa los datos (de 2 a 10 granizados)'}</small>
+        <input id="promo-nombre" maxLength={MAX_NOMBRE_PROMO} value={nombre} onChange={e => setNombre(e.target.value)} placeholder={mixta ? 'Ej: 1 cremoso + 1 refrescante' : 'Ej: refrescantes'} />
+        <small>{valido ? 'En Vender sale: ' + nombrePromo({ cantidad: n, precio: valor, nombre: nombre.trim(), partes: mixta ? cuantosDe : [], tipos }, pesos) : 'Revisa los datos (de 2 a 10 granizados)'}</small>
       </div>
 
       <div className="campo">
@@ -182,6 +192,25 @@ function FormPromo({ inicial, nueva, productos, tarifas, onGuardar, onQuitar }: 
             </button>
           ))}
         </div>
+        {tipos.length > 1 && (
+          <>
+            <div className="chips izq" style={{ marginTop: 10 }}>
+              <button type="button" className={!fijo ? 'on' : ''} onClick={() => setFijo(false)}>Como quieran</button>
+              <button type="button" className={fijo ? 'on' : ''} onClick={() => setFijo(true)}>Cuántos de cada uno</button>
+            </div>
+            {fijo && (
+              <div className="dos" style={{ marginTop: 10 }}>
+                {tipos.map(t => (
+                  <div className="campo" key={t}>
+                    <label htmlFor={'promo-partes-' + t}>{TIPOS.find(x => x.tipo === t)?.texto ?? t}</label>
+                    <CampoNumero id={'promo-partes-' + t} max={2} value={partes[t] ?? '1'} onCambio={v => setPartes(ps => ({ ...ps, [t]: v }))} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <small>{fijo ? 'El combo lleva justo esos de cada tipo (ej. 1 cremoso + 1 normal).' : 'El cliente mezcla los tipos como quiera.'}</small>
+          </>
+        )}
       </div>
 
       {valido && <Calculo r={rentabilidad(armar(), productos, tarifas)} cantidad={n} />}
@@ -191,7 +220,7 @@ function FormPromo({ inicial, nueva, productos, tarifas, onGuardar, onQuitar }: 
         <div className="chips izq">
           <button type="button" className={duracion === 'dias' ? 'on' : ''} onClick={() => setDuracion('dias')}>Ciertos días</button>
           <button type="button" className={duracion === 'hoy' ? 'on' : ''} onClick={() => setDuracion('hoy')}>Solo hoy</button>
-          <button type="button" className={duracion === 'siempre' ? 'on' : ''} onClick={() => setDuracion('siempre')}>Hasta que la apague</button>
+          <button type="button" className={duracion === 'siempre' ? 'on' : ''} onClick={() => setDuracion('siempre')}>Todos los días</button>
         </div>
         {duracion === 'dias' && (
           <>
@@ -221,8 +250,8 @@ function Calculo({ r, cantidad }: { r: Rentabilidad; cantidad: number }) {
   if (!r.aplica.length) {
     return (
       <div className="rentable mal">
-        <b>Esta promo no le hace descuento a ningún producto</b>
-        <p>{cantidad} sueltos cuestan lo mismo o menos que el combo, así que Vender no la va a aplicar. Bájale el precio.</p>
+        <b>Con los precios de Inventario no hace descuento</b>
+        <p>{cantidad} sueltos cuestan lo mismo o menos que el combo, así que Vender no la aplica con esos precios. En una salida a la calle sí corre si allá el precio es más alto; si la quieres siempre, bájale el precio al combo o sube el de los sabores.</p>
       </div>
     )
   }

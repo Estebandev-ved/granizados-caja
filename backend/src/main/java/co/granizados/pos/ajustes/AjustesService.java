@@ -72,7 +72,7 @@ public class AjustesService {
             case "PREMIOS_ESCALONES" -> {
                 return Escalones.validar(valor.replace(" ", ""));
             }
-            case "META_EQUIPO", "PREMIO_EQUIPO", "GRANIZADOS_GRATIS", "PREMIO_REBAJA_PROMO", "COMISION_NORMAL", "COMISION_CREMOSO", "COMISION_GRANDE", "COMISION_CERVEZA", "COMISION_PROMO" -> {
+            case "META_EQUIPO", "PREMIO_EQUIPO", "GRANIZADOS_GRATIS", "PREMIO_REBAJA_PROMO", "COMISION_NORMAL", "COMISION_CREMOSO", "COMISION_GRANDE", "COMISION_CERVEZA", "COMISION_PROMO", "CAJA_BASE" -> {
                 if (!valor.matches("\\d{1,7}")) {
                     throw new IllegalArgumentException(clave + " es un número sin decimales ni letras. 0 la apaga");
                 }
@@ -88,6 +88,11 @@ public class AjustesService {
                 if (!valor.matches("\\d{1,7}")) {
                     throw new IllegalArgumentException(clave + " es un número sin decimales ni letras. 0 usa el de siempre");
                 }
+                return valor;
+            }
+            case "PROMO" -> {
+                // La lista de promos (hasta 8, en JSON) que arma Ajustes → Promoción
+                if (valor.length() > 2000) throw new IllegalArgumentException("Son demasiadas promociones");
                 return valor;
             }
             case META_DIARIA -> {

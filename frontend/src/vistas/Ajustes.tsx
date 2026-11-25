@@ -192,7 +192,7 @@ export function Ajustes({ avisar, onCambio }: Props) {
           <h3>Mi negocio</h3>
           <Entrada icono="caja" titulo="Perfil del negocio" detalle={perfilActual.nombre ? perfilActual.nombre + ' · ' + RUBROS[perfilActual.rubro].titulo : 'Nombre y rubro'} onClick={() => setPanel({ tipo: 'perfil' })} />
           <Entrada icono="vaso" titulo="Sabores y precios" detalle={`${activos} en la caja`} onClick={() => abrir('sabores')} />
-          <Entrada icono="ticket" titulo="Promoción" detalle={promosHoy.length ? promosHoy.map(p => nombrePromo(p, pesos)).join(' · ') : promos.some(p => p.activa && p.dias.length) ? 'Programadas' : promos.length ? 'Apagadas' : 'Ninguna'} onClick={() => abrir('promo')} />
+          <Entrada icono="ticket" titulo="Promoción" detalle={promosHoy.length > 2 ? promosHoy.length + ' prendidas hoy' : promosHoy.length ? promosHoy.map(p => nombrePromo(p, pesos)).join(' · ') : promos.some(p => p.activa && p.dias.length) ? 'Programadas' : promos.length ? 'Apagadas' : 'Ninguna'} onClick={() => abrir('promo')} />
           <Entrada icono="mapa" titulo="Plan de ventas en la calle" detalle={param('CALLE_ACTIVO')?.valor === '1' ? 'Prendido' : 'Apagado'} onClick={() => abrir('calle')} />
           <Entrada icono="trofeo" titulo="Metas y premios" detalle={metaDiaria ? 'Meta ' + pesos(metaDiaria) : 'Sin meta'} onClick={() => abrir('metas')} />
           {perfilActual.equipo && <Entrada icono="cara" titulo="Equipo" detalle="Trabajadores, PIN y cargas" onClick={() => abrir('equipo')} />}

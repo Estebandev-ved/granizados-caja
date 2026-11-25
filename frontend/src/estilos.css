@@ -179,6 +179,7 @@ a.big { display: block; text-align: center; text-decoration: none }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px }
 .chips button { border: 1px solid var(--line); background: var(--card2); border-radius: var(--r-full); padding: 10px 16px; font-size: 15px; font-weight: 600 }
 .promo-aviso { margin: 0 0 12px; padding: 8px 12px; background: var(--primario-bg); color: var(--primario-txt); border-radius: var(--r-md); font-size: 13px }
+.promo-aviso .link { padding: 2px 0; min-height: 0; font-size: 13px; text-decoration: none; text-align: left; color: inherit }
 .chips button.on { background: var(--primario); border-color: transparent; color: #fff }
 .chips.categorias { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; margin: 0 -12px 12px; padding: 0 12px 2px }
 .chips.categorias button { flex: 0 0 auto; padding: 8px 14px; font-size: 14px }

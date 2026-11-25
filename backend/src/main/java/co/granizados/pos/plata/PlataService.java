@@ -1,6 +1,7 @@
 package co.granizados.pos.plata;
 
 import co.granizados.pos.comun.AppProperties;
+import co.granizados.pos.ajustes.AjustesService;
 import co.granizados.pos.comun.NoEncontradoException;
 import co.granizados.pos.equipo.PagoVendedor;
 import co.granizados.pos.equipo.PagoVendedorRepository;
@@ -77,7 +78,15 @@ public class PlataService {
     public record NuevaMeta(
             @NotBlank @Size(max = 64) String clientUid,
             @NotBlank @Size(max = 40) String nombre,
-            @Min(0) @Max(1_000_000_000) long objetivo) {
+            @Min(0) @Max(1_000_000_000) long objetivo,
+            /** En qué lugar está esta plata (opcional, solo para verla en Mi plata). */
+            LugarPlata lugar,
+            /** Plata para comprar el próximo pedido: cuenta para el presupuesto del pedido. */
+            Boolean paraPedido) {
+
+        public NuevaMeta(String clientUid, String nombre, long objetivo) {
+            this(clientUid, nombre, objetivo, null, null);
+        }
     }
 
     /** `monto` positivo aparta plata para la meta; negativo la saca. */
@@ -98,14 +107,18 @@ public class PlataService {
                              boolean cuentaGanancia) {
     }
 
-    public record MetaDto(long id, String nombre, long objetivo, long apartado) {
+    public record MetaDto(long id, String nombre, long objetivo, long apartado, LugarPlata lugar, boolean paraPedido) {
     }
 
     /**
      * `contadoEn` es null si todavía no has contado nada: en ese caso caja/casa/nequi no significan nada.
-     * `libre` es lo que puedes gastar sin tocar lo apartado en metas.
+     * `libre` es lo que puedes gastar sin tocar lo apartado en metas ni la base de la caja.
+     * `paraComprar` es lo que cuenta para el presupuesto del pedido: lo libre más lo apartado para pedidos.
+     * `cajaBase` es lo que se deja siempre en la caja para vueltos (0 = sin base) y `apartadoCaja/Casa/Nequi`, lo
+     * apartado en metas que dicen estar en ese lugar.
      */
-    public record Saldo(long caja, long casa, long nequi, long total, long apartado, long libre, Instant contadoEn,
+    public record Saldo(long caja, long casa, long nequi, long total, long apartado, long libre, long paraComprar,
+                        long cajaBase, long apartadoCaja, long apartadoCasa, long apartadoNequi, Instant contadoEn,
                         List<IngresoDto> ingresos, List<MetaDto> metas) {
     }
 
@@ -140,14 +153,16 @@ public class PlataService {
     private final PrestamoVendedorRepository prestamos;
     private final VendedorRepository vendedores;
     private final RetiroRepository retiros;
+    private final AjustesService ajustes;
     private final Clock clock;
     private final ZoneId zona;
 
     public PlataService(IngresoRepository ingresos, ConteoPlataRepository conteos, PagoProveedorRepository pagos,
                         TrasladoRepository traslados, MetaPlataRepository metas, AporteMetaRepository aportes,
                         VentaRepository ventas, GastoRepository gastos, PagoVendedorRepository pagosEquipo,
-                        PrestamoVendedorRepository prestamos, VendedorRepository vendedores, RetiroRepository retiros, Clock clock,
-                        AppProperties props) {
+                        PrestamoVendedorRepository prestamos, VendedorRepository vendedores, RetiroRepository retiros,
+                        AjustesService ajustes, Clock clock, AppProperties props) {
+        this.ajustes = ajustes;
         this.retiros = retiros;
         this.pagosEquipo = pagosEquipo;
         this.prestamos = prestamos;
@@ -214,7 +229,8 @@ public class PlataService {
     @Transactional
     public Resultado crearMeta(NuevaMeta m) {
         if (metas.existsByClientUid(m.clientUid())) return Resultado.REPETIDA;
-        metas.saveAndFlush(new MetaPlata(m.clientUid(), m.nombre().trim(), m.objetivo(), clock.instant()));
+        metas.saveAndFlush(new MetaPlata(m.clientUid(), m.nombre().trim(), m.objetivo(), m.lugar(),
+                Boolean.TRUE.equals(m.paraPedido()), clock.instant()));
         return Resultado.REGISTRADA;
     }
 
@@ -276,12 +292,19 @@ public class PlataService {
                 .map(PlataService::dto)
                 .toList();
         List<MetaDto> listaMetas = metas.findAllByOrderByIdAsc().stream()
-                .map(m -> new MetaDto(m.getId(), m.getNombre(), m.getObjetivo(), aportes.totalDe(m.getId())))
+                .map(m -> new MetaDto(m.getId(), m.getNombre(), m.getObjetivo(), aportes.totalDe(m.getId()), m.getLugar(), m.isParaPedido()))
                 .toList();
         long apartado = listaMetas.stream().mapToLong(MetaDto::apartado).sum();
+        long apartadoPedido = listaMetas.stream().filter(MetaDto::paraPedido).mapToLong(MetaDto::apartado).sum();
+        long enCaja = apartadoEn(listaMetas, LugarPlata.CAJA);
+        long enCasa = apartadoEn(listaMetas, LugarPlata.CASA);
+        long enNequi = apartadoEn(listaMetas, LugarPlata.NEQUI);
+        long cajaBase = AjustesService.entero(ajustes.mapa(), "CAJA_BASE", 0);
 
         Optional<ConteoPlata> ultimo = conteos.findFirstByOrderByCreadoEnDescIdDesc();
-        if (ultimo.isEmpty()) return new Saldo(0, 0, 0, 0, apartado, 0, null, recientes, listaMetas);
+        if (ultimo.isEmpty()) {
+            return new Saldo(0, 0, 0, 0, apartado, 0, 0, cajaBase, enCaja, enCasa, enNequi, null, recientes, listaMetas);
+        }
 
         ConteoPlata c = ultimo.get();
         Instant desde = c.getCreadoEn();
@@ -347,7 +370,15 @@ public class PlataService {
             }
         }
         long total = caja + casa + nequi;
-        return new Saldo(caja, casa, nequi, total, apartado, total - apartado, desde, recientes, listaMetas);
+        // La base de la caja (para vueltos) tampoco es plata para gastar
+        long reservaCaja = Math.max(0, Math.min(caja, cajaBase));
+        long libre = total - apartado - reservaCaja;
+        return new Saldo(caja, casa, nequi, total, apartado, libre, libre + apartadoPedido, cajaBase, enCaja, enCasa,
+                enNequi, desde, recientes, listaMetas);
+    }
+
+    private static long apartadoEn(List<MetaDto> lista, LugarPlata lugar) {
+        return lista.stream().filter(m -> m.lugar() == lugar).mapToLong(MetaDto::apartado).sum();
     }
 
     /**

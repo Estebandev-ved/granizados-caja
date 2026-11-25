@@ -17,7 +17,7 @@ const LUGARES: { valor: LugarPlata; texto: string }[] = [
 
 const nombreLugar = (l: LugarPlata) => LUGARES.find(x => x.valor === l)?.texto ?? l
 
-type Panel = 'ingreso' | 'traslado' | 'retiro' | 'conteo' | 'metas' | 'historial'
+type Panel = 'ingreso' | 'traslado' | 'retiro' | 'conteo' | 'metas' | 'historial' | 'base'
 
 /**
  * Cuánta plata hay y dónde: efectivo en la caja, efectivo en la casa y Nequi, con lo apartado en metas.
@@ -52,17 +52,23 @@ export function MiPlata({ avisar }: { avisar: (m: string) => void }) {
       {saldo?.contadoEn && (
         <>
           <Fila etiqueta="Total" valor={pesos(saldo.total)} fuerte />
-          {saldo.apartado > 0 && (
+          {(saldo.apartado > 0 || saldo.cajaBase > 0) && (
             <>
-              <Fila etiqueta="Apartado en metas" valor={pesos(saldo.apartado)} />
+              {saldo.apartado > 0 && <Fila etiqueta="Apartado en metas" valor={pesos(saldo.apartado)} />}
+              {saldo.cajaBase > 0 && <Fila etiqueta="Base de la caja (vueltos)" valor={pesos(Math.max(0, Math.min(saldo.caja, saldo.cajaBase)))} />}
               <Fila etiqueta="Libre para gastar" valor={pesos(saldo.libre)} fuerte />
             </>
           )}
           <p className="mut" style={{ margin: '8px 0 0' }}>Dónde está</p>
-          {LUGARES.map(l => (
-            <Fila key={l.valor} etiqueta={l.texto} valor={pesos(saldo[l.valor.toLowerCase() as 'caja' | 'casa' | 'nequi'])} />
-          ))}
-        </>
+          {LUGARES.map(l => {
+            // Lo que un bolsillo dice tener en ese lugar (ej: «Nequi · $222.000 apartado»)
+            const apartadoAqui = saldo[('apartado' + l.texto) as 'apartadoCaja' | 'apartadoCasa' | 'apartadoNequi']
+            return (
+              <Fila key={l.valor} etiqueta={l.texto + (apartadoAqui > 0 ? ' · ' + pesos(apartadoAqui) + ' apartado' : '')}
+                valor={pesos(saldo[l.valor.toLowerCase() as 'caja' | 'casa' | 'nequi'])} />
+            )
+          })}
+          <BaseDeCaja saldo={saldo} onEditar={() => setPanel('base')} /></>
       )}
       <div className="acciones-grid" style={{ margin: '10px 0 4px' }}>
         <button className="accion accion-gasto" onClick={() => setPanel('ingreso')}>
@@ -93,10 +99,64 @@ export function MiPlata({ avisar }: { avisar: (m: string) => void }) {
         {panel === 'traslado' && <PanelTraslado onListo={() => listo('✓ Plata movida')} avisar={avisar} />}
         {panel === 'retiro' && <PanelRetiro onListo={() => listo('✓ Anotado lo que te pagaste')} avisar={avisar} />}
         {panel === 'conteo' && <PanelConteo saldo={saldo} onListo={() => listo('✓ Plata contada')} avisar={avisar} />}
+        {panel === 'base' && <PanelBase actual={saldo?.cajaBase ?? 0} onListo={m => listo(m)} avisar={avisar} />}
         {panel === 'metas' && <PanelMetas saldo={saldo} onCambio={m => listo(m, false)} avisar={avisar} />}
         {panel === 'historial' && <PanelHistorial onCambio={m => listo(m, false)} avisar={avisar} />}
       </Sheet>
     </div>
+  )
+}
+
+/** La base de la caja: lo que se deja siempre en efectivo para vueltos. Dice si falta o si sobra para llevar a la casa. */
+function BaseDeCaja({ saldo, onEditar }: { saldo: SaldoPlata; onEditar: () => void }) {
+  const base = saldo.cajaBase
+  const sobra = saldo.caja - base
+  return (
+    <div className="pago-fila">
+      <span className="mut">
+        {base > 0
+          ? sobra >= 0
+            ? `Base de la caja ${pesos(base)} · ${sobra > 0 ? 'te sobran ' + pesos(sobra) + ' para guardar' : 'justo'}`
+            : `Base de la caja ${pesos(base)} · te faltan ${pesos(-sobra)}`
+          : 'Base de la caja: sin definir'}
+      </span>
+      <button type="button" className="link" style={{ marginLeft: 'auto' }} onClick={onEditar}>{base > 0 ? 'Cambiar' : 'Poner'}</button>
+    </div>
+  )
+}
+
+/** Cuánto se deja siempre en la caja para dar vueltos. 0 la apaga. */
+function PanelBase({ actual, onListo, avisar }: { actual: number; onListo: (mensaje: string) => void; avisar: (m: string) => void }) {
+  const [valor, setValor] = useState(actual > 0 ? String(actual) : '')
+  const [enviando, setEnviando] = useState(false)
+  const n = Number(valor) || 0
+
+  const guardar = async () => {
+    if (enviando) return
+    setEnviando(true)
+    try {
+      await api.guardarConfig('CAJA_BASE', String(n))
+      onListo(n > 0 ? `✓ Base de la caja: ${pesos(n)}` : 'Base de la caja quitada')
+    } catch {
+      setEnviando(false)
+      avisar('⚠️ No se pudo guardar, revisa la señal')
+    }
+  }
+
+  return (
+    <form onSubmit={e => { e.preventDefault(); void guardar() }}>
+      <h2>Base de la caja</h2>
+      <p>Lo que dejas siempre en efectivo en la caja para dar vueltos. No cuenta como plata libre para gastar, y la app te dice cuánto te sobra para llevar a la casa o a tus metas.</p>
+      <Chips opciones={[{ valor: '70000', texto: '$70.000' }, { valor: '100000', texto: '$100.000' }]}
+        valor={valor} onCambio={setValor} />
+      <div className="campo">
+        <label htmlFor="base-caja">¿Cuánto dejas en la caja?</label>
+        <CampoNumero id="base-caja" miles placeholder="0" value={valor} onCambio={setValor} />
+      </div>
+      <button className="big primario" type="submit" disabled={enviando}>
+        {enviando ? 'Guardando…' : n > 0 ? 'Guardar base' : 'Quitar la base'}
+      </button>
+    </form>
   )
 }
 
@@ -304,6 +364,9 @@ function PanelMetas({ saldo, onCambio, avisar }: { saldo: SaldoPlata | null; onC
                 <b>{m.nombre}</b>
                 <b>{pesos(m.apartado)}{m.objetivo > 0 && <span className="mut"> / {pesos(m.objetivo)}</span>}</b>
               </span>
+              {(m.lugar || m.paraPedido) && (
+                <small className="mut">{[m.lugar ? 'En ' + nombreLugar(m.lugar) : '', m.paraPedido ? 'Para el pedido' : ''].filter(Boolean).join(' · ')}</small>
+              )}
               {m.objetivo > 0 && (
                 <>
                   <span className="canal-barra"><span style={{ width: pct + '%' }} /></span>
@@ -322,6 +385,8 @@ function PanelMetas({ saldo, onCambio, avisar }: { saldo: SaldoPlata | null; onC
 function NuevaMeta({ onVolver, onListo, avisar }: { onVolver: () => void; onListo: () => void; avisar: (m: string) => void }) {
   const [nombre, setNombre] = useState('')
   const [objetivo, setObjetivo] = useState('')
+  const [lugar, setLugar] = useState<LugarPlata | ''>('')
+  const [paraPedido, setParaPedido] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const uid = useRef(nuevoUid())
 
@@ -329,7 +394,10 @@ function NuevaMeta({ onVolver, onListo, avisar }: { onVolver: () => void; onList
     if (!nombre.trim() || enviando) return
     setEnviando(true)
     try {
-      await api.crearMeta({ clientUid: uid.current, nombre: nombre.trim(), objetivo: Number(objetivo) || 0 })
+      await api.crearMeta({
+        clientUid: uid.current, nombre: nombre.trim(), objetivo: Number(objetivo) || 0,
+        ...(lugar ? { lugar } : {}), paraPedido,
+      })
       onListo()
     } catch {
       setEnviando(false)
@@ -349,6 +417,12 @@ function NuevaMeta({ onVolver, onListo, avisar }: { onVolver: () => void; onList
         <label htmlFor="meta-objetivo">¿Cuánto quieres juntar? (opcional)</label>
         <CampoNumero id="meta-objetivo" miles placeholder="0" value={objetivo} onCambio={setObjetivo} />
       </div>
+      <p className="mut">¿En qué lugar está esta plata? (opcional)</p>
+      <Chips opciones={[{ valor: '' as LugarPlata | '', texto: 'No importa' }, ...LUGARES]} valor={lugar} onCambio={setLugar} />
+      <label className="check-fila">
+        <input type="checkbox" checked={paraPedido} onChange={e => setParaPedido(e.target.checked)} />
+        <span>Es para comprar el próximo pedido (cuenta para el presupuesto del pedido)</span>
+      </label>
       <div className="pay">
         <button type="button" className="big ghost" onClick={onVolver}>Volver</button>
         <button className="big primario" type="submit" disabled={!nombre.trim() || enviando}>

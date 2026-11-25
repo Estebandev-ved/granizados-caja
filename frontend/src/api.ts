@@ -292,7 +292,7 @@ export const api = {
     pedir<{ estado: string }>('POST', '/api/ingresos', i),
   trasladar: (t: { clientUid: string; monto: number; desde: LugarPlata; hacia: LugarPlata }) =>
     pedir<{ estado: string }>('POST', '/api/plata/traslado', t),
-  crearMeta: (m: { clientUid: string; nombre: string; objetivo: number }) =>
+  crearMeta: (m: { clientUid: string; nombre: string; objetivo: number; lugar?: LugarPlata; paraPedido?: boolean }) =>
     pedir<{ estado: string }>('POST', '/api/plata/metas', m),
   aportarMeta: (metaId: number, a: { clientUid: string; monto: number }) =>
     pedir<{ estado: string }>('POST', '/api/plata/metas/' + metaId + '/aporte', a),

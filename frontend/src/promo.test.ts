@@ -174,3 +174,62 @@ describe('varias promos a la vez', () => {
     expect(rentabilidad(refrescantes, [{ ...normal(1, 'Smirnoff'), costo: 0 }], tarifas).veredicto).toBe('sin-datos')
   })
 })
+
+describe('carta de Dopamina: las 5 promos prendidas todos los días', () => {
+  const todos = { soloHoy: false, dia: '', dias: [], activa: true }
+  const carta: Promo[] = [
+    { ...PROMO_INICIAL, ...todos, cantidad: 2, precio: 13000, tipos: ['NORMAL'], nombre: 'refrescantes' },
+    { ...PROMO_INICIAL, ...todos, cantidad: 3, precio: 19000, tipos: ['NORMAL'], nombre: 'refrescantes' },
+    { ...PROMO_INICIAL, ...todos, cantidad: 2, precio: 18000, tipos: ['CREMOSO'], nombre: 'cremosos' },
+    { ...PROMO_INICIAL, ...todos, cantidad: 2, precio: 15500, tipos: ['CREMOSO', 'NORMAL'], partes: [1, 1], nombre: '1 cremoso + 1 refrescante' },
+    { ...PROMO_INICIAL, ...todos, cantidad: 5, precio: 35000, tipos: ['NORMAL', 'CREMOSO'], partes: [4, 1], nombre: '4 refrescantes + 1 cremoso' },
+  ]
+  const refre = { ...prod('NORMAL', 7000), id: 1 }
+  const otroRefre = { ...prod('NORMAL', 7000), id: 2, sabor: 'Tussi', nombre: 'Tussi' }
+  const cremoso = { ...prod('CREMOSO', 10000), id: 3, sabor: 'Coco Loco', nombre: 'Coco Loco' }
+  const total = (r: number, c: number) => totalConPromos(carta, [{ p: refre, cantidad: r }, { p: cremoso, cantidad: c }].filter(l => l.cantidad))
+
+  it('cobra cada combo de la carta', () => {
+    expect(total(1, 0)).toBe(7000)
+    expect(total(2, 0)).toBe(13000)
+    expect(total(3, 0)).toBe(19000)
+    expect(total(0, 2)).toBe(18000)
+    expect(total(1, 1)).toBe(15500)
+    // El de 4 + 1 a $35.000 sale más caro que 3 x $19.000 + (1 cremoso + 1 refrescante) x $15.500 = $34.500
+    expect(total(4, 1)).toBe(34500)
+    expect(totalConPromos([carta[4]], [{ p: refre, cantidad: 4 }, { p: cremoso, cantidad: 1 }])).toBe(35000)
+  })
+
+  it('escoge la combinación más barata para el cliente', () => {
+    expect(total(4, 0)).toBe(26000) // 2 + 2, no 3 + 1 suelto (26.000 vs 26.000: empate, igual de barato)
+    expect(total(5, 0)).toBe(32000) // 3 + 2
+    expect(total(2, 1)).toBe(22500) // 1 cremoso + 1 refrescante y 1 suelto, o 2 + cremoso suelto (23.000)
+    expect(total(0, 3)).toBe(28000) // 2 cremosos + 1 suelto
+    expect(total(5, 2)).toBe(50000) // 3 + 2 refrescantes y 2 cremosos, o dos de 1 + 1 y 3 refrescantes
+  })
+
+  it('mezcla sabores y reparte lo cobrado sin pasarse del precio de cada uno', () => {
+    const lineas = [{ p: refre, cantidad: 1 }, { p: otroRefre, cantidad: 3 }, { p: cremoso, cantidad: 1 }]
+    expect(totalConPromos(carta, lineas)).toBe(34500)
+    const cobradas = cobrarLineas(lineas, 'EFECTIVO', carta)
+    expect(cobradas.reduce((a, l) => a + (l.total ?? l.p.precio * l.cantidad), 0)).toBe(34500)
+    cobradas.forEach(l => expect(l.total ?? 0).toBeLessThanOrEqual(l.p.precio * l.cantidad))
+  })
+
+  it('con precios más bajos (universidad) no cobra de más: los combos que no ahorran no se usan', () => {
+    const barato = { ...refre, precio: 6000 }
+    expect(totalConPromos(carta, [{ p: barato, cantidad: 2 }])).toBe(12000)
+    expect(totalConPromos(carta, [{ p: barato, cantidad: 3 }])).toBe(18000)
+  })
+
+  it('se guarda y se lee el combo mixto', () => {
+    const leidas = leerPromos(serializarPromos(carta))
+    expect(leidas).toHaveLength(5)
+    expect(leidas[4].partes).toEqual([4, 1])
+    expect(leidas[4].cantidad).toBe(5)
+    expect(leerPromo('{"activa":true,"tipos":["NORMAL","CREMOSO"],"partes":[1,"x"]}').partes).toEqual([])
+    expect(nombrePromo(leidas[3], n => '$' + n)).toBe('1 cremoso + 1 refrescante x $15500')
+    expect(nombrePromo({ ...leidas[3], nombre: '' }, n => '$' + n)).toBe('1 cremoso + 1 normal x $15500')
+    expect(serializarPromos(carta).length).toBeLessThan(2000)
+  })
+})

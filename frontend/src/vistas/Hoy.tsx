@@ -61,8 +61,8 @@ export function Hoy({ estado, onDeshacer, onRecargar, onLlego, onCancelar, onGas
       setPanel({ tipo: 'pedido', sugerido: null, cantidades: {}, enviando: false, presupuesto: plataGuardada() })
       // Si ya contaste tu plata, el campo llega con el total (y lo puedes cambiar)
       api.plata().then(s => {
-        if (!s.contadoEn || s.libre <= 0) return
-        setPanel(p => (p?.tipo === 'pedido' && p.presupuesto === plataGuardada() ? { ...p, presupuesto: String(s.libre) } : p))
+        if (!s.contadoEn || s.paraComprar <= 0) return
+        setPanel(p => (p?.tipo === 'pedido' && p.presupuesto === plataGuardada() ? { ...p, presupuesto: String(s.paraComprar) } : p))
       }).catch(() => { /* sin señal: queda lo que había */ })
       api.recomendacion()
         .then(rec => setPanel(p => (p?.tipo === 'pedido' ? { ...p, rec } : p)))
@@ -503,6 +503,8 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
   const casaFinal = casa !== '' ? Number(casa) : contada ? Math.max(0, saldo!.casa) : 0
   const nequiFinal = nequi !== '' ? Number(nequi) : contada ? Math.max(0, saldo!.nequi) : 0
   const totalNegocio = cajaFinal + casaFinal + nequiFinal
+  // La base de la caja (para vueltos) tampoco es plata para gastar
+  const reservaCaja = Math.max(0, Math.min(cajaFinal, saldo?.cajaBase ?? 0))
   const hayTotal = contada || casa !== '' || nequi !== ''
   const apartado = saldo?.apartado ?? 0
 
@@ -538,7 +540,8 @@ function PanelCierre({ hoy, esperado, contado, casa, nequi, nota, saldo, cargand
           {fila('Efectivo en la casa', pesos(casaFinal))}
           {fila('En Nequi', pesos(nequiFinal))}
           {apartado > 0 && fila('Apartado en metas', pesos(apartado))}
-          {apartado > 0 && fila('Libre para gastar', pesos(totalNegocio - apartado), true)}
+          {reservaCaja > 0 && fila('Base de la caja (vueltos)', pesos(reservaCaja))}
+          {(apartado > 0 || reservaCaja > 0) && fila('Libre para gastar', pesos(totalNegocio - apartado - reservaCaja), true)}
         </div>
       ) : (
         !cargando && <p className="mut">Cuenta abajo cuánto tienes en la caja, en la casa y en Nequi, y la app te dice la plata total del negocio.</p>

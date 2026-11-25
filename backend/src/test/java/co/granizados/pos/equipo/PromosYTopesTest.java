@@ -39,6 +39,21 @@ class PromosYTopesTest extends PruebaIntegracion {
     }
 
     @Test
+    void laCartaCompletaConCombosMixtosSeGuardaYCorreTodosLosDias() {
+        String promo = "{\"activa\":true,\"cantidad\":2,\"precio\":13000,\"tipos\":[\"NORMAL\"],\"soloHoy\":false,\"dia\":\"\",\"dias\":[],\"nombre\":\"refrescantes\"}";
+        String mixta = "{\"activa\":true,\"cantidad\":5,\"precio\":35000,\"tipos\":[\"NORMAL\",\"CREMOSO\"],\"soloHoy\":false,\"dia\":\"\",\"dias\":[],\"nombre\":\"4 refrescantes + 1 cremoso\",\"partes\":[4,1]}";
+        String carta = "[" + String.join(",", promo, promo, promo, mixta, mixta, mixta) + "]";
+        assertThat(carta.length()).isGreaterThan(500);
+
+        ajustes.actualizar("PROMO", carta);
+
+        assertThat(estado.estado().promo()).isEqualTo(carta);
+        assertThat(PromoCalendario.vigente(carta, VIERNES)).isTrue();
+        assertThat(PromoCalendario.vigente(carta, VIERNES.plusDays(1))).isTrue();
+        assertThat(PromoCalendario.vigente(mixta.replace("\"activa\":true", "\"activa\":false"), VIERNES)).isFalse();
+    }
+
+    @Test
     void unaSolaPromoGuardadaComoAntesSigueFuncionando() {
         String una = "{\"activa\":true,\"cantidad\":2,\"precio\":10000,\"tipos\":[\"NORMAL\"],\"soloHoy\":true,\"dia\":\"2026-09-25\",\"dias\":[]}";
 

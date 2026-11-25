@@ -776,6 +776,10 @@ export interface MetaPlata {
   nombre: string
   objetivo: number
   apartado: number
+  /** En qué lugar está esta plata (null = no se dijo). Solo informativo. */
+  lugar: LugarPlata | null
+  /** Es plata para comprar el próximo pedido: cuenta para el presupuesto del pedido. */
+  paraPedido: boolean
 }
 
 /** Un renglón del historial de la plata; `monto` va con signo y los traslados llevan 0. */
@@ -813,9 +817,17 @@ export interface SaldoPlata {
   casa: number
   nequi: number
   total: number
-  /** Lo que está apartado en metas y `libre` = total − apartado: lo que puedes gastar. */
+  /** Lo que está apartado en metas y `libre` = total − apartado − base de la caja: lo que puedes gastar. */
   apartado: number
   libre: number
+  /** Lo que cuenta para comprar el pedido: lo libre más lo apartado «para pedidos». */
+  paraComprar: number
+  /** Lo que se deja siempre en la caja para vueltos (0 = sin base). */
+  cajaBase: number
+  /** Lo apartado en metas que dicen estar en cada lugar. */
+  apartadoCaja: number
+  apartadoCasa: number
+  apartadoNequi: number
   contadoEn: string | null
   ingresos: IngresoPlata[]
   metas: MetaPlata[]

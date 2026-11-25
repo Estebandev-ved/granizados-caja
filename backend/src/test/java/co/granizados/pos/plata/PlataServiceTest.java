@@ -257,6 +257,54 @@ class PlataServiceTest extends PruebaIntegracion {
     }
 
     @Test
+    void unBolsilloDiceEnQueLugarEstaYLaBaseDeLaCajaNoEsPlataLibre() {
+        // Nequi 222.000 para el próximo pedido, caja con 78.000 y base de 70.000, casa con 305.000
+        plata.contar(new PlataService.NuevoConteo("c-1", 78_000, 305_000, 222_000));
+        jdbc.update("update config set valor = '70000' where clave = 'CAJA_BASE'");
+        plata.crearMeta(new PlataService.NuevaMeta("m-1", "Próximo pedido", 0, LugarPlata.NEQUI, true));
+        plata.aportar(plata.saldo().metas().getFirst().id(), new PlataService.NuevoAporte("a-1", 222_000));
+
+        var s = plata.saldo();
+
+        assertThat(s.total()).isEqualTo(605_000);
+        assertThat(s.apartado()).isEqualTo(222_000);
+        assertThat(s.apartadoNequi()).isEqualTo(222_000);
+        assertThat(s.apartadoCaja()).isZero();
+        assertThat(s.cajaBase()).isEqualTo(70_000);
+        // Libre = total − bolsillo − base de la caja
+        assertThat(s.libre()).isEqualTo(605_000 - 222_000 - 70_000);
+        // Para comprar sí cuenta lo del bolsillo del pedido
+        assertThat(s.paraComprar()).isEqualTo(605_000 - 70_000);
+        assertThat(s.metas().getFirst().lugar()).isEqualTo(LugarPlata.NEQUI);
+        assertThat(s.metas().getFirst().paraPedido()).isTrue();
+    }
+
+    @Test
+    void siLaCajaTieneMenosQueLaBaseSoloSeReservaLoQueHay() {
+        plata.contar(new PlataService.NuevoConteo("c-1", 40_000, 100_000, 0));
+        jdbc.update("update config set valor = '70000' where clave = 'CAJA_BASE'");
+
+        assertThat(plata.saldo().libre()).isEqualTo(100_000);
+    }
+
+    @Test
+    void elBolsilloDelPedidoSiCuentaParaComprarPeroUnoDeAhorroNo() {
+        vender14Smirnoff();
+        plata.contar(new PlataService.NuevoConteo("c-1", 0, 0, 200_000));
+        plata.crearMeta(new PlataService.NuevaMeta("m-1", "Pedido", 0, LugarPlata.NEQUI, true));
+        plata.crearMeta(new PlataService.NuevaMeta("m-2", "Equipos", 0, LugarPlata.CASA, false));
+        var metas = plata.saldo().metas();
+        plata.aportar(metas.get(0).id(), new PlataService.NuevoAporte("a-1", 150_000));
+        plata.aportar(metas.get(1).id(), new PlataService.NuevoAporte("a-2", 50_000));
+
+        var r = pedidos.recomendacion();
+
+        assertThat(plata.saldo().libre()).isZero();
+        assertThat(r.libre()).isEqualTo(150_000);
+        assertThat(r.recomendado()).isEqualTo(7);
+    }
+
+    @Test
     void sinNingunaPlataAvisaQueCuentesPrimero() {
         vender14Smirnoff();
 
