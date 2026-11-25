@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { aEntero, pesos } from '../formato'
 import type { Param } from '../tipos'
 import { Icono } from './Icono'
+import { BonosAutomaticos } from './BonosAutomaticos'
 import { PremiosInteligentes } from './PremiosInteligentes'
 import { Plegable } from './Plegable'
 
@@ -13,7 +14,7 @@ const TARIFAS = [
 ]
 
 /** Las que cambian lo que dicen los términos del trabajo: el equipo tiene que aceptarlos otra vez. */
-const CAMBIAN_TERMINOS = ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'COMISION_PROMO', 'GRANIZADOS_GRATIS']
+const CAMBIAN_TERMINOS = ['COMISION_NORMAL', 'COMISION_CREMOSO', 'COMISION_GRANDE', 'COMISION_CERVEZA', 'COMISION_PROMO', 'GRANIZADOS_GRATIS', 'BONOS_AUTO', 'BONOS_PARTE']
 
 const CLAVES_NUMERICAS = [...CAMBIAN_TERMINOS, 'PREMIO_REBAJA_PROMO']
 
@@ -35,7 +36,9 @@ const escribirEscalones = (es: Escalon[]) =>
 function desdeParams(params: Param[]) {
   const valor = (clave: string) => params.find(p => p.clave === clave)?.valor ?? ''
   const numeros: Record<string, number> = {}
-  for (const c of CLAVES_NUMERICAS) numeros[c] = c === 'GRANIZADOS_GRATIS' ? Number(valor(c) || 1) : aEntero(valor(c))
+  for (const c of CLAVES_NUMERICAS) {
+    numeros[c] = c === 'GRANIZADOS_GRATIS' ? Number(valor(c) || 1) : c === 'BONOS_PARTE' ? Number(valor(c) || 40) : aEntero(valor(c))
+  }
   return { numeros, escalones: leerEscalones(valor('PREMIOS_ESCALONES')) }
 }
 
@@ -153,10 +156,18 @@ export function TarifasEquipo({ params, onGuardar }: { params: Param[]; onGuarda
 
       </Plegable>
 
-      <Plegable icono="trofeo" titulo="Premios del día" resumen={ordenados.length ? ordenados.length + ' escalones' : 'Sin premios'} abierto={!!error}>
+      <Plegable icono="trofeo" titulo="Bonos automáticos" abierto
+        resumen={numeros.BONOS_AUTO === 1 ? 'Prendidos · ' + numeros.BONOS_PARTE + ' % de lo extra para él' : 'Apagados: mandan los de abajo'}>
+      <BonosAutomaticos activo={numeros.BONOS_AUTO === 1} parte={numeros.BONOS_PARTE} rebaja={rebaja}
+        onActivo={b => poner('BONOS_AUTO', b ? 1 : 0)} onParte={n => poner('BONOS_PARTE', n)} />
+      </Plegable>
+
+      <Plegable icono="trofeo" titulo={numeros.BONOS_AUTO === 1 ? 'Premios a mano (en pausa)' : 'Premios del día'}
+        resumen={numeros.BONOS_AUTO === 1 ? 'Mandan los automáticos' : ordenados.length ? ordenados.length + ' escalones' : 'Sin premios'} abierto={!!error}>
       <div className="list">
         <h3><Icono nombre="trofeo" /> Premios del día</h3>
         <p className="ayuda">Mientras más granizados venda en el día, más gana. Cada escalón es lo que lleva en total, no se suma al anterior.</p>
+        {numeros.BONOS_AUTO === 1 && <p className="aviso">Ahora mandan los bonos automáticos. Estos solo se usan si los pasas a «A mano».</p>}
         {ordenados.length === 0 && <p className="mut" style={{ margin: '4px 0 10px' }}>Sin premios por ahora.</p>}
         {escalones.map((e, i) => (
           <div className="escalon-fila" key={i}>

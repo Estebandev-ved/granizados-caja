@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analizarEscalon, ganariaCon, opcionesMeta, premioAl, premioGordo, premioReto, sugerirPremios } from './premios'
+import { analizarEscalon, escaleraAuto,ganariaCon, opcionesMeta, premioAl, premioGordo, premioReto, sugerirPremios } from './premios'
 import type { DatosPremios, PremiosDia } from './tipos'
 
 const datos: DatosPremios = {
@@ -38,6 +38,19 @@ describe('premios que le convengan a los dos', () => {
     for (const e of escalones) expect(analizarEscalon(e, datos).veredicto).toBe('bien')
     expect(rebaja).toBe(2500)
     expect(sugerirPremios({ ...datos, margenPromo: null }).rebaja).toBeNull()
+  })
+})
+
+describe('bonos automáticos', () => {
+  it('da la misma escalera que el servidor con los números de Dopamina', () => {
+    expect(escaleraAuto(22, 2831, 40)).toEqual([
+      { granizados: 25, total: 3000 }, { granizados: 29, total: 7500 }, { granizados: 33, total: 13000 },
+      { granizados: 39, total: 20500 }, { granizados: 44, total: 27000 },
+    ])
+    expect(escaleraAuto(16, 2800, 40).map(e => e.total)).toEqual([2000, 5500, 9000, 14000, 19000])
+    // Aunque pongan más, el trabajador nunca se lleva más del 45 %
+    expect(escaleraAuto(22, 2831, 80)).toEqual(escaleraAuto(22, 2831, 45))
+    expect(escaleraAuto(22, 0, 50)).toEqual([])
   })
 })
 

@@ -78,6 +78,16 @@ public class AjustesService {
                 }
                 return valor;
             }
+            case "BONOS_AUTO" -> {
+                if (!valor.equals("0") && !valor.equals("1")) throw new IllegalArgumentException("BONOS_AUTO es 0 (a mano) o 1 (automáticos)");
+                return valor;
+            }
+            case "BONOS_PARTE" -> {
+                if (!valor.matches("\\d{1,2}") || Integer.parseInt(valor) < 10 || Integer.parseInt(valor) > 45) {
+                    throw new IllegalArgumentException("La parte del trabajador va de 10 % a 45 %: a ti siempre te queda el 55 % o más");
+                }
+                return valor;
+            }
             case "CALLE_ACTIVO" -> {
                 if (!valor.equals("0") && !valor.equals("1")) throw new IllegalArgumentException("CALLE_ACTIVO es 0 (apagado) o 1 (prendido)");
                 return valor;

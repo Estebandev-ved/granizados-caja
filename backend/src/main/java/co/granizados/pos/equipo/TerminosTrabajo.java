@@ -52,7 +52,13 @@ final class TerminosTrabajo {
                     + " por cada granizado que vendes en la promo, porque ese día el margen es menor.");
         }
         List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
-        if (!escalones.isEmpty()) {
+        if (EquipoService.bonosAuto(cfg)) {
+            ganas.add("Bonos automáticos: la app calcula tu día normal con tus ventas de las últimas 4 semanas. Por cada granizado"
+                    + " que vendas por encima de ese día, te llevas el " + EquipoService.parteBonos(cfg) + " % de lo que ese granizado"
+                    + " le deja al negocio (ya pagada tu comisión), y un poco más (hasta el 45 %) cuando pasas bastante tu día normal. Los ves como"
+                    + " premios en la barra de la app; los días de promoción son un poco menores porque el granizado deja menos.");
+            ganas.add("El premio es por día y cuenta solo lo que vendes tú.");
+        } else if (!escalones.isEmpty()) {
             ganas.add("Además hay premios del día: mientras más granizados vendes, más ganas. Los montos pueden variar"
                     + " (por ejemplo, los días de promoción son un poco menores) y siempre los ves en la barra de premios de la app.");
             ganas.add("El premio es por día y cuenta solo lo que vendes tú.");

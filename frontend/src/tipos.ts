@@ -167,6 +167,27 @@ export interface DatosPremios {
   sinTarifas: boolean
 }
 
+/** `GET /api/equipo/bonos`: los bonos automáticos de cada trabajador activo. */
+export interface BonoTrabajador {
+  vendedorId: number
+  nombre: string
+  /** Su día normal (mediana de las últimas 4 semanas; con pocos días, el del equipo). */
+  base: number
+  pocosDatos: boolean
+  /** Lo que deja cada granizado ya pagada la comisión, normal y en promo (null = sin ventas en promo). */
+  margen: number
+  margenPromo: number | null
+  escalones: Escalon[]
+  escalonesPromo: Escalon[]
+}
+
+export interface BonosEquipo {
+  activo: boolean
+  /** Parte (%) de lo extra que se lleva el trabajador. */
+  parte: number
+  trabajadores: BonoTrabajador[]
+}
+
 export interface SeccionTerminos {
   titulo: string
   lineas: string[]

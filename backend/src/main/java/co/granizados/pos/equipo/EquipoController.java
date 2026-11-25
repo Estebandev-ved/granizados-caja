@@ -88,6 +88,12 @@ public class EquipoController {
         return servicio.datosPremios();
     }
 
+    /** Los bonos automáticos de cada trabajador: su día normal y su escalera de premios (Ajustes → Equipo). */
+    @GetMapping("/bonos")
+    public EquipoService.BonosEquipo bonos() {
+        return servicio.bonosEquipo();
+    }
+
     /** Cómo viene vendiendo cada trabajador activo y cuánto se hace en un día suyo (para estimar lo que va a ganar). */
     @GetMapping("/proyeccion")
     public java.util.List<EquipoService.Proyeccion> proyecciones() {

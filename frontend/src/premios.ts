@@ -58,6 +58,39 @@ export function sugerirPremios(d: DatosPremios): { escalones: Escalon[]; rebaja:
   return { escalones, rebaja }
 }
 
+// ---------------------------------------------------------------- bonos automáticos
+
+/** Dónde van los escalones automáticos, como veces su día normal (el último es el premio gordo). Igual que BonosAuto.java. */
+const HITOS_AUTO = [1.15, 1.3, 1.5, 1.75, 2.0]
+
+/** Lo máximo que se lleva el trabajador de un granizado de más (igual que BonosAuto.PARTE_MAXIMA). */
+export const PARTE_MAXIMA_AUTO = 45
+
+/**
+ * La escalera de los bonos automáticos (la misma cuenta que BonosAuto.java, para ver el cambio antes de guardar): por
+ * cada granizado por encima de su día normal se lleva `parte` % de lo que deja, y 5 puntos más pasando un 30 % arriba,
+ * nunca más de `PARTE_MAXIMA_AUTO`: al dueño siempre le queda el 55 % o más de cada granizado de más.
+ */
+export function escaleraAuto(base: number, margen: number, parteDada: number): Escalon[] {
+  const lista: Escalon[] = []
+  if (base <= 0 || margen <= 0 || parteDada <= 0) return lista
+  const parte = Math.min(parteDada, PARTE_MAXIMA_AUTO)
+  const alto = Math.round(base * 1.3)
+  const parteAlta = Math.min(PARTE_MAXIMA_AUTO, parte + 5)
+  let anterior = base
+  let contados = base
+  let acumulado = 0
+  for (const veces of HITOS_AUTO) {
+    const hito = Math.max(anterior + 1, Math.round(base * veces))
+    for (let k = contados + 1; k <= hito; k++) acumulado += Math.floor(margen * (k <= alto ? parte : parteAlta) / 100)
+    contados = hito
+    const premio = Math.floor(acumulado / 500) * 500
+    if (premio >= 500 && (!lista.length || premio > lista[lista.length - 1].total)) lista.push({ granizados: hito, total: premio })
+    anterior = hito
+  }
+  return lista
+}
+
 // ---------------------------------------------------------------- la meta propia del trabajador
 
 /** El premio gordo: el escalón más alto del día (solo si hay al menos dos escalones; con uno solo no hay a qué subirle). */

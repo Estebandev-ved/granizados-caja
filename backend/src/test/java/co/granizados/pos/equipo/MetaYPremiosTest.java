@@ -196,6 +196,47 @@ class MetaYPremiosTest extends PruebaIntegracion {
     }
 
     @Test
+    void conBonosAutomaticosLaEscaleraSaleDeSuDiaNormalYSeParteLoExtra() throws Exception {
+        String token = conHistorial();
+        jdbc.update("update config set valor = '1' where clave = 'BONOS_AUTO'");
+
+        // Día normal 16 y margen 2.800: hasta 21 se lleva el 40 % (1.120 c/u) y de ahí el 45 % (1.260 c/u)
+        mvc.perform(con(token, get("/api/estado"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.premios.escalones[0].granizados").value(18))
+                .andExpect(jsonPath("$.premios.escalones[0].total").value(2000))
+                .andExpect(jsonPath("$.premios.escalones[1].granizados").value(21))
+                .andExpect(jsonPath("$.premios.escalones[1].total").value(5500))
+                .andExpect(jsonPath("$.premios.escalones[2].total").value(9000))
+                .andExpect(jsonPath("$.premios.escalones[4].granizados").value(32))
+                .andExpect(jsonPath("$.premios.escalones[4].total").value(19000));
+
+        vender(token, "hoy-1", 24, null);
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.premios.premio").value(9000));
+        var hoy = java.time.LocalDate.of(2026, 10, 1);
+        assertThat(equipo.liquidar(hoy, hoy).getFirst().bonos()).isEqualTo(9000);
+
+        // El dueño ve lo mismo en Ajustes → Equipo
+        var bonos = equipo.bonosEquipo();
+        assertThat(bonos.activo()).isTrue();
+        assertThat(bonos.trabajadores().getFirst().base()).isEqualTo(16);
+        assertThat(bonos.trabajadores().getFirst().escalones()).hasSize(5);
+    }
+
+    @Test
+    void conBonosAutomaticosElDuenoEscogeLaParteYApagadosVuelvenLosDeMano() throws Exception {
+        String token = conHistorial();
+        jdbc.update("update config set valor = '1' where clave = 'BONOS_AUTO'");
+        jdbc.update("update config set valor = '30' where clave = 'BONOS_PARTE'");
+        mvc.perform(con(token, get("/api/estado"))).andExpect(jsonPath("$.premios.escalones[0].total").value(1500));
+
+        jdbc.update("update config set valor = '0' where clave = 'BONOS_AUTO'");
+        jdbc.update("update config set valor = '20:3000' where clave = 'PREMIOS_ESCALONES'");
+        mvc.perform(con(token, get("/api/estado")))
+                .andExpect(jsonPath("$.premios.escalones.length()").value(1))
+                .andExpect(jsonPath("$.premios.escalones[0].total").value(3000));
+    }
+
+    @Test
     void elRetoSaleDeLoQueElTrabajadorVendeNormalmente() throws Exception {
         String token = conHistorial();
 

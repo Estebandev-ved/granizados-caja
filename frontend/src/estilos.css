@@ -644,6 +644,16 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .paso { display: flex; align-items: center; gap: 6px }
 .paso b { min-width: 52px; text-align: center; font-size: 15px }
 .escalon-fila { position: relative; padding: 8px 0 10px; border-top: 1px solid var(--line) }
+/* Bonos automáticos: la escalera de cada trabajador en Ajustes → Equipo */
+.bono-trabajador { display: grid; gap: 4px; padding: 10px 0; border-top: 1px solid var(--line) }
+.bono-trabajador small { font-size: 13px; line-height: 1.35 }
+.bono-escalera { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 2px; scrollbar-width: none }
+.bono-escalera span { flex: none; display: grid; justify-items: center; gap: 1px; min-width: 64px; padding: 6px 8px;
+  border-radius: var(--r-md); background: var(--card2); border: 1px solid var(--line) }
+.bono-escalera span small { font-size: 11px; color: var(--mut) }
+.bono-escalera span b { font-size: 14px }
+.bono-escalera span.gordo { border-color: var(--warn); background: var(--warn-bg) }
+.bono-escalera span.gordo b { color: var(--warn-txt) }
 .escalon-fila small.mut { display: block; margin-top: 4px }
 .escalon-campos { display: flex; align-items: flex-end; gap: 8px }
 .escalon-campo { display: flex; flex-direction: column; gap: 4px }

@@ -34,6 +34,8 @@ public class NegocioService {
             new Ajuste("GRANIZADOS_GRATIS", "1", "Granizados que el trabajador puede tomarse gratis por día de trabajo"),
             new Ajuste("PAGO_NEQUI", "", "Tu número de Nequi para que te paguen lo fiado. Ej: 3001234567"),
             new Ajuste("PAGO_BREB", "", "Tu llave Bre-B para que te paguen lo fiado"),
+            new Ajuste("BONOS_AUTO", "1", "Bonos automáticos del equipo: 1 = la app arma los premios de cada trabajador, 0 = los pones a mano"),
+            new Ajuste("BONOS_PARTE", "40", "Parte (%) de lo que deja cada granizado de más que se lleva el trabajador con los bonos automáticos"),
             new Ajuste("CAJA_BASE", "0", "Plata que dejas siempre en la caja para vueltos (se edita en Mi plata)"),
             new Ajuste("TOPES_GASTO", "", "Tope de gasto al mes por categoría (lo edita Hoy → Gastos del mes)"),
             new Ajuste("PERFIL", "", "Perfil del negocio (lo edita la bienvenida y Ajustes → Mi negocio)"),

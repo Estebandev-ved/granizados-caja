@@ -84,6 +84,8 @@ public abstract class PruebaIntegracion {
         jdbc.update("update config set valor = '0' where clave = 'PREMIO_REBAJA_PROMO'");
         jdbc.update("update config set valor = '1' where clave = 'GRANIZADOS_GRATIS'");
         jdbc.update("update config set valor = '0' where clave = 'CAJA_BASE'");
+        jdbc.update("update config set valor = '0' where clave = 'BONOS_AUTO'");
+        jdbc.update("update config set valor = '40' where clave = 'BONOS_PARTE'");
     }
 
     protected long idDe(String sabor) {

@@ -391,7 +391,7 @@ public class EquipoService {
                 || PromoCalendario.vigente(ajustes.mapa().get("PROMO"), dia);
         int vendidasHoy = unidades;
         long bonos = (meta > 0 && unidades >= meta ? premio : 0)
-                + Math.max(Escalones.premioDe(escalonesDelDia(ajustes.mapa(), diaPromo), unidades),
+                + Math.max(Escalones.premioDe(escaleraDe(v.getId(), v.getComisionPct(), dia, diaPromo, ajustes.mapa(), null), unidades),
                         metas.findByVendedorIdAndDia(vendedorId, dia).map(m -> m.ganado(vendidasHoy)).orElse(0L));
         long base = baseDeHoy(vendedorId);
         long entregar = efectivo + base - comision - bonos + consumos + faltantes;
@@ -498,8 +498,6 @@ public class EquipoService {
         Map<String, String> cfg = ajustes.mapa();
         int meta = AjustesService.entero(cfg, "META_EQUIPO", 0);
         long premio = AjustesService.entero(cfg, "PREMIO_EQUIPO", 0);
-        List<Escalones.Escalon> escalones = Escalones.leer(cfg.get("PREMIOS_ESCALONES"));
-        List<Escalones.Escalon> rebajados = escalonesDelDia(cfg, true);
         LocalDate hoy = hoy();
         boolean promoHoy = PromoCalendario.vigente(cfg.get("PROMO"), hoy);
         long total = 0, efectivo = 0, nequi = 0, comision = 0, consumos = 0, faltantes = 0;
@@ -542,11 +540,15 @@ public class EquipoService {
                 metas.findByVendedorIdAndDiaBetween(v.getId(), java.util.Collections.min(porDia.keySet()),
                         java.util.Collections.max(porDia.keySet())).forEach(m -> retos.put(m.getDia(), m));
             }
+            // Con bonos automáticos la escalera de cada día sale de las semanas antes de ese día: se buscan una sola vez
+            List<Venta> ventanaAuto = bonosAuto(cfg) && !porDia.isEmpty()
+                    ? ventanaAntes(java.util.Collections.min(porDia.keySet()), java.util.Collections.max(porDia.keySet()))
+                    : null;
             for (Map.Entry<LocalDate, Integer> e : porDia.entrySet()) {
                 if (meta > 0 && e.getValue() >= meta) diasMeta++;
                 boolean promo = diasPromo.contains(e.getKey()) || (promoHoy && e.getKey().equals(hoy));
                 MetaVendedor reto = retos.get(e.getKey());
-                premiosEscalon += Math.max(Escalones.premioDe(promo ? rebajados : escalones, e.getValue()),
+                premiosEscalon += Math.max(Escalones.premioDe(escaleraDe(v.getId(), v.getComisionPct(), e.getKey(), promo, cfg, ventanaAuto), e.getValue()),
                         reto == null ? 0 : reto.ganado(e.getValue()));
             }
         }
@@ -1075,7 +1077,8 @@ public class EquipoService {
         int gratis = gratisPorDia(cfg);
         // Los días de promoción los premios bajan; el trabajador ve ya los montos de hoy
         boolean diaPromo = mias.stream().anyMatch(Venta::isEnPromo) || PromoCalendario.vigente(cfg.get("PROMO"), hoy());
-        List<Escalones.Escalon> deHoy = escalonesDelDia(cfg, diaPromo);
+        int pct = vendedores.findById(vendedorId).map(Vendedor::getComisionPct).orElse(0);
+        List<Escalones.Escalon> deHoy = escaleraDe(vendedorId, pct, hoy(), diaPromo, cfg, null);
         MetaVendedor propia = metas.findByVendedorIdAndDia(vendedorId, hoy()).orElse(null);
         long premioReto = propia == null ? 0 : propia.ganado(vendidas);
         return new PremiosDia(vendidas, comision, Math.max(Escalones.premioDe(deHoy, vendidas), premioReto), deHoy,
@@ -1311,6 +1314,130 @@ public class EquipoService {
         // Un escalón que queda en $0 ya no paga nada: no se muestra
         return escalones.stream().map(e -> new Escalones.Escalon(e.granizados(), Math.max(0, e.total() - rebaja)))
                 .filter(e -> e.total() > 0).toList();
+    }
+
+    // ------------------------------------------------------------------ bonos automáticos
+
+    /** Con `BONOS_AUTO` = 1 la escalera de premios la arma la app para cada trabajador (ver BonosAuto). */
+    static boolean bonosAuto(Map<String, String> cfg) {
+        return "1".equals(cfg.getOrDefault("BONOS_AUTO", "0").trim());
+    }
+
+    /** Qué parte (en %) de lo extra se lleva el trabajador con los bonos automáticos: entre 10 y 45 (el dueño, 55 % o más). */
+    static int parteBonos(Map<String, String> cfg) {
+        return Math.max(10, Math.min(BonosAuto.PARTE_MAXIMA, AjustesService.entero(cfg, "BONOS_PARTE", BonosAuto.PARTE_DEFECTO)));
+    }
+
+    /**
+     * La escalera de premios de un trabajador para un día: la que puso el dueño a mano o, con bonos automáticos, la que
+     * sale de sus ventas de las semanas antes de ese día. `ventana` son esas ventas si ya se buscaron (null = buscarlas).
+     */
+    private List<Escalones.Escalon> escaleraDe(Long vendedorId, int pct, LocalDate dia, boolean promo, Map<String, String> cfg,
+                                               List<Venta> ventana) {
+        if (!bonosAuto(cfg)) return escalonesDelDia(cfg, promo);
+        BonosAuto.Base b = baseAuto(vendedorId, pct, dia, ventana != null ? ventana : ventanaAntes(dia, dia), cfg);
+        List<Escalones.Escalon> auto = escaleraCon(b, promo, cfg);
+        // Sin datos para saber cuánto deja un granizado (sin costos), mandan los premios a mano: nunca se queda sin premios
+        return auto.isEmpty() ? escalonesDelDia(cfg, promo) : auto;
+    }
+
+    /**
+     * La escalera con la base ya calculada. En día de promo usa lo que deja un granizado en promo; si todavía no hay
+     * ventas en promo para saberlo, la normal con la rebaja de promo que puso el dueño.
+     */
+    private static List<Escalones.Escalon> escaleraCon(BonosAuto.Base b, boolean promo, Map<String, String> cfg) {
+        int parte = parteBonos(cfg);
+        if (promo && b.margenPromo() != null) return BonosAuto.escalera(b.base(), b.margenPromo(), parte);
+        List<Escalones.Escalon> normal = BonosAuto.escalera(b.base(), b.margen(), parte);
+        long rebaja = promo ? AjustesService.entero(cfg, "PREMIO_REBAJA_PROMO", 0) : 0;
+        if (rebaja <= 0) return normal;
+        return normal.stream().map(e -> new Escalones.Escalon(e.granizados(), Math.max(0, e.total() - rebaja)))
+                .filter(e -> e.total() > 0).toList();
+    }
+
+    /** Las ventas desde `DIAS_ANALISIS` días antes de `desde` hasta antes de `hasta` (para la base de cada día del rango). */
+    private List<Venta> ventanaAntes(LocalDate desde, LocalDate hasta) {
+        return ventas.entre(desde.minusDays(DIAS_ANALISIS).atStartOfDay(zona).toInstant(), hasta.atStartOfDay(zona).toInstant());
+    }
+
+    /**
+     * El día normal de un trabajador y lo que deja cada granizado, mirando las `DIAS_ANALISIS` días antes de `dia` (sin
+     * ese día). Solo cuentan para el margen las ventas con costo, y se descuenta la comisión que se pagó (la congelada
+     * en la venta, o la tarifa de hoy, o su % si le pagan por porcentaje).
+     */
+    BonosAuto.Base baseAuto(Long vendedorId, int pct, LocalDate dia, List<Venta> ventana, Map<String, String> cfg) {
+        Instant desde = dia.minusDays(DIAS_ANALISIS).atStartOfDay(zona).toInstant();
+        Instant hasta = dia.atStartOfDay(zona).toInstant();
+        Map<LocalDate, Integer> suyos = new HashMap<>();
+        Map<String, Integer> equipo = new HashMap<>();
+        long margenNormal = 0, margenPromo = 0;
+        int unidadesNormal = 0, unidadesPromo = 0;
+        for (Venta x : ventana) {
+            Instant t = x.getCreadaEn();
+            if (t.isBefore(desde) || !t.isBefore(hasta) || x.esDelTrabajador() || x.getMetodo() == MetodoPago.REGALO) continue;
+            int n = x.getCantidad();
+            LocalDate d = t.atZone(zona).toLocalDate();
+            if (x.getVendedorId() != null) {
+                equipo.merge(x.getVendedorId() + "|" + d, n, Integer::sum);
+                if (x.getVendedorId().equals(vendedorId)) suyos.merge(d, n, Integer::sum);
+            }
+            if (x.getCostoUnitario() <= 0) continue; // sin costo no se sabe cuánto deja
+            Long tarifa = x.getComisionUnitaria() != null ? x.getComisionUnitaria()
+                    : tarifaDe(cfg, x.getProducto().getTipo(), x.isEnPromo());
+            long comisionVenta = tarifa != null ? tarifa * n : x.getTotal() * pct / 100;
+            long margen = x.getTotal() - x.getCostoUnitario() * n - comisionVenta;
+            if (x.isEnPromo()) {
+                margenPromo += margen;
+                unidadesPromo += n;
+            } else {
+                margenNormal += margen;
+                unidadesNormal += n;
+            }
+        }
+        int base;
+        boolean pocos;
+        if (suyos.size() >= MIN_DIAS_ANALISIS) {
+            base = mediana(suyos.values());
+            pocos = false;
+        } else if (equipo.size() >= MIN_DIAS_ANALISIS) {
+            base = mediana(equipo.values());
+            pocos = true;
+        } else {
+            int metaEquipo = AjustesService.entero(cfg, "META_EQUIPO", 0);
+            base = metaEquipo > 0 ? metaEquipo : 15;
+            pocos = true;
+        }
+        return new BonosAuto.Base(base, pocos, unidadesNormal == 0 ? 0 : margenNormal / unidadesNormal,
+                unidadesPromo == 0 ? null : margenPromo / unidadesPromo);
+    }
+
+    private static int mediana(java.util.Collection<Integer> valores) {
+        List<Integer> orden = valores.stream().sorted().toList();
+        return orden.get(orden.size() / 2);
+    }
+
+    /** Cómo quedan los bonos automáticos de un trabajador hoy: su día normal y su escalera, normal y en promo. */
+    public record BonoTrabajador(Long vendedorId, String nombre, int base, boolean pocosDatos, long margen, Long margenPromo,
+                                 List<Escalones.Escalon> escalones, List<Escalones.Escalon> escalonesPromo) {
+    }
+
+    /** Lo que ve el dueño en Ajustes → Equipo: si están prendidos, la parte y la escalera de cada trabajador activo. */
+    public record BonosEquipo(boolean activo, int parte, List<BonoTrabajador> trabajadores) {
+    }
+
+    @Transactional(readOnly = true)
+    public BonosEquipo bonosEquipo() {
+        Map<String, String> cfg = ajustes.mapa();
+        LocalDate hoy = hoy();
+        List<Venta> ventana = ventanaAntes(hoy, hoy);
+        List<BonoTrabajador> lista = new ArrayList<>();
+        for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
+            if (!v.isActivo()) continue;
+            BonosAuto.Base b = baseAuto(v.getId(), v.getComisionPct(), hoy, ventana, cfg);
+            lista.add(new BonoTrabajador(v.getId(), v.getNombre(), b.base(), b.pocosDatos(), b.margen(), b.margenPromo(),
+                    escaleraCon(b, false, cfg), escaleraCon(b, true, cfg)));
+        }
+        return new BonosEquipo(bonosAuto(cfg), parteBonos(cfg), lista);
     }
 
     private Terminos terminos(Vendedor v) {
