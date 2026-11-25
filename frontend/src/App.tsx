@@ -27,7 +27,7 @@ import { useToast, type AccionToast } from './componentes/Toast'
 import { pesos, vibrar } from './formato'
 import { sonidoLogro, sonidoVenta } from './sonido'
 import { leerPromos, promosVigentes } from './promo'
-import type { Terminos } from './tipos'
+import type { NotaTrabajador, Terminos } from './tipos'
 import { useCaja, type EstadoSync } from './useCaja'
 import { Ajustes } from './vistas/Ajustes'
 import { Hoy } from './vistas/Hoy'
@@ -195,6 +195,26 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
   const [ayuda, setAyuda] = useState(false)
 
   // La guía con una venta de práctica: la primera vez que entra un trabajador a este celular (y cuando la pida en Mi día)
+  // Las notas que le deja el dueño: se piden al entrar, al cambiar de pestaña y cada minuto (necesitan señal)
+  const [notas, setNotas] = useState<NotaTrabajador[]>([])
+  useEffect(() => {
+    if (!trabajador) return
+    let vivo = true
+    const traer = () => api.misNotas().then(l => { if (vivo) setNotas(l) }).catch(() => { /* sin señal: quedan las de antes */ })
+    void traer()
+    const id = window.setInterval(() => void traer(), 60_000)
+    return () => { vivo = false; window.clearInterval(id) }
+  }, [trabajador, vista])
+  const notasNuevas = notas.filter(n => !n.leidaEn)
+  const leerNota = async (id: number) => {
+    try {
+      const leida = await api.leerNota(id)
+      setNotas(l => l.map(n => (n.id === id ? leida : n)))
+    } catch {
+      avisar('⚠️ No se pudo guardar, revisa la señal')
+    }
+  }
+
   const [guia, setGuia] = useState<'primera' | 'pedida' | null>(() => (trabajador && !guiaVista(sesion.quien) ? 'primera' : null))
   const cerrarGuia = () => { marcarGuiaVista(sesion.quien); setGuia(null); irA('vender') }
   // La primera vez espera a que haya aceptado los términos y escogido cada cuánto le pagan
@@ -259,6 +279,7 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
       avisar={avisar} />
   } else if (vista === 'hoy' && trabajador) {
     contenido = <MiDia estado={estado} pago={terminos?.frecuenciaPago ?? null} onDeshacer={caja.deshacer} avisar={avisar}
+      notas={notas} onNotaLeida={leerNota}
       onVerGuia={() => setGuia('pedida')}
       onElegirPago={async f => {
         try {
@@ -348,6 +369,14 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
           <BarraPremios premios={premios} compacta onGordo={() => setGordoAbierto(true)} />
         </div>
       )}
+      {trabajador && vista === 'vender' && notasNuevas.length > 0 && (
+        <div className="meta-envoltorio">
+          <button type="button" className="nota-aviso" onClick={() => irA('hoy')}>
+            <span>📝 <b>{notasNuevas.length === 1 ? 'Tienes una nota nueva' : 'Tienes ' + notasNuevas.length + ' notas nuevas'}</b> · {notasNuevas[0].texto}</span>
+            <span aria-hidden="true">›</span>
+          </button>
+        </div>
+      )}
       {estado && trabajador && premios && vista === 'vender' && (
         <div className="meta-envoltorio">
           <MetaDelDia premios={premios} dia={estado.dia} onMeta={async n => {
@@ -383,7 +412,8 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
             <path d="M12 5v14M5 12h14" />
           </BotonNav>
         )}
-        <BotonNav activa={vista === 'hoy'} onClick={() => irA('hoy')} texto={trabajador ? 'Mi día' : 'Hoy'}>
+        <BotonNav activa={vista === 'hoy'} onClick={() => irA('hoy')} texto={trabajador ? 'Mi día' : 'Hoy'}
+          punto={trabajador ? notasNuevas.length : 0}>
           <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
         </BotonNav>
         {!trabajador && (
@@ -401,9 +431,17 @@ function Caja({ avisar }: { avisar: (m: string, accion?: AccionToast) => void })
   )
 }
 
-function BotonNav({ activa, onClick, texto, children }: { activa: boolean; onClick: () => void; texto: string; children: ReactNode }) {
+function BotonNav({ activa, onClick, texto, children, punto = 0 }: {
+  activa: boolean
+  onClick: () => void
+  texto: string
+  children: ReactNode
+  /** Cuántas cosas nuevas tiene esa pestaña (un puntico con el número; 0 = nada). */
+  punto?: number
+}) {
   return (
-    <button className={activa ? 'on' : ''} onClick={onClick}>
+    <button className={activa ? 'on' : ''} onClick={onClick} aria-label={punto > 0 ? texto + ', ' + punto + ' nuevas' : undefined}>
+      {punto > 0 && <span className="nav-punto">{punto}</span>}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">{children}</svg>
       {texto}
     </button>

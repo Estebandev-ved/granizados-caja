@@ -55,6 +55,9 @@ public class RolFiltro extends OncePerRequestFilter {
         if (ruta.startsWith("/api/comprobantes/")) return metodo.equals("GET");
         if (ruta.matches("/api/mi-turno/pagos/\\d+/responder")) return metodo.equals("POST");
         // Plan de la calle: empezar y terminar su salida, ver los lugares y el botón de alerta. El mapa con ganancias es del dueño
+        // Las notas que le deja el dueño: las ve y las marca como leídas (el servicio revisa que sean suyas)
+        if (ruta.equals("/api/mi-turno/notas")) return metodo.equals("GET");
+        if (ruta.matches("/api/mi-turno/notas/\\d+/leida")) return metodo.equals("POST");
         if (ruta.equals("/api/calle/lugares")) return metodo.equals("GET");
         if (ruta.equals("/api/calle/salidas") || ruta.equals("/api/calle/sos")
                 || ruta.matches("/api/calle/salidas/[^/]+/terminar")) return metodo.equals("POST");

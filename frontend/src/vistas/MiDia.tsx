@@ -14,12 +14,16 @@ import { PagoPreferido } from '../componentes/PagoPreferido'
 import { NOMBRE_PAGO } from '../pagos'
 import { TerminosTrabajo } from '../componentes/TerminosTrabajo'
 import { ComprobanteDeVenta, useComprobantesPendientes } from '../componentes/FotoComprobante'
-import type { CierreTurno, Estado, FrecuenciaPago, PagoEquipo, PrestamoEquipo, Terminos, VentaReciente } from '../tipos'
+import { MisNotas } from '../componentes/NotasTrabajador'
+import type { CierreTurno, Estado, FrecuenciaPago, NotaTrabajador, PagoEquipo, PrestamoEquipo, Terminos, VentaReciente } from '../tipos'
 
 /** El día de un trabajador: lo suyo y nada más (sin costos, ganancia ni lo de los demás). */
-export function MiDia({ estado, pago, onElegirPago, onDeshacer, onVerGuia, avisar }: {
+export function MiDia({ estado, pago, onElegirPago, onDeshacer, onVerGuia, avisar, notas, onNotaLeida }: {
   /** Repetir la guía de cómo se usa la app. */
   onVerGuia: () => void
+  /** Las notas que le dejó el dueño (las sin leer arriba). */
+  notas: NotaTrabajador[]
+  onNotaLeida: (id: number) => Promise<void>
   estado: Estado
   avisar: (m: string) => void
   pago: FrecuenciaPago | null
@@ -98,6 +102,8 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer, onVerGuia, avisa
         </div>
         <Personaje nombre="sofia" libre />
       </div>
+
+      <MisNotas notas={notas} onLeida={onNotaLeida} />
 
       {pagoPendiente && (
         <div className="pago-pendiente">

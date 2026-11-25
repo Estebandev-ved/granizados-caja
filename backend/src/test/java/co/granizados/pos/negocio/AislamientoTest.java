@@ -67,6 +67,9 @@ class AislamientoTest extends PruebaIntegracion {
     co.granizados.pos.equipo.EquipoService equipo;
 
     @Autowired
+    co.granizados.pos.equipo.NotaService notas;
+
+    @Autowired
     NegocioService negocios;
 
     @Autowired
@@ -259,6 +262,20 @@ class AislamientoTest extends PruebaIntegracion {
         // El mismo identificador en el otro negocio no choca
         assertThat(como(1, () -> gastos.registrar(new co.granizados.pos.gasto.GastoService.NuevoGasto("g-1", "HIELO", "", 1_000, null))))
                 .isEqualTo(co.granizados.pos.gasto.GastoService.Resultado.REGISTRADA);
+    }
+
+    @Test
+    void lasNotasAlTrabajadorSonDeCadaNegocio() {
+        var juan = como(1, () -> equipo.crear(new co.granizados.pos.equipo.EquipoService.NuevoVendedor("Juan", "1111", 0)));
+        var nota = como(1, () -> notas.escribir(juan.id(), new co.granizados.pos.equipo.NotaService.NuevaNota("Mañana a las 8")));
+
+        assertThat(como(1, () -> notas.de(juan.id()))).hasSize(1);
+        assertThat(como(2, () -> notas.de(juan.id()))).isEmpty();
+        assertThatThrownBy(() -> como(2, () -> notas.escribir(juan.id(), new co.granizados.pos.equipo.NotaService.NuevaNota("hola"))))
+                .isInstanceOf(NoEncontradoException.class);
+        assertThatThrownBy(() -> como(2, () -> notas.leer(juan.id(), nota.id()))).isInstanceOf(NoEncontradoException.class);
+        assertThatThrownBy(() -> como(2, () -> { notas.borrar(nota.id()); return null; })).isInstanceOf(NoEncontradoException.class);
+        assertThat(como(2, () -> notas.escribirATodos(new co.granizados.pos.equipo.NotaService.NuevaNota("hola")))).isZero();
     }
 
     @Test

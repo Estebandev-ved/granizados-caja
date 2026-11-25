@@ -154,6 +154,19 @@ nav button { flex: 1; background: none; border: 0; color: var(--mut); font-size:
   display: flex; flex-direction: column; align-items: center; gap: 5px }
 nav button { position: relative }
 nav button.on { color: var(--primario-txt) }
+/* Notas del dueño al trabajador: un puntico con el número en la pestaña, sin ventanas que salten */
+.nav-punto { position: absolute; top: 6px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--r-full);
+  background: var(--primario); color: #fff; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; pointer-events: none }
+.nota-aviso { width: 100%; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--warn); border-radius: var(--r-lg);
+  background: var(--warn-bg); color: var(--txt); font: inherit; font-size: 13px; text-align: left; cursor: pointer }
+.nota-aviso span:first-child { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
+.nota-aviso b { color: var(--warn-txt) }
+.mis-notas.con-nuevas { border-color: var(--warn); background: var(--warn-bg) }
+.nota-item { display: grid; gap: 4px; justify-items: start; padding: 10px 0; border-top: 1px solid var(--line) }
+.nota-item p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px }
+.nota-item.nueva p { font-weight: 600 }
+.notas-lista { margin-top: 10px }
+.nota-texto { width: 100%; resize: vertical; min-height: 72px; font: inherit }
 nav button.on::before { content: ''; position: absolute; top: 0; left: 30%; right: 30%; height: 3px; border-radius: 0 0 var(--r) var(--r); background: var(--primario) }
 nav svg { width: 24px; height: 24px }
 

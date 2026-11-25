@@ -2,7 +2,7 @@ import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequest
 import type {
   BaseVueltos, CategoriaGasto, CierreTurno, EntregaEquipo, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
-  TipoMovimiento, TipoAlerta, LugarSimple, ResumenCalle, PrestamoEquipo, HistorialTrabajador, PremiosDia, DatosPremios, BonosEquipo, Proyeccion, CierreMes, VentaBorrada, ComprobanteItem,
+  TipoMovimiento, TipoAlerta, LugarSimple, ResumenCalle, PrestamoEquipo, NotaTrabajador, HistorialTrabajador, PremiosDia, DatosPremios, BonosEquipo, Proyeccion, CierreMes, VentaBorrada, ComprobanteItem,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -235,6 +235,12 @@ export const api = {
   historialEquipo: (desde: string, hasta: string) =>
     pedir<HistorialTrabajador[]>('GET', '/api/equipo/historial?desde=' + desde + '&hasta=' + hasta),
   misPrestamos: () => pedir<PrestamoEquipo[]>('GET', '/api/mi-turno/prestamos'),
+  misNotas: () => pedir<NotaTrabajador[]>('GET', '/api/mi-turno/notas'),
+  leerNota: (id: number) => pedir<NotaTrabajador>('POST', '/api/mi-turno/notas/' + id + '/leida'),
+  notasDe: (vendedorId: number) => pedir<NotaTrabajador[]>('GET', '/api/equipo/' + vendedorId + '/notas'),
+  escribirNota: (vendedorId: number, texto: string) => pedir<NotaTrabajador>('POST', '/api/equipo/' + vendedorId + '/notas', { texto }),
+  notaATodos: (texto: string) => pedir<{ enviadas: number }>('POST', '/api/equipo/notas', { texto }),
+  borrarNota: (id: number) => pedir<void>('DELETE', '/api/equipo/notas/' + id),
   ponerMeta: (meta: number) => pedir<PremiosDia>('POST', '/api/mi-turno/meta', { meta }),
   datosPremios: () => pedir<DatosPremios>('GET', '/api/equipo/premios/datos'),
   bonosEquipo: () => pedir<BonosEquipo>('GET', '/api/equipo/bonos'),

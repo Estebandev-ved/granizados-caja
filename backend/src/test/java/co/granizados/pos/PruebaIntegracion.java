@@ -61,6 +61,7 @@ public abstract class PruebaIntegracion {
         jdbc.update("delete from comprobante");
         jdbc.update("delete from prestamo_vendedor");
         jdbc.update("delete from meta_vendedor");
+        jdbc.update("delete from nota_vendedor");
         jdbc.update("delete from pago_vendedor");
         jdbc.update("delete from base_vendedor");
         jdbc.update("delete from entrega_vendedor");

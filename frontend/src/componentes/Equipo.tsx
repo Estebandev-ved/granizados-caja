@@ -15,6 +15,7 @@ import { EntregasDelTrabajador } from './EntregaAlDueno'
 import { FaltantePanel } from './FaltantePanel'
 import { NOMBRE_LUGAR, PrestamosPanel } from './PrestamosPanel'
 import { Icono } from './Icono'
+import { NotasPanel } from './NotasTrabajador'
 import { Plegable } from './Plegable'
 import { Sheet } from './Sheet'
 import { Unidades } from './Unidades'
@@ -395,6 +396,10 @@ function PanelTrabajador({ t, productos, proyeccion, onCarga, onAgregar, onPagar
         </div>
         </Plegable>
       )}
+
+      <Plegable icono="cara" titulo="Notas" resumen="Avisos que le aparecen en Mi día">
+        <NotasPanel t={t} />
+      </Plegable>
 
       <Plegable icono="billetera" titulo="Préstamos" resumen={prestado > 0 ? pesos(prestado) + ' por descontar' : 'Ninguno'} alerta={prestado > 0}>
         <PrestamosPanel t={t} prestamos={prestamos} onCambio={onCambioBase} />

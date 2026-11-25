@@ -59,6 +59,7 @@ public class RespaldoService {
         TABLAS.put("equipo_entregas", "entrega_vendedor");
         TABLAS.put("equipo_base_vueltos", "base_vendedor");
         TABLAS.put("equipo_metas", "meta_vendedor");
+        TABLAS.put("equipo_notas", "nota_vendedor");
         TABLAS.put("equipo_terminos_aceptados", "aceptacion_terminos");
         TABLAS.put("ajustes", "config");
     }

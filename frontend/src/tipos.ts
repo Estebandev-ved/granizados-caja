@@ -285,6 +285,14 @@ export interface PagoEquipo {
 }
 
 /** Plata que le prestaste a un trabajador. `pagoId` null = todavía no se le descuenta. */
+/** Una nota del dueño a un trabajador. `leidaEn` es null mientras no la marque como leída. */
+export interface NotaTrabajador {
+  id: number
+  texto: string
+  creadaEn: string
+  leidaEn: string | null
+}
+
 export interface PrestamoEquipo {
   id: number
   vendedorId: number
