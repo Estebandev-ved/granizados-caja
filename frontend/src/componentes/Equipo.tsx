@@ -13,6 +13,7 @@ import { CampoNumero } from './CampoNumero'
 import { BaseVueltosPanel } from './BaseVueltosPanel'
 import { EntregasDelTrabajador } from './EntregaAlDueno'
 import { FaltantePanel } from './FaltantePanel'
+import { ContarDevolucion } from './ContarDevolucion'
 import { NOMBRE_LUGAR, PrestamosPanel } from './PrestamosPanel'
 import { Icono } from './Icono'
 import { NotasPanel } from './NotasTrabajador'
@@ -447,6 +448,14 @@ function PanelTrabajador({ t, productos, proyeccion, onCarga, onAgregar, onPagar
         </div>
       </div>
 
+      </Plegable>
+
+      <Plegable icono="caja" titulo="Contar lo que devolvió"
+        resumen={t.contadoHoy
+          ? 'Contado a las ' + new Date(t.contadoHoy).toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Bogota' })
+          : llevo ? 'Falta contar' : 'Hoy o ayer'}
+        alerta={llevo > 0 && !t.contadoHoy}>
+        <ContarDevolucion t={t} productos={productos} onCambio={onCambioBase} />
       </Plegable>
 
       <Plegable icono="alerta" titulo="Faltantes" resumen="Si las cuentas no dan">

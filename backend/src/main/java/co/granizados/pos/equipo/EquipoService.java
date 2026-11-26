@@ -80,7 +80,9 @@ public class EquipoService {
                               FrecuenciaPago frecuenciaPago, long porPagar, PagoVendedor.Estado ultimoPago, long baseHoy,
                               long entregaPendiente, EntregaVendedor.Estado ultimaEntrega,
                               /** Cuántos se propuso vender hoy (null = no ha escogido). */
-                              Integer metaHoy) {
+                              Integer metaHoy,
+                              /** Cuándo contaste lo que te devolvió de la carga de hoy (null = no lo has contado). */
+                              Instant contadoHoy) {
     }
 
     /**
@@ -214,6 +216,7 @@ public class EquipoService {
     private final PrestamoVendedorRepository prestamos;
     private final MetaVendedorRepository metas;
     private final SalidaCalleRepository salidas;
+    private final ConteoCargaRepository conteos;
     private final ZoneId zona;
     private final BCryptPasswordEncoder hash = new BCryptPasswordEncoder();
 
@@ -222,9 +225,10 @@ public class EquipoService {
                          ApplicationEventPublisher eventos, AceptacionTerminosRepository aceptaciones,
                          PagoVendedorRepository pagos, BaseVendedorRepository bases,
                          EntregaVendedorRepository entregas, PrestamoVendedorRepository prestamos, MetaVendedorRepository metas,
-                         SalidaCalleRepository salidas) {
+                         SalidaCalleRepository salidas, ConteoCargaRepository conteos) {
         this.metas = metas;
         this.salidas = salidas;
+        this.conteos = conteos;
         this.entregas = entregas;
         this.prestamos = prestamos;
         this.pagos = pagos;
@@ -421,7 +425,9 @@ public class EquipoService {
         if (pasajes > 0) t.append("\n• Pasajes que se le devuelven: ").append(Pesos.formato(pasajes));
         t.append(entregar >= 0 ? "\nTe entrega " + Pesos.formato(entregar) : "\nTú le debes " + Pesos.formato(-entregar));
         if (devuelve.isEmpty()) t.append("\nNo devuelve nada.");
-        else t.append("\nDevuelve: ").append(String.join(", ", devuelve.stream().map(f -> f.queda() + " " + f.nombre()).toList()));
+        else t.append("\nDevuelve: ").append(String.join(", ", devuelve.stream().map(f -> f.queda() + " " + f.nombre()).toList()))
+                .append("\n👉 Cuéntalos cuando te los entregue: Ajustes → Equipo → ").append(v.getNombre())
+                .append(" → «Contar lo que devolvió». Si falta alguno, se le descuenta solo.");
         eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "🧾 " + v.getNombre() + " cerró su día", t.toString()));
         return new CierreTurno(unidades, total, efectivo, nequi, comision, bonos, base, entregar, devuelve, consumidos, consumos,
                 faltantes, pasajes);
@@ -896,14 +902,132 @@ public class EquipoService {
         Vendedor v = vendedor(vendedorId);
         Producto p = productos.findById(n.productoId())
                 .orElseThrow(() -> new NoEncontradoException("Producto no encontrado: " + n.productoId()));
-        Venta faltante = new Venta("faltante-" + java.util.UUID.randomUUID(), p, n.cantidad(), MetodoPago.FALTANTE, clock.instant())
-                .faltante().porVendedor(v.getId());
-        faltante.cobrarAlVendedor(p.getPrecio() * n.cantidad());
-        ventas.saveAndFlush(faltante);
-        productos.sumarStock(p.getId(), -n.cantidad());
+        registrarFaltante(v, p, n.cantidad(), clock.instant());
         LocalDate dia = hoy();
         return filasDe(v.getId(), dia, ventasDelDia(dia)).stream().filter(f -> f.productoId().equals(p.getId())).findFirst()
                 .orElse(new FilaCarga(p.getId(), p.nombre(), 0, n.cantidad(), 0));
+    }
+
+    /** Anota el faltante como venta del trabajador (total 0, se le cobra al precio de venta) y baja el inventario. */
+    private long registrarFaltante(Vendedor v, Producto p, int cantidad, Instant cuando) {
+        Venta faltante = new Venta("faltante-" + java.util.UUID.randomUUID(), p, cantidad, MetodoPago.FALTANTE, cuando)
+                .faltante().porVendedor(v.getId());
+        long cargo = p.getPrecio() * cantidad;
+        faltante.cobrarAlVendedor(cargo);
+        ventas.saveAndFlush(faltante);
+        productos.sumarStock(p.getId(), -cantidad);
+        return cargo;
+    }
+
+    // ------------------------------------------------------------------ contar lo que devolvió
+
+    public record ItemConteo(@NotNull Long productoId, @Min(0) @Max(999) int devolvio) {
+    }
+
+    /** `dia` null = hoy. Se puede contar la carga de hoy o la de ayer (si te la entregó al otro día). */
+    public record Conteo(LocalDate dia, @NotNull @Size(max = 100) List<@Valid ItemConteo> items) {
+    }
+
+    public record ConteoDto(Long id, LocalDate dia, Instant contadoEn, int esperaba, int devolvio, int faltaron, int sobraron,
+                            long cobrado, String detalle) {
+    }
+
+    /** Lo que hay que contar de un día: la carga con lo que la app dice que le queda, y el último conteo si ya hubo. */
+    public record PorContar(LocalDate dia, List<FilaCarga> filas, ConteoDto ultimo) {
+    }
+
+    /** Un sabor contado: lo que se esperaba, lo que devolvió y lo que se le descontó por lo que faltó. */
+    public record FilaConteo(Long productoId, String nombre, int esperaba, int devolvio, int faltan, int sobran, long cobrado) {
+    }
+
+    public record ResultadoConteo(ConteoDto conteo, List<FilaConteo> filas) {
+    }
+
+    private static ConteoDto conteoDto(ConteoCarga c) {
+        return new ConteoDto(c.getId(), c.getDia(), c.getContadoEn(), c.getEsperaba(), c.getDevolvio(), c.getFaltaron(),
+                c.getSobraron(), c.getCobrado(), c.getDetalle());
+    }
+
+    /** Solo la carga de hoy o la de ayer: más atrás ya se mezcla con otros días. */
+    private LocalDate diaDeConteo(LocalDate pedido) {
+        LocalDate hoy = hoy();
+        LocalDate dia = pedido == null ? hoy : pedido;
+        if (dia.isAfter(hoy) || dia.isBefore(hoy.minusDays(1))) throw new IllegalArgumentException("Solo se puede contar la carga de hoy o la de ayer");
+        return dia;
+    }
+
+    @Transactional(readOnly = true)
+    public PorContar porContar(Long vendedorId, LocalDate pedido) {
+        Vendedor v = vendedor(vendedorId);
+        LocalDate dia = diaDeConteo(pedido);
+        return new PorContar(dia, filasDe(v.getId(), dia, ventasDelDia(dia)),
+                conteos.findFirstByVendedorIdAndDiaOrderByContadoEnDescIdDesc(v.getId(), dia).map(EquipoService::conteoDto).orElse(null));
+    }
+
+    /**
+     * El dueño contó lo que le devolvió el trabajador. Por cada sabor, lo que falte frente a lo que la app dice que le
+     * queda (llevó − lo que anotó) se le descuenta como faltante al precio de venta. Contar otra vez no cobra dos veces:
+     * el faltante ya anotado baja lo que se espera. Lo que sobra solo se avisa (puede que anotó una venta que no hizo).
+     */
+    @Transactional
+    public ResultadoConteo contar(Long vendedorId, Conteo c) {
+        Vendedor v = vendedor(vendedorId);
+        LocalDate dia = diaDeConteo(c.dia());
+        List<FilaCarga> filas = filasDe(v.getId(), dia, ventasDelDia(dia));
+        if (filas.isEmpty()) throw new IllegalArgumentException("Ese día no le diste carga: no hay nada que contar");
+        Map<Long, Integer> devolvio = new HashMap<>();
+        for (ItemConteo i : c.items()) devolvio.merge(i.productoId(), i.devolvio(), Integer::sum);
+        // Un faltante de ayer va al final de ese día, para que cuente contra esa carga y no contra la de hoy; si ya se le
+        // pagó después de eso, va ahora, para que no se pierda en las cuentas ya cerradas
+        Instant ahora = clock.instant();
+        Instant cuando = ahora;
+        if (dia.isBefore(hoy())) {
+            Instant finDia = dia.plusDays(1).atStartOfDay(zona).toInstant().minusSeconds(1);
+            Instant corte = corteDe(v.getId());
+            if (corte != null && !corte.isBefore(finDia)) {
+                // Un faltante de hoy no baja lo que se espera de ayer: contar ayer otra vez lo cobraría dos veces
+                if (conteos.findFirstByVendedorIdAndDiaOrderByContadoEnDescIdDesc(v.getId(), dia).isPresent()) {
+                    throw new IllegalArgumentException("Ya contaste lo que devolvió ayer y después le pagaste: si falta algo más, anótalo en Faltantes");
+                }
+                cuando = ahora;
+            } else {
+                cuando = finDia;
+            }
+        }
+        List<FilaConteo> resultado = new ArrayList<>();
+        int esperaba = 0, devueltos = 0, faltaron = 0, sobraron = 0;
+        long cobrado = 0;
+        List<String> detalle = new ArrayList<>();
+        for (FilaCarga f : filas) {
+            Integer dev = devolvio.get(f.productoId());
+            if (dev == null) continue; // ese sabor no lo contaste
+            int faltan = Math.max(0, f.queda() - dev);
+            int sobran = Math.max(0, dev - f.queda());
+            long cargo = 0;
+            if (faltan > 0) {
+                Producto p = productos.findById(f.productoId())
+                        .orElseThrow(() -> new NoEncontradoException("Producto no encontrado: " + f.productoId()));
+                cargo = registrarFaltante(v, p, faltan, cuando);
+            }
+            resultado.add(new FilaConteo(f.productoId(), f.nombre(), f.queda(), dev, faltan, sobran, cargo));
+            esperaba += f.queda();
+            devueltos += dev;
+            faltaron += faltan;
+            sobraron += sobran;
+            cobrado += cargo;
+            detalle.add(f.nombre() + ": quedaban " + f.queda() + ", devolvió " + dev
+                    + (faltan > 0 ? " (faltaron " + faltan + ")" : sobran > 0 ? " (sobraron " + sobran + ")" : ""));
+        }
+        if (resultado.isEmpty()) throw new IllegalArgumentException("Cuenta al menos un sabor");
+        String texto = String.join(" · ", detalle);
+        if (texto.length() > 1000) texto = texto.substring(0, 997) + "...";
+        ConteoCarga guardado = conteos.save(new ConteoCarga(v.getId(), dia, ahora, esperaba, devueltos, faltaron, sobraron, cobrado, texto));
+        if (faltaron > 0) {
+            eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "📦 A " + v.getNombre() + " le faltaron " + faltaron,
+                    "Contaste lo que devolvió " + v.getNombre() + ": " + texto + ".\nSe le descuentan " + Pesos.formato(cobrado)
+                            + " de su pago (al precio de venta). Si fue un error, borra el faltante en Hoy → Ventas de hoy."));
+        }
+        return new ResultadoConteo(conteoDto(guardado), resultado);
     }
 
     // ------------------------------------------------------------------ historial (Reportes)
@@ -1122,7 +1246,8 @@ public class EquipoService {
                 entregas.findByVendedorIdAndEstado(v.getId(), EntregaVendedor.Estado.PENDIENTE).stream().mapToLong(EntregaVendedor::getMonto).sum(),
                 entregas.findTop10ByVendedorIdOrderByCreadaEnDescIdDesc(v.getId()).stream()
                         .map(EntregaVendedor::getEstado).findFirst().orElse(null),
-                metas.findByVendedorIdAndDia(v.getId(), hoy()).map(MetaVendedor::getMeta).orElse(null));
+                metas.findByVendedorIdAndDia(v.getId(), hoy()).map(MetaVendedor::getMeta).orElse(null),
+                conteos.findFirstByVendedorIdAndDiaOrderByContadoEnDescIdDesc(v.getId(), hoy()).map(ConteoCarga::getContadoEn).orElse(null));
     }
 
     // ------------------------------------------------------------------ premios del día y términos

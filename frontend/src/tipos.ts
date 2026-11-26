@@ -225,6 +225,43 @@ export interface Trabajador {
   ultimaEntrega?: EstadoEntregaEquipo | null
   /** Cuántos se propuso vender hoy (null = no ha escogido). */
   metaHoy?: number | null
+  /** Cuándo contaste lo que te devolvió de la carga de hoy (null = no lo has contado). */
+  contadoHoy?: string | null
+}
+
+/** Un conteo de lo que devolvió un trabajador: lo que se esperaba, lo que devolvió y lo que se le descontó. */
+export interface ConteoCarga {
+  id: number
+  dia: string
+  contadoEn: string
+  esperaba: number
+  devolvio: number
+  faltaron: number
+  sobraron: number
+  cobrado: number
+  detalle: string
+}
+
+/** Lo que hay que contar de un día: la carga con lo que la app dice que le queda y el último conteo. */
+export interface PorContar {
+  dia: string
+  filas: FilaCargaEquipo[]
+  ultimo: ConteoCarga | null
+}
+
+export interface FilaConteo {
+  productoId: number
+  nombre: string
+  esperaba: number
+  devolvio: number
+  faltan: number
+  sobran: number
+  cobrado: number
+}
+
+export interface ResultadoConteo {
+  conteo: ConteoCarga
+  filas: FilaConteo[]
 }
 
 export type EstadoEntregaEquipo = 'PENDIENTE' | 'RECIBIDA' | 'NO_RECIBIDA'

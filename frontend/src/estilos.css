@@ -1157,3 +1157,14 @@ nav button.on svg { animation: salto .35s var(--ease-resorte) }
 .calle-alerta-fila a { color: var(--primario-txt); font-weight: 700 }
 .calle-vacio { display: flex; flex-direction: column; gap: 10px }
 .calle-margen { display: block; margin: -2px 0 12px }
+
+/* Contar lo que devolvió el trabajador (Equipo) */
+.conteo-fila { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line) }
+.conteo-fila > div:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.conteo-fila small { font-size: 12px }
+.conteo-fila .qty { flex: 0 0 auto; gap: 10px; margin: 0 }
+.conteo-fila .qty button { width: 40px; height: 40px; font-size: 20px }
+.conteo-fila .qty span { font-size: 24px; min-width: 36px }
+.conteo-mal { color: var(--primario-txt); font-weight: 700 }
+.conteo-ya { margin: 0 0 8px; padding: 8px 12px; background: var(--ok-bg); color: var(--ok-txt); border-radius: var(--r-md); font-size: 13px }
+.conteo .personaje { max-height: 110px }

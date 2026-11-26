@@ -82,6 +82,19 @@ public class EquipoController {
         return servicio.anotarFaltante(id, nuevo);
     }
 
+    /** Lo que hay que contar de la carga de hoy (o de ayer): lo que la app dice que le queda y el último conteo. */
+    @GetMapping("/{id}/conteo")
+    public EquipoService.PorContar porContar(@PathVariable Long id,
+                                             @org.springframework.web.bind.annotation.RequestParam(required = false) java.time.LocalDate dia) {
+        return servicio.porContar(id, dia);
+    }
+
+    /** El dueño contó lo que le devolvió: lo que falte se le descuenta como faltante. */
+    @PostMapping("/{id}/conteo")
+    public EquipoService.ResultadoConteo contar(@PathVariable Long id, @Valid @RequestBody EquipoService.Conteo conteo) {
+        return servicio.contar(id, conteo);
+    }
+
     /** Lo que dicen las ventas de las últimas semanas para armar premios que convengan (Ajustes → Equipo). */
     @GetMapping("/premios/datos")
     public EquipoService.DatosPremios datosPremios() {

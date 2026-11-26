@@ -279,6 +279,21 @@ class AislamientoTest extends PruebaIntegracion {
     }
 
     @Test
+    void losConteosDeLoQueDevolvioSonDeCadaNegocio() {
+        var juan = como(1, () -> equipo.crear(new co.granizados.pos.equipo.EquipoService.NuevoVendedor("Juan", "1111", 0)));
+        long smirnoff = idDe("Smirnoff");
+        como(1, () -> equipo.cargar(juan.id(), new co.granizados.pos.equipo.EquipoService.Carga(
+                java.util.List.of(new co.granizados.pos.equipo.EquipoService.ItemCarga(smirnoff, 3)))));
+        var conteo = new co.granizados.pos.equipo.EquipoService.Conteo(null,
+                java.util.List.of(new co.granizados.pos.equipo.EquipoService.ItemConteo(smirnoff, 2)));
+
+        assertThat(como(1, () -> equipo.contar(juan.id(), conteo)).conteo().faltaron()).isEqualTo(1);
+        assertThat(como(1, () -> equipo.porContar(juan.id(), null)).ultimo()).isNotNull();
+        assertThatThrownBy(() -> como(2, () -> equipo.porContar(juan.id(), null))).isInstanceOf(NoEncontradoException.class);
+        assertThatThrownBy(() -> como(2, () -> equipo.contar(juan.id(), conteo))).isInstanceOf(NoEncontradoException.class);
+    }
+
+    @Test
     void losPrestamosYLasFotosDeComprobantesSonDeCadaNegocio() {
         var juan = como(1, () -> equipo.crear(new co.granizados.pos.equipo.EquipoService.NuevoVendedor("Juan", "1111", 0)));
         var prestamo = como(1, () -> equipo.prestar(juan.id(),

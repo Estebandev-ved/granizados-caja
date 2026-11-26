@@ -3,6 +3,7 @@ import type {
   BaseVueltos, CategoriaGasto, CierreTurno, EntregaEquipo, ClienteConocido, CuentaEquipo, MetodoPagoEquipo, PagoEquipo, FrecuenciaPago, Terminos, FilaCargaEquipo, Liquidacion, Trabajador, DatosProducto, ListaFiados, PersonaFiado, Estado, EstadoPedido, LineaPedido, Metodo, MotivoMerma, Param, Pedido, PedidoCreado,
   LugarPlata, MovimientoPlata, Negocio, PedidoSugerido, Producto, RecomendacionCompra, Reporte, RespuestaVenta, SaldoPlata,
   TipoMovimiento, TipoAlerta, LugarSimple, ResumenCalle, PrestamoEquipo, NotaTrabajador, HistorialTrabajador, PremiosDia, DatosPremios, BonosEquipo, Proyeccion, CierreMes, VentaBorrada, ComprobanteItem,
+  PorContar, ResultadoConteo,
 } from './tipos'
 
 // Vacío = mismo dominio (en Railway el backend sirve el frontend). En desarrollo Vite hace proxy a :8080.
@@ -232,6 +233,9 @@ export const api = {
   quitarPrestamo: (prestamoId: number) => pedir<void>('DELETE', '/api/equipo/prestamos/' + prestamoId),
   anotarFaltante: (id: number, productoId: number, cantidad: number) =>
     pedir<FilaCargaEquipo>('POST', '/api/equipo/' + id + '/faltantes', { productoId, cantidad }),
+  porContar: (id: number, dia: string) => pedir<PorContar>('GET', '/api/equipo/' + id + '/conteo?dia=' + dia),
+  contarDevolucion: (id: number, dia: string, items: { productoId: number; devolvio: number }[]) =>
+    pedir<ResultadoConteo>('POST', '/api/equipo/' + id + '/conteo', { dia, items }),
   historialEquipo: (desde: string, hasta: string) =>
     pedir<HistorialTrabajador[]>('GET', '/api/equipo/historial?desde=' + desde + '&hasta=' + hasta),
   misPrestamos: () => pedir<PrestamoEquipo[]>('GET', '/api/mi-turno/prestamos'),
