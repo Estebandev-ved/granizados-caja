@@ -35,7 +35,7 @@ const METODOS_PAGO: { valor: MetodoPagoEquipo; texto: string }[] = [
  * El dueño dice "ya le pagué": cuánto, cómo (efectivo, Nequi o una parte de cada uno) y, si le da menos de lo que
  * le toca, si el resto se lo queda debiendo. Esto reinicia las cuentas del trabajador.
  */
-export function PagarTrabajador({ nombre, comision, bonos, unidades, saldoAnterior = 0, consumos = 0, faltantes = 0, prestamos = 0, onPagar }: {
+export function PagarTrabajador({ nombre, comision, bonos, unidades, saldoAnterior = 0, consumos = 0, faltantes = 0, prestamos = 0, pasajes = 0, onPagar }: {
   nombre: string
   comision: number
   bonos: number
@@ -47,11 +47,13 @@ export function PagarTrabajador({ nombre, comision, bonos, unidades, saldoAnteri
   /** Lo que se le descuenta por granizados que faltaron en su carga y por lo que le prestaste. */
   faltantes?: number
   prestamos?: number
+  /** Pasajes de la calle que se le devuelven (salida de prueba o vendió menos del mínimo). */
+  pasajes?: number
   onPagar: (pago: DatosPagoEquipo) => Promise<void>
 }) {
   const [metodo, setMetodo] = useState<MetodoPagoEquipo>('EFECTIVO')
   const [enviando, setEnviando] = useState(false)
-  const debido = comision + bonos + saldoAnterior - consumos - faltantes - prestamos
+  const debido = comision + bonos + pasajes + saldoAnterior - consumos - faltantes - prestamos
   const [lugar, setLugar] = useState<LugarPlata>('CAJA')
   const [texto, setTexto] = useState(String(debido))
   const [textoEfectivo, setTextoEfectivo] = useState('')
@@ -77,6 +79,7 @@ export function PagarTrabajador({ nombre, comision, bonos, unidades, saldoAnteri
   const partes = [
     comision > 0 || bonos > 0 ? pesos(comision) + ' de comisión' : '',
     bonos > 0 ? pesos(bonos) + ' de premios' : '',
+    pasajes > 0 ? pesos(pasajes) + ' de pasajes' : '',
     saldoAnterior > 0 ? pesos(saldoAnterior) + ' que le quedaste debiendo' : '',
   ].filter(Boolean)
   const desglose = partes.join(' + ') + (consumos > 0 ? ' − ' + pesos(consumos) + ' de lo que se tomó' : '')
@@ -211,6 +214,7 @@ export function ConfirmarPago({ pago, onResponder }: {
       {(pago.consumos ?? 0) > 0 && <p className="mut">Ya van descontados {pesos(pago.consumos ?? 0)} de los granizados que te tomaste.</p>}
       {(pago.faltantes ?? 0) > 0 && <p className="mut">Ya van descontados {pesos(pago.faltantes ?? 0)} de granizados que faltaron en tu carga.</p>}
       {(pago.prestamos ?? 0) > 0 && <p className="mut">Ya van descontados {pesos(pago.prestamos ?? 0)} que te prestaron.</p>}
+      {(pago.pasajes ?? 0) > 0 && <p className="mut">Incluye {pesos(pago.pasajes ?? 0)} de pasajes de la calle que se te devuelven.</p>}
       {pendiente > 0 && <p className="mut">Es un abono: te quedan debiendo {pesos(pendiente)}, que te pagan después.</p>}
       {efectivo && pago.texto && (
         <div className="paz-y-salvo">

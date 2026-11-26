@@ -70,7 +70,9 @@ public class CalleService {
     public record SalidaDto(String clientUid, Long lugarId, String lugar, String quien, Instant inicio, Instant fin,
                             boolean abierta, boolean prueba, int unidades, long total, double horas, Integer ritmo4h,
                             String veredicto, long pasaje, long pasajeADevolver, long comision, long meDeja,
-                            String incidentes, String nota) {
+                            String incidentes, String nota,
+                            /** El pasaje a devolver va en el pago del trabajador (false = salida de antes, se devolvió a mano). */
+                            boolean pasajeEnPago) {
     }
 
     /** Un lugar con lo que dejaron todas sus salidas. `ritmo4h` = granizados en 4 horas (null = sin datos). */
@@ -233,7 +235,8 @@ public class CalleService {
             salidasDto.add(new SalidaDto(s.getClientUid(), s.getLugarId(), l == null ? "" : l.getNombre(),
                     s.getVendedorId() == null ? "Tú" : nombres.getOrDefault(s.getVendedorId(), "Trabajador"),
                     s.getInicio(), s.getFin(), s.estaAbierta(), s.isPrueba(), st.unidades, st.total, st.horas, st.ritmo4h,
-                    st.veredicto, s.getPasaje(), st.pasajeADevolver, st.comision, st.meDeja, s.getIncidentes(), s.getNota()));
+                    st.veredicto, s.getPasaje(), st.pasajeADevolver, st.comision, st.meDeja, s.getIncidentes(), s.getNota(),
+                    s.isPasajeEnPago()));
             statsDeLugar.computeIfAbsent(s.getLugarId(), k -> new ArrayList<>()).add(st);
             ventasDeLugar.computeIfAbsent(s.getLugarId(), k -> new ArrayList<>()).addAll(vs);
         }
@@ -308,8 +311,7 @@ public class CalleService {
         st.veredicto = veredicto(st.ritmo4h, cfg);
         st.pasaje = s.getPasaje();
         // Al trabajador se le devuelve el pasaje en una salida de prueba o si vendió menos del mínimo; el del dueño es suyo
-        boolean devolver = s.getVendedorId() != null && s.getFin() != null && (s.isPrueba() || st.unidades < cfg.minimoPasaje());
-        st.pasajeADevolver = devolver ? s.getPasaje() : 0;
+        st.pasajeADevolver = s.pasajeADevolver(st.unidades, cfg.minimoPasaje());
         long costoPasaje = s.getVendedorId() == null ? s.getPasaje() : st.pasajeADevolver;
         st.meDeja = st.total - st.costo - st.comision - costoPasaje;
         return st;

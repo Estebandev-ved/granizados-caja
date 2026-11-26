@@ -66,6 +66,7 @@ export function HistorialEquipo({ desde, hasta }: { desde: string; hasta: string
                 {(t.faltantes ?? 0) > 0 && (
                   <div className="row"><span>Faltaron {t.unidadesFaltantes}</span><b>−{pesos(t.faltantes ?? 0)}</b></div>
                 )}
+                {(t.pasajes ?? 0) > 0 && <div className="row"><span>Pasajes devueltos</span><b>{pesos(t.pasajes ?? 0)}</b></div>}
                 {pagado > 0 && <div className="row"><span>Le pagaste en el periodo</span><b>{pesos(pagado)}</b></div>}
                 {prestado > 0 && <div className="row"><span>Le prestaste en el periodo</span><b>{pesos(prestado)}</b></div>}
 

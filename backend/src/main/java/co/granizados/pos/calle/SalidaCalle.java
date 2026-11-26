@@ -42,6 +42,9 @@ public class SalidaCalle {
     /** El dueño la mandó a probar el lugar: el pasaje se le devuelve completo. */
     private boolean prueba;
 
+    /** El pasaje a devolver entra a la liquidación del trabajador (las salidas de antes de V44 se devolvieron a mano). */
+    private boolean pasajeEnPago = true;
+
     private String incidentes;
 
     private String nota;
@@ -85,6 +88,16 @@ public class SalidaCalle {
     public Double getLngIni() { return lngIni; }
     public long getPasaje() { return pasaje; }
     public boolean isPrueba() { return prueba; }
+    public boolean isPasajeEnPago() { return pasajeEnPago; }
+
+    /**
+     * Lo que se le devuelve de pasaje: solo a un trabajador, con la salida ya cerrada, si fue de prueba o si vendió
+     * menos del mínimo. El del dueño es suyo.
+     */
+    public long pasajeADevolver(int unidades, int minimoPasaje) {
+        boolean devolver = vendedorId != null && fin != null && (prueba || unidades < minimoPasaje);
+        return devolver ? pasaje : 0;
+    }
     public String getIncidentes() { return incidentes; }
     public String getNota() { return nota; }
 }

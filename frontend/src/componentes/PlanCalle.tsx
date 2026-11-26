@@ -128,8 +128,8 @@ export function PlanCalle({ params, productos, onGuardar }: {
       <div className="list">
         <h3>Pasajes</h3>
         <p className="ayuda">
-          Se le devuelve el pasaje si vende menos del mínimo, o siempre en una salida de prueba que tú marcas. Si vende más, ya
-          le queda en la comisión.
+          Se le devuelve el pasaje si vende menos del mínimo, o siempre en una salida de prueba que tú marcas, y va solo en su
+          próximo pago (Equipo → «Ya le pagué») y en su cierre del día. Si vende más, ya le queda en la comisión.
         </p>
         {campo('CALLE_PASAJE', 'Lo que cuesta ir y volver', true, 'Ida y vuelta. Es solo lo que se sugiere al cerrar la salida.')}
         {campo('CALLE_MINIMO_PASAJE', 'Mínimo para que no se le devuelva', false, 'Granizados en la salida.')}

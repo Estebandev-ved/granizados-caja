@@ -14,4 +14,7 @@ public interface SalidaCalleRepository extends JpaRepository<SalidaCalle, Long> 
     Optional<SalidaCalle> findFirstByVendedorIdAndFinIsNullOrderByInicioDesc(Long vendedorId);
 
     Optional<SalidaCalle> findFirstByVendedorIdIsNullAndFinIsNullOrderByInicioDesc();
+
+    /** Salidas cerradas en un rango (para los pasajes que entran a la liquidación). */
+    List<SalidaCalle> findByFinGreaterThanEqualAndFinLessThan(Instant desde, Instant hasta);
 }

@@ -280,6 +280,8 @@ export interface PagoEquipo {
   /** Lo que se le descontó por préstamos y por faltantes de su carga. */
   prestamos?: number
   faltantes?: number
+  /** Pasajes de la calle que se le devolvieron en este pago (ya sumados en `monto`). */
+  pasajes?: number
   /** De dónde salió el efectivo (null = pago de antes, que no movía Mi plata). */
   lugarEfectivo?: LugarPlata | null
 }
@@ -331,6 +333,8 @@ export interface CierreTurno {
   consumos?: number
   /** Lo que se le descuenta por granizados que faltaron (ya va en `entregar`). */
   faltantes?: number
+  /** Pasajes de hoy que se le devuelven (ya restados de `entregar`). */
+  pasajes?: number
 }
 
 /** Cuentas de un trabajador. `saldo` = efectivo − comisión: positivo, te debe entregar; negativo, le debes. */
@@ -355,6 +359,8 @@ export interface Liquidacion {
   faltantes?: number
   /** Días del rango en que vendió algo. */
   dias?: number
+  /** Pasajes de la calle que se le devuelven (salida de prueba o vendió menos del mínimo); se suman a lo que se le paga. */
+  pasajes?: number
 }
 
 /** Un día de trabajo en el historial de Reportes. */
@@ -370,6 +376,7 @@ export interface DiaTrabajado {
   consumos: number
   unidadesFaltantes: number
   faltantes: number
+  pasajes?: number
 }
 
 /** `GET /api/equipo/historial`: todo lo de un trabajador en el rango. */
@@ -490,6 +497,8 @@ export interface SalidaCalleDto {
   meDeja: number
   incidentes: string | null
   nota: string | null
+  /** El pasaje a devolver va en el pago del trabajador (false = salida de antes, se devolvió a mano). */
+  pasajeEnPago?: boolean
 }
 
 export interface AlertaCalle {

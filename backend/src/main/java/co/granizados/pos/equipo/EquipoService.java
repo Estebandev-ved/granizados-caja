@@ -2,6 +2,8 @@ package co.granizados.pos.equipo;
 
 import co.granizados.pos.ajustes.AjustesService;
 import co.granizados.pos.calle.CalleConfig;
+import co.granizados.pos.calle.SalidaCalle;
+import co.granizados.pos.calle.SalidaCalleRepository;
 import co.granizados.pos.comun.AppProperties;
 import co.granizados.pos.comun.NoEncontradoException;
 import co.granizados.pos.comun.Pesos;
@@ -163,11 +165,16 @@ public class EquipoService {
                               /** Granizados de su carga que faltaron al cuadrar y lo que se le descuenta (al precio de venta). */
                               int unidadesFaltantes, long faltantes,
                               /** Días del rango en que vendió algo. */
-                              int dias) {
+                              int dias,
+                              /** Pasajes de la calle que se le devuelven (salidas de prueba o en las que vendió menos del mínimo). */
+                              long pasajes) {
 
-        /** Lo que hay que pagarle por este rango: lo que ganó menos lo que se tomó y lo que faltó. Negativo = él debe. */
+        /**
+         * Lo que hay que pagarle por este rango: lo que ganó menos lo que se tomó y lo que faltó, más los pasajes que se
+         * le devuelven. Negativo = él debe.
+         */
         public long porPagar() {
-            return comision + bonos - consumos - faltantes;
+            return comision + bonos - consumos - faltantes + pasajes;
         }
     }
 
@@ -181,7 +188,9 @@ public class EquipoService {
                               /** Los que se tomó hoy y lo que se le descuenta por ellos (ya está sumado en `entregar`). */
                               int consumidos, long consumos,
                               /** Lo que se le descuenta por granizados que faltaron (también va sumado en `entregar`). */
-                              long faltantes) {
+                              long faltantes,
+                              /** Pasajes de hoy que se le devuelven (ya restados de `entregar`). */
+                              long pasajes) {
     }
 
     /** Cuando a un trabajador le quedan este número de granizados (o menos) de un sabor, el dueño recibe un aviso. */
@@ -204,6 +213,7 @@ public class EquipoService {
     private final EntregaVendedorRepository entregas;
     private final PrestamoVendedorRepository prestamos;
     private final MetaVendedorRepository metas;
+    private final SalidaCalleRepository salidas;
     private final ZoneId zona;
     private final BCryptPasswordEncoder hash = new BCryptPasswordEncoder();
 
@@ -211,8 +221,10 @@ public class EquipoService {
                          VentaRepository ventas, AjustesService ajustes, AppProperties props, Clock clock,
                          ApplicationEventPublisher eventos, AceptacionTerminosRepository aceptaciones,
                          PagoVendedorRepository pagos, BaseVendedorRepository bases,
-                         EntregaVendedorRepository entregas, PrestamoVendedorRepository prestamos, MetaVendedorRepository metas) {
+                         EntregaVendedorRepository entregas, PrestamoVendedorRepository prestamos, MetaVendedorRepository metas,
+                         SalidaCalleRepository salidas) {
         this.metas = metas;
+        this.salidas = salidas;
         this.entregas = entregas;
         this.prestamos = prestamos;
         this.pagos = pagos;
@@ -394,7 +406,8 @@ public class EquipoService {
                 + Math.max(Escalones.premioDe(escaleraDe(v.getId(), v.getComisionPct(), dia, diaPromo, ajustes.mapa(), null), unidades),
                         metas.findByVendedorIdAndDia(vendedorId, dia).map(m -> m.ganado(vendidasHoy)).orElse(0L));
         long base = baseDeHoy(vendedorId);
-        long entregar = efectivo + base - comision - bonos + consumos + faltantes;
+        long pasajes = sumaPasajes(vendedorId, pasajesEntre(dia.atStartOfDay(zona).toInstant(), clock.instant().plusSeconds(1)));
+        long entregar = efectivo + base - comision - bonos + consumos + faltantes - pasajes;
         List<FilaCarga> devuelve = filasDe(vendedorId, dia, delDia).stream().filter(f -> f.queda() > 0).toList();
 
         StringBuilder t = new StringBuilder(v.getNombre() + " cerró su día: " + unidades + " vendidos, " + Pesos.formato(total)
@@ -405,12 +418,13 @@ public class EquipoService {
         if (consumidos > 0) t.append("\n• Se tomó ").append(consumidos)
                 .append(consumos > 0 ? ": se le descuentan " + Pesos.formato(consumos) : " (gratis del día)");
         if (faltantes > 0) t.append("\n• Faltantes de su carga: ").append(Pesos.formato(faltantes));
+        if (pasajes > 0) t.append("\n• Pasajes que se le devuelven: ").append(Pesos.formato(pasajes));
         t.append(entregar >= 0 ? "\nTe entrega " + Pesos.formato(entregar) : "\nTú le debes " + Pesos.formato(-entregar));
         if (devuelve.isEmpty()) t.append("\nNo devuelve nada.");
         else t.append("\nDevuelve: ").append(String.join(", ", devuelve.stream().map(f -> f.queda() + " " + f.nombre()).toList()));
         eventos.publishEvent(new AvisoEquipo(TenantContext.actual(), "🧾 " + v.getNombre() + " cerró su día", t.toString()));
         return new CierreTurno(unidades, total, efectivo, nequi, comision, bonos, base, entregar, devuelve, consumidos, consumos,
-                faltantes);
+                faltantes, pasajes);
     }
 
     /**
@@ -483,18 +497,54 @@ public class EquipoService {
     @Transactional(readOnly = true)
     public List<Liquidacion> liquidar(LocalDate desde, LocalDate hasta) {
         if (hasta.isBefore(desde)) throw new IllegalArgumentException("El rango está al revés");
-        List<Venta> delRango = ventas.entre(desde.atStartOfDay(zona).toInstant(), hasta.plusDays(1).atStartOfDay(zona).toInstant());
+        Instant inicio = desde.atStartOfDay(zona).toInstant(), fin = hasta.plusDays(1).atStartOfDay(zona).toInstant();
+        List<Venta> delRango = ventas.entre(inicio, fin);
+        List<Pasaje> pasajes = pasajesEntre(inicio, fin);
         List<Liquidacion> filas = new ArrayList<>();
         for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
-            Liquidacion l = liquidacionDe(v, delRango);
+            Liquidacion l = liquidacionDe(v, delRango, pasajes);
             if (!v.isActivo() && l.unidades() == 0) continue;
             filas.add(l);
         }
         return filas;
     }
 
-    /** Las cuentas de un trabajador con las ventas dadas (ya filtradas por el rango; acá se escogen las suyas). */
-    private Liquidacion liquidacionDe(Vendedor v, List<Venta> delRango) {
+    /** Un pasaje de la calle que se le devuelve a un trabajador, con la hora en que cerró la salida. */
+    private record Pasaje(Long vendedorId, Instant fin, long monto) {
+    }
+
+    /**
+     * Los pasajes que se devuelven por las salidas cerradas en el rango: las de prueba y las que vendieron menos del
+     * mínimo (`CALLE_MINIMO_PASAJE`), con la misma cuenta del resumen de la calle. Las de antes de V44 se devolvieron a mano.
+     */
+    private List<Pasaje> pasajesEntre(Instant desde, Instant hasta) {
+        List<SalidaCalle> cerradas = salidas.findByFinGreaterThanEqualAndFinLessThan(desde, hasta).stream()
+                .filter(s -> s.getVendedorId() != null && s.isPasajeEnPago() && s.getPasaje() > 0).toList();
+        if (cerradas.isEmpty()) return List.of();
+        int minimo = CalleConfig.leer(ajustes.mapa()).minimoPasaje();
+        Instant primera = cerradas.stream().map(SalidaCalle::getInicio).min(Instant::compareTo).orElseThrow();
+        Instant ultima = cerradas.stream().map(SalidaCalle::getFin).max(Instant::compareTo).orElseThrow();
+        Map<String, Integer> unidades = new HashMap<>();
+        for (Venta x : ventas.entre(primera.minus(java.time.Duration.ofHours(1)), ultima.plus(java.time.Duration.ofHours(1)))) {
+            if (x.getSalidaUid() != null && !x.esDelTrabajador()) unidades.merge(x.getSalidaUid(), x.getCantidad(), Integer::sum);
+        }
+        List<Pasaje> lista = new ArrayList<>();
+        for (SalidaCalle s : cerradas) {
+            long monto = s.pasajeADevolver(unidades.getOrDefault(s.getClientUid(), 0), minimo);
+            if (monto > 0) lista.add(new Pasaje(s.getVendedorId(), s.getFin(), monto));
+        }
+        return lista;
+    }
+
+    private static long sumaPasajes(Long vendedorId, List<Pasaje> pasajes) {
+        return pasajes.stream().filter(p -> vendedorId.equals(p.vendedorId())).mapToLong(Pasaje::monto).sum();
+    }
+
+    /**
+     * Las cuentas de un trabajador con las ventas y los pasajes dados (ya filtrados por el rango; acá se escogen los
+     * suyos).
+     */
+    private Liquidacion liquidacionDe(Vendedor v, List<Venta> delRango, List<Pasaje> pasajesRango) {
         Map<String, String> cfg = ajustes.mapa();
         int meta = AjustesService.entero(cfg, "META_EQUIPO", 0);
         long premio = AjustesService.entero(cfg, "PREMIO_EQUIPO", 0);
@@ -553,9 +603,10 @@ public class EquipoService {
             }
         }
         long bonos = diasMeta * premio + premiosEscalon;
+        long pasajes = sumaPasajes(v.getId(), pasajesRango);
         return new Liquidacion(v.getId(), v.getNombre(), v.getComisionPct(), unidades, total, efectivo, nequi,
-                comision, diasMeta, bonos, efectivo - comision - bonos + consumos + faltantes, consumidos, consumos,
-                unidadesFaltantes, faltantes, diasConVenta.size());
+                comision, diasMeta, bonos, efectivo - comision - bonos + consumos + faltantes - pasajes, consumidos, consumos,
+                unidadesFaltantes, faltantes, diasConVenta.size(), pasajes);
     }
 
     // ------------------------------------------------------------------ pagos al trabajador
@@ -575,8 +626,13 @@ public class EquipoService {
     }
 
     private Liquidacion pendienteDe(Vendedor v, Instant ahora) {
-        Instant corte = corteDe(v.getId());
-        return liquidacionDe(v, ventas.entre(corte != null ? corte.plusNanos(1) : SIEMPRE, ahora.plusSeconds(1)));
+        return pendienteDe(v, corteDe(v.getId()), ahora);
+    }
+
+    /** Lo de un trabajador desde el corte de su último pago: ventas y pasajes de las salidas que cerró después. */
+    private Liquidacion pendienteDe(Vendedor v, Instant corte, Instant ahora) {
+        Instant desde = corte != null ? corte.plusNanos(1) : SIEMPRE, hasta = ahora.plusSeconds(1);
+        return liquidacionDe(v, ventas.entre(desde, hasta), pasajesEntre(desde, hasta));
     }
 
     /** Lo que quedó debiéndole el dueño en su último pago en pie (un abono: le dio menos y el resto lo paga después). */
@@ -612,6 +668,8 @@ public class EquipoService {
                           long consumos,
                           /** Lo que se le descontó por préstamos y por faltantes de su carga. */
                           long prestamos, long faltantes,
+                          /** Lo que se le devolvió de pasajes de la calle en este pago. */
+                          long pasajes,
                           /** De dónde salió el efectivo (null en los pagos de antes, que no movían Mi plata). */
                           LugarPlata lugarEfectivo) {
     }
@@ -654,7 +712,7 @@ public class EquipoService {
         return new PagoDto(p.getId(), p.getVendedorId(), nombre, p.getMetodo(), p.getEstado(), p.getMonto(), p.getComision(),
                 p.getBonos(), p.getUnidades(), p.getTotalVendido(), p.getEfectivo(), p.getDesde(), p.getHasta(),
                 p.getCreadoEn(), p.getRespondidoEn(), p.getTexto(), p.getFirma(), p.getMontoEfectivo(), p.getSaldo(), p.getConsumos(),
-                p.getPrestamos(), p.getFaltantes(), p.isMuevePlata() ? p.getLugarEfectivo() : null);
+                p.getPrestamos(), p.getFaltantes(), p.getPasajes(), p.isMuevePlata() ? p.getLugarEfectivo() : null);
     }
 
     private static PrestamoDto prestamoDto(PrestamoVendedor p) {
@@ -695,7 +753,7 @@ public class EquipoService {
         Instant ahora = clock.instant();
         Instant corte = corteDe(vendedorId);
         long saldoAnterior = saldoAnteriorDe(vendedorId);
-        Liquidacion l = liquidacionDe(v, ventas.entre(corte != null ? corte.plusNanos(1) : SIEMPRE, ahora.plusSeconds(1)));
+        Liquidacion l = pendienteDe(v, corte, ahora);
         List<PrestamoVendedor> prestados = prestamos.findByVendedorIdAndPagoIdIsNullOrderByCreadoEnAscIdAsc(vendedorId);
         long prestado = prestados.stream().mapToLong(PrestamoVendedor::getMonto).sum();
         long debido = l.porPagar() + saldoAnterior - prestado;
@@ -720,7 +778,7 @@ public class EquipoService {
         String texto = enEfectivo > 0 ? pazYSalvo(v, l, monto, enEfectivo, saldoAnterior, saldo, prestado, corte, ahora) : null;
         PagoVendedor p = pagos.save(new PagoVendedor(vendedorId, metodo, monto, enEfectivo, saldo, l.comision(), l.bonos(),
                 l.unidades(), l.total(), l.efectivo(), corte, ahora, ahora, texto)
-                .conConsumos(l.consumos()).conDescuentos(prestado, l.faltantes()).saleDe(lugar));
+                .conConsumos(l.consumos()).conDescuentos(prestado, l.faltantes()).conPasajes(l.pasajes()).saleDe(lugar));
         // Lo prestado ya quedó descontado en este pago
         for (PrestamoVendedor x : prestados) x.descontadoEn(p.getId());
         prestamos.saveAll(prestados);
@@ -744,6 +802,7 @@ public class EquipoService {
                 + " por concepto de comisiones" + (l.bonos() > 0 ? " y premios" : "") + " de " + l.unidades()
                 + " granizados vendidos " + periodo
                 + (saldoAnterior > 0 ? ", más " + Pesos.formato(saldoAnterior) + " que venían pendientes de un pago anterior" : "")
+                + (l.pasajes() > 0 ? ", más " + Pesos.formato(l.pasajes()) + " de pasajes de las salidas a vender que se me devuelven" : "")
                 + (l.consumos() > 0 ? ", ya descontados " + Pesos.formato(l.consumos()) + " de los granizados que consumí" : "")
                 + (l.faltantes() > 0 ? ", " + Pesos.formato(l.faltantes()) + " de " + l.unidadesFaltantes()
                         + " granizados que faltaron en mi carga (al precio de venta)" : "")
@@ -851,7 +910,7 @@ public class EquipoService {
 
     /** Un día de trabajo: lo vendido, lo ganado y lo descontado. */
     public record DiaTrabajado(LocalDate dia, int unidades, long total, long efectivo, long nequi, long comision, long bonos,
-                               int consumidos, long consumos, int unidadesFaltantes, long faltantes) {
+                               int consumidos, long consumos, int unidadesFaltantes, long faltantes, long pasajes) {
     }
 
     /** Todo lo de un trabajador en un rango: totales, día por día, sus pagos y lo que se le prestó. */
@@ -867,6 +926,7 @@ public class EquipoService {
         List<Venta> delRango = ventas.entre(inicio, fin);
         List<PagoVendedor> pagosRango = pagos.findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(inicio, fin);
         List<PrestamoVendedor> prestamosRango = prestamos.findByCreadoEnGreaterThanEqualAndCreadoEnLessThanOrderByCreadoEnDescIdDesc(inicio, fin);
+        List<Pasaje> pasajesRango = pasajesEntre(inicio, fin);
         List<Historial> lista = new ArrayList<>();
         for (Vendedor v : vendedores.findAllByOrderByNombreAscIdAsc()) {
             List<Venta> suyas = delRango.stream().filter(x -> v.getId().equals(x.getVendedorId())).toList();
@@ -874,16 +934,20 @@ public class EquipoService {
                     .filter(p -> p.getEstado() != PagoVendedor.Estado.ANULADO).map(p -> pagoDto(p, v.getNombre())).toList();
             List<PrestamoDto> suyosPrestamos = prestamosRango.stream().filter(p -> p.getVendedorId().equals(v.getId()))
                     .map(EquipoService::prestamoDto).toList();
-            if (suyas.isEmpty() && suyosPagos.isEmpty() && suyosPrestamos.isEmpty()) continue;
+            List<Pasaje> suyosPasajes = pasajesRango.stream().filter(p -> v.getId().equals(p.vendedorId())).toList();
+            if (suyas.isEmpty() && suyosPagos.isEmpty() && suyosPrestamos.isEmpty() && suyosPasajes.isEmpty()) continue;
             Map<LocalDate, List<Venta>> porDia = new java.util.TreeMap<>(java.util.Comparator.reverseOrder());
             for (Venta x : suyas) porDia.computeIfAbsent(x.getCreadaEn().atZone(zona).toLocalDate(), d -> new ArrayList<>()).add(x);
+            for (Pasaje p : suyosPasajes) porDia.computeIfAbsent(p.fin().atZone(zona).toLocalDate(), d -> new ArrayList<>());
             List<DiaTrabajado> dias = new ArrayList<>();
             porDia.forEach((dia, ventasDia) -> {
-                Liquidacion l = liquidacionDe(v, ventasDia);
+                List<Pasaje> delDia = suyosPasajes.stream().filter(p -> p.fin().atZone(zona).toLocalDate().equals(dia)).toList();
+                Liquidacion l = liquidacionDe(v, ventasDia, delDia);
                 dias.add(new DiaTrabajado(dia, l.unidades(), l.total(), l.efectivo(), l.nequi(), l.comision(), l.bonos(),
-                        l.consumidos(), l.consumos(), l.unidadesFaltantes(), l.faltantes()));
+                        l.consumidos(), l.consumos(), l.unidadesFaltantes(), l.faltantes(), l.pasajes()));
             });
-            lista.add(new Historial(v.getId(), v.getNombre(), v.isActivo(), liquidacionDe(v, suyas), dias, suyosPagos, suyosPrestamos));
+            lista.add(new Historial(v.getId(), v.getNombre(), v.isActivo(), liquidacionDe(v, suyas, suyosPasajes), dias, suyosPagos,
+                    suyosPrestamos));
         }
         return lista;
     }
@@ -1241,7 +1305,7 @@ public class EquipoService {
         LocalDate primerDia = null;
         List<Integer> jornadas = new ArrayList<>();
         for (Map.Entry<LocalDate, List<Venta>> e : porDia.entrySet()) {
-            Liquidacion l = liquidacionDe(v, e.getValue());
+            Liquidacion l = liquidacionDe(v, e.getValue(), List.of()); // los pasajes que se le devuelven no son lo que gana
             if (l.unidades() == 0) continue; // un día con solo consumos o faltantes no es un día trabajado
             dias++;
             unidades += l.unidades();

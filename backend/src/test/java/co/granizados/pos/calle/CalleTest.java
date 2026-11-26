@@ -174,6 +174,58 @@ class CalleTest extends PruebaIntegracion {
     }
 
     @Test
+    void elPasajeQueSeLeDevuelveVaEnSuPagoYEnSuCierreDelDia() throws Exception {
+        prender();
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        // Le fue bien: el pasaje es suyo
+        salida(token, "bien", "La Kurva", "2026-09-25T13:00:00Z");
+        vender(token, "b1", 12, null, "bien", "2026-09-25T14:00:00Z");
+        mvc.perform(con(token, post("/api/calle/salidas/bien/terminar")).content("{\"fin\":\"2026-09-25T16:00:00Z\",\"pasaje\":7800}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.pasajeADevolver").value(0));
+        // Vendió menos del mínimo (12): se le devuelve
+        salida(token, "mal", "Parque del Periodista", "2026-09-25T17:00:00Z");
+        vender(token, "m1", 5, null, "mal", "2026-09-25T18:00:00Z");
+        mvc.perform(con(token, post("/api/calle/salidas/mal/terminar")).content("{\"fin\":\"2026-09-25T19:00:00Z\",\"pasaje\":6000}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.pasajeADevolver").value(6000));
+
+        var hoy = equipo.hoy();
+        var l = equipo.liquidar(hoy, hoy).getFirst();
+        assertThat(l.pasajes()).isEqualTo(6000);
+        // 17 granizados × $1.800 de comisión de la calle + el pasaje
+        assertThat(l.comision()).isEqualTo(17 * 1800);
+        assertThat(l.porPagar()).isEqualTo(l.comision() + l.bonos() + 6000);
+        assertThat(equipo.cuenta(juan.id()).pendiente().pasajes()).isEqualTo(6000);
+        // En el cierre del día se lo queda del efectivo que entrega
+        var cierre = equipo.cerrarTurno(juan.id());
+        assertThat(cierre.pasajes()).isEqualTo(6000);
+        assertThat(cierre.entregar()).isEqualTo(17 * 7000 - 17 * 1800 - cierre.bonos() - 6000);
+
+        var pago = equipo.pagar(juan.id(), co.granizados.pos.equipo.PagoVendedor.Metodo.EFECTIVO, null);
+        assertThat(pago.monto()).isEqualTo(l.porPagar());
+        assertThat(pago.pasajes()).isEqualTo(6000);
+        assertThat(pago.texto()).contains("$6.000 de pasajes");
+        // Ya pagado: no se vuelve a contar
+        assertThat(equipo.cuenta(juan.id()).pendiente().pasajes()).isZero();
+    }
+
+    @Test
+    void lasSalidasDeAntesNoSeVuelvenAPagarPorqueSeDevolvieronAMano() throws Exception {
+        prender();
+        var juan = equipo.crear(new NuevoVendedor("Juan", "1111", 10));
+        String token = entrar("1111");
+        salida(token, "vieja", "La Kurva", "2026-09-25T13:00:00Z");
+        mvc.perform(con(token, post("/api/calle/salidas/vieja/terminar")).content("{\"fin\":\"2026-09-25T15:00:00Z\",\"pasaje\":7800}"))
+                .andExpect(status().isOk());
+        jdbc.update("update salida_calle set pasaje_en_pago = false where client_uid = 'vieja'");
+
+        assertThat(equipo.cuenta(juan.id()).pendiente().pasajes()).isZero();
+        mvc.perform(dueno(get("/api/calle/resumen"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.salidas[0].pasajeADevolver").value(7800))
+                .andExpect(jsonPath("$.salidas[0].pasajeEnPago").value(false));
+    }
+
+    @Test
     void unaSalidaDeMenosDeUnaHoraNoDaVeredicto() throws Exception {
         equipo.crear(new NuevoVendedor("Juan", "1111", 10));
         String token = entrar("1111");

@@ -230,8 +230,9 @@ function PagarPanel({ t, guardar, volver }: {
   const saldoAnterior = cuenta.saldoAnterior ?? 0
   const consumos = p.consumos ?? 0
   const faltantes = p.faltantes ?? 0
+  const pasajes = p.pasajes ?? 0
   const prestamos = (cuenta.prestamos ?? []).reduce((a, x) => a + x.monto, 0)
-  const debido = p.comision + p.bonos - consumos - faltantes - prestamos + saldoAnterior
+  const debido = p.comision + p.bonos + pasajes - consumos - faltantes - prestamos + saldoAnterior
   if (debido <= 0) {
     return (
       <>
@@ -247,7 +248,7 @@ function PagarPanel({ t, guardar, volver }: {
   }
   return (
     <PagarTrabajador nombre={t.nombre} comision={p.comision} bonos={p.bonos} unidades={p.unidades} saldoAnterior={saldoAnterior}
-      consumos={consumos} faltantes={faltantes} prestamos={prestamos}
+      consumos={consumos} faltantes={faltantes} prestamos={prestamos} pasajes={pasajes}
       onPagar={async pago => {
         const falta = pago.quedaDebiendo ? debido - pago.monto : 0
         const mensaje = 'Pago de ' + t.nombre + ' guardado. ' + (falta > 0 ? 'Le quedas debiendo ' + pesos(falta) : 'Sus cuentas arrancan de cero')
@@ -279,9 +280,10 @@ function PanelTrabajador({ t, productos, proyeccion, onCarga, onAgregar, onPagar
   const saldoAnterior = cuenta && cuenta !== 'error' ? cuenta.saldoAnterior ?? 0 : 0
   const consumos = pendiente?.consumos ?? 0
   const faltantes = pendiente?.faltantes ?? 0
+  const pasajes = pendiente?.pasajes ?? 0
   const prestamos = cuenta && cuenta !== 'error' ? cuenta.prestamos ?? [] : []
   const prestado = prestamos.reduce((a, x) => a + x.monto, 0)
-  const porPagar = pendiente ? pendiente.comision + pendiente.bonos - consumos - faltantes - prestado + saldoAnterior : t.porPagar ?? 0
+  const porPagar = pendiente ? pendiente.comision + pendiente.bonos + pasajes - consumos - faltantes - prestado + saldoAnterior : t.porPagar ?? 0
   const llevo = t.carga.reduce((a, f) => a + f.llevo, 0)
   const vendi = t.carga.reduce((a, f) => a + f.vendi, 0)
 
@@ -354,6 +356,7 @@ function PanelTrabajador({ t, productos, proyeccion, onCarga, onAgregar, onPagar
             ? <><Unidades n={pendiente.unidades} />{(cuenta && cuenta !== 'error' && cuenta.desde ? ' desde su último pago' : ' en total')
               + (pendiente.bonos > 0 ? ' · incluye ' + pesos(pendiente.bonos) + ' de premios' : '')
               + (saldoAnterior > 0 ? ' · más ' + pesos(saldoAnterior) + ' que le quedaste debiendo' : '')
+              + (pasajes > 0 ? ' · más ' + pesos(pasajes) + ' de pasajes de la calle' : '')
               + ((pendiente.consumidos ?? 0) > 0
                 ? ' · se tomó ' + pendiente.consumidos + (consumos > 0 ? ': ya van descontados ' + pesos(consumos) : ' (gratis)')
                 : '')
@@ -381,6 +384,7 @@ function PanelTrabajador({ t, productos, proyeccion, onCarga, onAgregar, onPagar
                 {fechaHora(p.creadoEn)} · <Unidades n={p.unidades} />
                 {(p.consumos ?? 0) > 0 && <> · se le descontaron {pesos(p.consumos ?? 0)} de lo que se tomó</>}
                 {(p.faltantes ?? 0) > 0 && <> · {pesos(p.faltantes ?? 0)} de faltantes</>}
+                {(p.pasajes ?? 0) > 0 && <> · incluye {pesos(p.pasajes ?? 0)} de pasajes</>}
                 {(p.prestamos ?? 0) > 0 && <> · {pesos(p.prestamos ?? 0)} de préstamos</>}
                 {p.lugarEfectivo && p.metodo !== 'NEQUI' && <> · el efectivo salió de {NOMBRE_LUGAR[p.lugarEfectivo]}</>}
                 {(p.saldo ?? 0) > 0 && p.estado !== 'ANULADO' && <> · quedaron pendientes {pesos(p.saldo ?? 0)}</>}
@@ -479,11 +483,14 @@ function PanelTrabajador({ t, productos, proyeccion, onCarga, onAgregar, onPagar
             {(cuentas.faltantes ?? 0) > 0 && (
               <div className="row"><span>Faltaron {cuentas.unidadesFaltantes}</span><b>−{pesos(cuentas.faltantes ?? 0)}</b></div>
             )}
+            {(cuentas.pasajes ?? 0) > 0 && (
+              <div className="row"><span>Pasajes que se le devuelven</span><b>+{pesos(cuentas.pasajes ?? 0)}</b></div>
+            )}
             <div className="row">
               <span>{cuentas.saldo >= 0 ? 'Te debe entregar' : 'Le debes'}</span>
               <b>{pesos(Math.abs(cuentas.saldo))}</b>
             </div>
-            <p className="mut" style={{ margin: '6px 0 0' }}>El Nequi entra a tu cuenta; por eso lo que te entrega es el efectivo menos su comisión y su premio.</p>
+            <p className="mut" style={{ margin: '6px 0 0' }}>El Nequi entra a tu cuenta; por eso lo que te entrega es el efectivo menos su comisión, su premio y los pasajes que se le devuelven.</p>
           </>
         )}
       </div>

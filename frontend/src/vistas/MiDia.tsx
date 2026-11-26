@@ -292,6 +292,9 @@ export function MiDia({ estado, pago, onElegirPago, onDeshacer, onVerGuia, avisa
               Vendiste {cierre.unidades}: {pesos(cierre.comision)} de comisión
               {cierre.bonos > 0 && <> y {pesos(cierre.bonos)} de premio por la meta</>}.
             </p>
+            {(cierre.pasajes ?? 0) > 0 && (
+              <p>Se te devuelven {pesos(cierre.pasajes ?? 0)} de pasajes de la calle: ya van restados de lo que entregas.</p>
+            )}
             {(cierre.faltantes ?? 0) > 0 && (
               <p>Faltaron granizados en tu carga: se te descuentan {pesos(cierre.faltantes ?? 0)} al precio de venta, que ya van dentro de lo que entregas.</p>
             )}

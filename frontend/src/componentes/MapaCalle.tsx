@@ -173,7 +173,9 @@ function FilaSalida({ s }: { s: SalidaCalleDto }) {
       <span>{EMOJI_VEREDICTO[s.veredicto]} {fecha(s.inicio)} · {s.quien}{s.prueba ? ' · prueba' : ''}{s.abierta ? ' · en curso' : ''}</span>
       <small className="mut">
         {s.unidades} vendidos en {s.horas} h{s.ritmo4h !== null ? ` (${s.ritmo4h} en 4 h)` : ''} · pasaje {pesos(s.pasaje)}
-        {s.pasajeADevolver > 0 ? ` · devolverle ${pesos(s.pasajeADevolver)}` : ''}
+        {s.pasajeADevolver > 0
+          ? s.pasajeEnPago === false ? ` · devolverle ${pesos(s.pasajeADevolver)} a mano` : ` · ${pesos(s.pasajeADevolver)} de pasaje van en su pago`
+          : ''}
         {s.incidentes ? ' · ' + s.incidentes : ''}{s.nota ? ' · “' + s.nota + '”' : ''}
       </small>
     </div>

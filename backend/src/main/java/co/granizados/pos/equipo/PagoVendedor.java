@@ -48,6 +48,8 @@ public class PagoVendedor {
     /** Lo que se le descontó por préstamos (adelantos) y por faltantes de su carga. */
     private long prestamos;
     private long faltantes;
+    /** Lo que se le devolvió de pasajes de la calle (ya está sumado en lo que se le debía). */
+    private long pasajes;
     /** Los pagos nuevos restan de Mi plata: el efectivo sale de `lugarEfectivo` (caja o casa) y el resto, de Nequi. */
     private boolean muevePlata;
     @Enumerated(EnumType.STRING)
@@ -120,6 +122,12 @@ public class PagoVendedor {
         return this;
     }
 
+    public PagoVendedor conPasajes(long pasajes) {
+        this.pasajes = pasajes;
+        return this;
+    }
+
+    public long getPasajes() { return pasajes; }
     public long getPrestamos() { return prestamos; }
     public long getFaltantes() { return faltantes; }
     public boolean isMuevePlata() { return muevePlata; }

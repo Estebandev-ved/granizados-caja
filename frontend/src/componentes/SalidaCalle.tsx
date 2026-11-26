@@ -98,7 +98,7 @@ export function SalidaCalle({ calle, salida, trabajador, avisar, onEmpezar, onTe
                 ? 'Fue muy corta para decir si el lugar sirve.'
                 : `${TEXTO_VEREDICTO[resumen.veredicto]}: a este ritmo son ${resumen.ritmo4h} granizados en 4 horas.`}
             </p>
-            {resumen.pasajeADevolver > 0 && <p>Se te devuelve el pasaje: <b>{pesos(resumen.pasajeADevolver)}</b>.</p>}
+            {resumen.pasajeADevolver > 0 && <p>Se te devuelve el pasaje: <b>{pesos(resumen.pasajeADevolver)}</b>, con tu pago.</p>}
             <button className="big primario" onClick={() => setResumen(null)}>Listo</button>
           </div>
         )}
@@ -176,7 +176,7 @@ function TerminarSalida({ salida, calle, trabajador, onTerminar }: {
       <div className="campo">
         <label htmlFor="pasaje">¿Cuánto gastaste en pasajes (ida y vuelta)?</label>
         <CampoNumero id="pasaje" miles autoFocus value={pasaje} onCambio={setPasaje} placeholder="Ej. 7.800" />
-        {devuelven && <small className="mut">Como {salida.prueba ? 'fue una salida de prueba' : 'vendiste menos de ' + calle.minimoPasaje}, se te devuelve el pasaje.</small>}
+        {devuelven && <small className="mut">Como {salida.prueba ? 'fue una salida de prueba' : 'vendiste menos de ' + calle.minimoPasaje}, se te devuelve el pasaje con tu pago.</small>}
       </div>
       <div className="campo">
         <label>¿Pasó algo?</label>
